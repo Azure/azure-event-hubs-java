@@ -1,9 +1,7 @@
 package com.microsoft.azure.eventhubs.lib;
 
 import static org.junit.Assert.*;
-
 import java.util.*;
-
 import com.microsoft.azure.servicebus.*;
 
 /**
@@ -17,12 +15,16 @@ public abstract class TestBase
 		
 	public static TestEventHubInfo checkoutTestEventHub() {
 		HashMap sasRule = new HashMap<String, String>();
-		sasRule.put(TestBase.SasRuleName, "-------SasKEY--------");
+		sasRule.put(TestBase.SasRuleName, "***REMOVED***");
 		return new TestEventHubInfo("gojavago", "firstehub-ns", null, sasRule);
 	}
 	
 	public static ConnectionStringBuilder getConnectionString(TestEventHubInfo eventHubInfo) {
 		Map.Entry<String, String> sasRule = eventHubInfo.getSasRule();
 		return new ConnectionStringBuilder(eventHubInfo.getNamespaceName(), eventHubInfo.getName(), sasRule.getKey(), sasRule.getValue());
+	}
+
+	public static void checkinTestEventHub(String name) {
+		// TODO: Implement Checkin-Checkout functionality	
 	}
 }
