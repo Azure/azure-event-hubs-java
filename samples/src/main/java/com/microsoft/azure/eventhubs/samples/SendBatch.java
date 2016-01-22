@@ -15,8 +15,7 @@ public class SendBatch
 	public static void main(String[] args) 
 			throws ServiceBusException, ExecutionException, InterruptedException, IOException
 	{
-		ConnectionStringBuilder connStr = new ConnectionStringBuilder("firstehub-ns", "gojavago", "RootManageSharedAccessKey", "***REMOVED***");
-		// ConnectionStringBuilder connStr = new ConnectionStringBuilder("----namespaceName-----", "----EventHubName-----", "-----sayKeyName-----", "---SasKey----");
+		ConnectionStringBuilder connStr = new ConnectionStringBuilder("----namespaceName-----", "----EventHubName-----", "-----sayKeyName-----", "---SasKey----");
 		
 		Gson gson = new GsonBuilder().create();
 		
