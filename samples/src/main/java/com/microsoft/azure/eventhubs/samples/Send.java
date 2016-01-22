@@ -2,6 +2,7 @@ package com.microsoft.azure.eventhubs.samples;
 
 import java.io.IOException;
 import java.nio.charset.*;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
@@ -15,7 +16,12 @@ public class Send
 	public static void main(String[] args) 
 			throws ServiceBusException, ExecutionException, InterruptedException, IOException
 	{
-		ConnectionStringBuilder connStr = new ConnectionStringBuilder("----namespaceName-----", "----EventHubName-----", "-----sayKeyName-----", "---SasKey----");
+		String username = "RootManageSharedAccessKey";
+		String password = "***REMOVED***";
+		String namespaceName = "firstehub-ns";
+		
+		ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, "gojavago", username, password);
+		// ConnectionStringBuilder connStr = new ConnectionStringBuilder("----namespaceName-----", "----EventHubName-----", "-----sayKeyName-----", "---SasKey----");
 		
 		Gson gson = new GsonBuilder().create();
 		
@@ -36,8 +42,14 @@ public class Send
 		PartitionSender sender = ehClient.createPartitionSender("0").get();
 		sender.send(sendEvent).get();
 		
-		System.out.println("Send Complete...");
+		System.out.println(Instant.now() + ": Send Complete...");
 		System.in.read();
+		
+		while(true){
+		sender.send(sendEvent).get();
+		
+		System.out.println(Instant.now() + ": re-Send Complete...");
+		System.in.read();}
 	}
 
 	/**
