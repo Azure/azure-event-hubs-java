@@ -33,6 +33,7 @@ import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
 import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
+import com.microsoft.azure.servicebus.amqp.SessionHandler;
 
 /**
  * Abstracts all amqp related details and exposes AmqpConnection object
@@ -139,7 +140,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	}
 
 	@Override
-	public Session getSession(final String sessionId)
+	public Session getSession(final String path, final String sessionId, final Consumer<Session> onRemoteSessionOpen)
 	{
 		final Session session;
 		if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED)
@@ -169,8 +170,25 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				session = this.connection.session();
 			}
 		}
-
+                
 		session.open();
+                BaseHandler.setHandler(session, new SessionHandler(path, sessionId)
+                {
+                    @Override
+                    public void onSessionRemoteOpen(Event e) 
+                    {
+                        super.onSessionRemoteOpen(e);
+                        onRemoteSessionOpen.accept(e.getSession());
+                    }
+                    
+                    @Override 
+                    public void onSessionLocalClose(Event e)
+                    {
+                        super.onSessionLocalClose(e);
+                        MessagingFactory.this.sessionCache.remove(this.getSessionId());
+                    }
+                });
+                
 		return session;
         }
 

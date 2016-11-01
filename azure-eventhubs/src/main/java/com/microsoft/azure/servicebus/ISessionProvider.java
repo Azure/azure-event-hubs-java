@@ -4,9 +4,10 @@
  */
 package com.microsoft.azure.servicebus;
 
+import java.util.function.Consumer;
 import org.apache.qpid.proton.engine.Session;
 
 interface ISessionProvider
 {
-	Session getSession(final String sessionId);
+	Session getSession(final String path, final String sessionId, final Consumer<Session> onSessionOpen);
 }

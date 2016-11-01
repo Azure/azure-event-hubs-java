@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Locale;
@@ -48,7 +49,6 @@ import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpSender;
 import com.microsoft.azure.servicebus.amqp.SendLinkHandler;
-import com.microsoft.azure.servicebus.amqp.SessionHandler;
 
 /**
  * Abstracts all amqp related details
@@ -597,37 +597,43 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private void createSendLink()
 	{
-		final Session session = this.underlyingFactory.getSession(null);
-		BaseHandler.setHandler(session, new SessionHandler(sendPath));
+            	Consumer<Session> onRemoteSessionOpen = new Consumer<Session>()
+                {
+                    @Override
+                    public void accept(Session session) 
+                    {
+                        final String sendLinkNamePrefix = StringUtil.getRandomString();
+                        final String sendLinkName = !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ?
+                                        sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
+                                        sendLinkNamePrefix;
 
-		final String sendLinkNamePrefix = StringUtil.getRandomString();
-		final String sendLinkName = !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ?
-				sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
-				sendLinkNamePrefix;
-		
-		final Sender sender = session.sender(sendLinkName);
-		final Target target = new Target();
-		target.setAddress(sendPath);
-		sender.setTarget(target);
+                        final Sender sender = session.sender(sendLinkName);
+                        final Target target = new Target();
+                        target.setAddress(sendPath);
+                        sender.setTarget(target);
 
-		final Source source = new Source();
-		sender.setSource(source);
+                        final Source source = new Source();
+                        sender.setSource(source);
 
-		sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
+                        sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
 
-		SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
-		BaseHandler.setHandler(sender, handler);
+                        SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
+                        BaseHandler.setHandler(sender, handler);
 
-		this.underlyingFactory.registerForConnectionError(sender);
-		sender.open();
-		
-		if (this.sendLink != null)
-		{
-			final Sender oldSender = this.sendLink;
-			this.underlyingFactory.deregisterForConnectionError(oldSender);
-		}
-		
-		this.sendLink = sender;	
+                        MessageSender.this.underlyingFactory.registerForConnectionError(sender);
+                        sender.open();
+
+                        if (MessageSender.this.sendLink != null)
+                        {
+                                final Sender oldSender = MessageSender.this.sendLink;
+                                MessageSender.this.underlyingFactory.deregisterForConnectionError(oldSender);
+                        }
+
+                        MessageSender.this.sendLink = sender;	
+                    }
+                };		
+                
+                this.underlyingFactory.getSession(MessageSender.this.sendPath, StringUtil.getRandomString(), onRemoteSessionOpen);
 	}
 
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver

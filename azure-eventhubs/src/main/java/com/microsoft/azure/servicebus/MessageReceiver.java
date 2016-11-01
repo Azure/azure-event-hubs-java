@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collection;
+import java.util.function.Consumer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -35,7 +36,6 @@ import org.apache.qpid.proton.message.Message;
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpReceiver;
 import com.microsoft.azure.servicebus.amqp.ReceiveLinkHandler;
-import com.microsoft.azure.servicebus.amqp.SessionHandler;
 
 /**
  * Common Receiver that abstracts all amqp related details
@@ -436,15 +436,18 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
 	private void createReceiveLink()
 	{	
-		Source source = new Source();
+            final Consumer<Session> onRemoteSessionOpen = new Consumer<Session>()
+            {
+                @Override
+                public void accept(Session session)
+                {
+                    Source source = new Source();
 		source.setAddress(receivePath);
 
-		final Map<Symbol, UnknownDescribedType> filterMap = this.settingsProvider.getFilter(this.lastReceivedMessage);
+		final Map<Symbol, UnknownDescribedType> filterMap = MessageReceiver.this.settingsProvider.getFilter(MessageReceiver.this.lastReceivedMessage);
                 if (filterMap != null)
                     source.setFilter(filterMap);
 
-		final Session session = this.underlyingFactory.getSession(null);
-		BaseHandler.setHandler(session, new SessionHandler(this.receivePath));
 
 		final String receiveLinkNamePrefix = StringUtil.getRandomString();
 		final String receiveLinkName = session.getConnection() != null && !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ? 
@@ -458,24 +461,28 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		receiver.setSenderSettleMode(SenderSettleMode.UNSETTLED);
 		receiver.setReceiverSettleMode(ReceiverSettleMode.SECOND);
 
-		final Map<Symbol, Object> linkProperties = this.settingsProvider.getProperties();
+		final Map<Symbol, Object> linkProperties = MessageReceiver.this.settingsProvider.getProperties();
                 if (linkProperties != null)
                     receiver.setProperties(linkProperties);
                 
-                final ReceiveLinkHandler handler = new ReceiveLinkHandler(this);
+                final ReceiveLinkHandler handler = new ReceiveLinkHandler(MessageReceiver.this);
 		BaseHandler.setHandler(receiver, handler);
-		this.underlyingFactory.registerForConnectionError(receiver);
+		MessageReceiver.this.underlyingFactory.registerForConnectionError(receiver);
 
 		receiver.open();
 
-		if (this.receiveLink != null)
+		if (MessageReceiver.this.receiveLink != null)
 		{
-			final Receiver oldReceiver = this.receiveLink;
-			this.underlyingFactory.deregisterForConnectionError(oldReceiver);
+			final Receiver oldReceiver = MessageReceiver.this.receiveLink;
+			MessageReceiver.this.underlyingFactory.deregisterForConnectionError(oldReceiver);
 		}
 
-		this.receiveLink = receiver;
-	}
+		MessageReceiver.this.receiveLink = receiver;
+                }
+            };
+		
+            this.underlyingFactory.getSession(this.receivePath, StringUtil.getRandomString(), onRemoteSessionOpen);
+        }
 
 	// CONTRACT: message should be delivered to the caller of MessageReceiver.receive() only via Poll on prefetchqueue
 	private Message pollPrefetchQueue()
