@@ -61,6 +61,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private final MessagingFactory underlyingFactory;
 	private final String sendPath;
+        private final String sessionId;
 	private final Duration operationTimeout;
 	private final RetryPolicy retryPolicy;
 	private final CompletableFuture<Void> linkClose;
@@ -76,12 +77,21 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private Exception lastKnownLinkError;
 	private Instant lastKnownErrorReportedAt;
 
-	public static CompletableFuture<MessageSender> create(
+        public static CompletableFuture<MessageSender> create(
 			final MessagingFactory factory,
 			final String sendLinkName,
 			final String senderPath)
 	{
-		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath);
+            return MessageSender.create(factory, sendLinkName, senderPath, null);
+        }
+        
+	public static CompletableFuture<MessageSender> create(
+			final MessagingFactory factory,
+			final String sendLinkName,
+			final String senderPath,
+                        final String sessionId)
+	{
+		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath, sessionId);
 		msgSender.openLinkTracker = TimeoutTracker.create(factory.getOperationTimeout());
 		msgSender.initializeLinkOpen(msgSender.openLinkTracker);
 		
@@ -104,13 +114,14 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		return msgSender.linkFirstOpen;
 	}
 
-	private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath)
+	private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath, final String sessionId)
 	{
 		super(sendLinkName, factory);
 
 		this.sendPath = senderPath;
 		this.underlyingFactory = factory;
 		this.operationTimeout = factory.getOperationTimeout();
+                this.sessionId = sessionId;
 		
 		this.lastKnownLinkError = null;
 		this.lastKnownErrorReportedAt = Instant.EPOCH;
@@ -633,7 +644,10 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                     }
                 };		
                 
-                this.underlyingFactory.getSession(MessageSender.this.sendPath, StringUtil.getRandomString(), onRemoteSessionOpen);
+                this.underlyingFactory.getSession(
+                        this.sendPath,
+                        this.sessionId == null ? StringUtil.getRandomString() : this.sessionId,
+                        onRemoteSessionOpen);
 	}
 
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver

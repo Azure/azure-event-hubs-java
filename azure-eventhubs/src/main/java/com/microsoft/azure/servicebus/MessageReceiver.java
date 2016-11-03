@@ -54,6 +54,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	private final CompletableFuture<Void> linkClose;
 	private final Object prefetchCountSync;
 	private final IReceiverSettingsProvider settingsProvider;
+        private final String sessionId;
 
 	private int prefetchCount;
         private ConcurrentLinkedQueue<Message> prefetchedMessages;
@@ -68,7 +69,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final String name, 
 			final String recvPath,
 			final int prefetchCount,
-			final IReceiverSettingsProvider settingsProvider)
+			final IReceiverSettingsProvider settingsProvider,
+                        final String sessionId)
 	{
 		super(name, factory);
 
@@ -82,6 +84,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		this.receiveTimeout = factory.getOperationTimeout();
 		this.prefetchCountSync = new Object();
                 this.settingsProvider = settingsProvider;
+                this.sessionId = sessionId;
 		
 		this.pendingReceives = new ConcurrentLinkedQueue<ReceiveWorkItem>();
 
@@ -135,6 +138,16 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			}
 		};
 	}
+        
+        public static CompletableFuture<MessageReceiver> create(
+			final MessagingFactory factory, 
+			final String name, 
+			final String recvPath,
+			final int prefetchCount,
+			final IReceiverSettingsProvider settingsProvider)
+	{
+            return MessageReceiver.create(factory, name, recvPath, prefetchCount, settingsProvider, null);
+        }
 
 	// @param connection Connection on which the MessageReceiver's receive Amqp link need to be created on.
 	// Connection has to be associated with Reactor before Creating a receiver on it.
@@ -143,9 +156,10 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final String name, 
 			final String recvPath,
 			final int prefetchCount,
-			final IReceiverSettingsProvider settingsProvider)
+			final IReceiverSettingsProvider settingsProvider,
+                        final String sessionId)
 	{
-		MessageReceiver msgReceiver = new MessageReceiver(factory, name, recvPath, prefetchCount, settingsProvider);
+		MessageReceiver msgReceiver = new MessageReceiver(factory, name, recvPath, prefetchCount, settingsProvider, sessionId);
 		return msgReceiver.createLink();
 	}
         
@@ -481,7 +495,10 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                 }
             };
 		
-            this.underlyingFactory.getSession(this.receivePath, StringUtil.getRandomString(), onRemoteSessionOpen);
+            this.underlyingFactory.getSession(
+                    this.receivePath,
+                    this.sessionId != null ? StringUtil.getRandomString() : this.sessionId,
+                    onRemoteSessionOpen);
         }
 
 	// CONTRACT: message should be delivered to the caller of MessageReceiver.receive() only via Poll on prefetchqueue
