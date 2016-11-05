@@ -55,6 +55,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	private final Object prefetchCountSync;
 	private final IReceiverSettingsProvider settingsProvider;
         private final String sessionId;
+        private final String targetPath;
+        private final SenderSettleMode serviceSettleMode;
 
 	private int prefetchCount;
         private ConcurrentLinkedQueue<Message> prefetchedMessages;
@@ -70,7 +72,9 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final String recvPath,
 			final int prefetchCount,
 			final IReceiverSettingsProvider settingsProvider,
-                        final String sessionId)
+                        final String sessionId,
+                        final String receiveLinkTargetPath,
+                        final SenderSettleMode serviceSettleMode)
 	{
 		super(name, factory);
 
@@ -85,6 +89,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		this.prefetchCountSync = new Object();
                 this.settingsProvider = settingsProvider;
                 this.sessionId = sessionId;
+                this.targetPath = receiveLinkTargetPath;
+                this.serviceSettleMode = serviceSettleMode;
 		
 		this.pendingReceives = new ConcurrentLinkedQueue<ReceiveWorkItem>();
 
@@ -146,7 +152,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final int prefetchCount,
 			final IReceiverSettingsProvider settingsProvider)
 	{
-            return MessageReceiver.create(factory, name, recvPath, prefetchCount, settingsProvider, null);
+            return MessageReceiver.create(factory, name, recvPath, prefetchCount, settingsProvider, null, null, SenderSettleMode.UNSETTLED);
         }
 
 	// @param connection Connection on which the MessageReceiver's receive Amqp link need to be created on.
@@ -157,9 +163,11 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final String recvPath,
 			final int prefetchCount,
 			final IReceiverSettingsProvider settingsProvider,
-                        final String sessionId)
+                        final String sessionId,
+                        final String receiveLinkTargetPath,
+                        final SenderSettleMode serviceSettleMode)
 	{
-		MessageReceiver msgReceiver = new MessageReceiver(factory, name, recvPath, prefetchCount, settingsProvider, sessionId);
+		MessageReceiver msgReceiver = new MessageReceiver(factory, name, recvPath, prefetchCount, settingsProvider, sessionId, receiveLinkTargetPath, serviceSettleMode);
 		return msgReceiver.createLink();
 	}
         
@@ -352,7 +360,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		
 		message = Proton.message();
 		message.decode(buffer, 0, read);
-		
+                
 		delivery.settle();
 
 		this.prefetchedMessages.add(message);
@@ -456,48 +464,53 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                 public void accept(Session session)
                 {
                     Source source = new Source();
-		source.setAddress(receivePath);
+                    source.setAddress(receivePath);
 
-		final Map<Symbol, UnknownDescribedType> filterMap = MessageReceiver.this.settingsProvider.getFilter(MessageReceiver.this.lastReceivedMessage);
-                if (filterMap != null)
-                    source.setFilter(filterMap);
+                    final Map<Symbol, UnknownDescribedType> filterMap = MessageReceiver.this.settingsProvider.getFilter(MessageReceiver.this.lastReceivedMessage);
+                    if (filterMap != null)
+                        source.setFilter(filterMap);
 
 
-		final String receiveLinkNamePrefix = StringUtil.getRandomString();
-		final String receiveLinkName = session.getConnection() != null && !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ? 
-				receiveLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
-				receiveLinkNamePrefix;
-		final Receiver receiver = session.receiver(receiveLinkName);
-		receiver.setSource(source);
-		receiver.setTarget(new Target());
+                    final String receiveLinkNamePrefix = StringUtil.getRandomString();
+                    final String receiveLinkName = session.getConnection() != null && !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ? 
+                                    receiveLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
+                                    receiveLinkNamePrefix;
+                    final Receiver receiver = session.receiver(receiveLinkName);
+                    receiver.setSource(source);
+                    
+                    Target target = new Target();
+                    if (targetPath != null)
+                        target.setAddress(targetPath);
+                    
+                    receiver.setTarget(target);
 
-		// use explicit settlement via dispositions (not pre-settled)
-		receiver.setSenderSettleMode(SenderSettleMode.UNSETTLED);
-		receiver.setReceiverSettleMode(ReceiverSettleMode.SECOND);
+                    // use explicit settlement via dispositions (not pre-settled)
+                    receiver.setSenderSettleMode(serviceSettleMode);
+                    receiver.setReceiverSettleMode(ReceiverSettleMode.SECOND);
 
-		final Map<Symbol, Object> linkProperties = MessageReceiver.this.settingsProvider.getProperties();
-                if (linkProperties != null)
-                    receiver.setProperties(linkProperties);
-                
-                final ReceiveLinkHandler handler = new ReceiveLinkHandler(MessageReceiver.this);
-		BaseHandler.setHandler(receiver, handler);
-		MessageReceiver.this.underlyingFactory.registerForConnectionError(receiver);
+                    final Map<Symbol, Object> linkProperties = MessageReceiver.this.settingsProvider.getProperties();
+                    if (linkProperties != null)
+                        receiver.setProperties(linkProperties);
 
-		receiver.open();
+                    final ReceiveLinkHandler handler = new ReceiveLinkHandler(MessageReceiver.this);
+                    BaseHandler.setHandler(receiver, handler);
+                    MessageReceiver.this.underlyingFactory.registerForConnectionError(receiver);
 
-		if (MessageReceiver.this.receiveLink != null)
-		{
-			final Receiver oldReceiver = MessageReceiver.this.receiveLink;
-			MessageReceiver.this.underlyingFactory.deregisterForConnectionError(oldReceiver);
-		}
+                    receiver.open();
 
-		MessageReceiver.this.receiveLink = receiver;
+                    if (MessageReceiver.this.receiveLink != null)
+                    {
+                            final Receiver oldReceiver = MessageReceiver.this.receiveLink;
+                            MessageReceiver.this.underlyingFactory.deregisterForConnectionError(oldReceiver);
+                    }
+
+                    MessageReceiver.this.receiveLink = receiver;
                 }
             };
 		
             this.underlyingFactory.getSession(
                     this.receivePath,
-                    this.sessionId != null ? StringUtil.getRandomString() : this.sessionId,
+                    this.sessionId == null ? StringUtil.getRandomString() : this.sessionId,
                     onRemoteSessionOpen);
         }
 

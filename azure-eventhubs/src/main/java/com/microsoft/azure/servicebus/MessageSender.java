@@ -528,6 +528,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			{
 				Rejected rejected = (Rejected) outcome;
 				ErrorCondition error = rejected.getError();
+                                
 				Exception exception = ExceptionUtil.toException(error);
 
 				if (ExceptionUtil.isGeneralSendError(error.getCondition()))

@@ -18,6 +18,8 @@ import java.util.function.Function;
 
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.UnknownDescribedType;
+import org.apache.qpid.proton.amqp.UnsignedLong;
+import org.apache.qpid.proton.amqp.transport.SenderSettleMode;
 import org.apache.qpid.proton.message.Message;
 
 public final class RequestResponseLink extends ClientEntity
@@ -30,6 +32,7 @@ public final class RequestResponseLink extends ClientEntity
     final ConcurrentHashMap<Object, CompletableFuture<Message>> inflightRequests;
     final Duration operationTimeout;
     final ReceiveComplete onReceiveComplete;
+    final String replyTo;
 
     MessageSender sender;
     MessageReceiver receiver;
@@ -50,6 +53,7 @@ public final class RequestResponseLink extends ClientEntity
         this.inflightRequests = new ConcurrentHashMap<>();
         this.operationTimeout = messagingFactory.getOperationTimeout();
         this.onReceiveComplete = new ReceiveComplete();
+        this.replyTo = path.replace("$", "") + "-client-reply-to";
     }
     
     public static CompletableFuture<RequestResponseLink> create(
@@ -68,25 +72,27 @@ public final class RequestResponseLink extends ClientEntity
                     {
                         requestResponseLink.sender = sender;
                         return MessageReceiver.create(
-                                factory, 
-                                name + ":receiver", 
-                                path, 
-                                RECEIVER_PREFETCH, 
-                                new IReceiverSettingsProvider()
+                            factory, 
+                            name + ":receiver", 
+                            path, 
+                            RECEIVER_PREFETCH, 
+                            new IReceiverSettingsProvider()
+                            {
+                                @Override
+                                public Map<Symbol, UnknownDescribedType> getFilter(Message lastReceivedMessage)
                                 {
-                                    @Override
-                                    public Map<Symbol, UnknownDescribedType> getFilter(Message lastReceivedMessage)
-                                    {
-                                        return null;
-                                    }
+                                    return null;
+                                }
 
-                                    @Override
-                                    public Map<Symbol, Object> getProperties()
-                                    {
-                                        return null;
-                                    }
-                                },
-                                sessionId);
+                                @Override
+                                public Map<Symbol, Object> getProperties()
+                                {
+                                    return null;
+                                }
+                            },
+                            sessionId,
+                            requestResponseLink.replyTo,
+                            SenderSettleMode.SETTLED);
                     }
                 })
             .thenComposeAsync(new Function<MessageReceiver, CompletionStage<RequestResponseLink>>()
@@ -108,9 +114,13 @@ public final class RequestResponseLink extends ClientEntity
 
         if (message.getMessageId() != null)
             throw new IllegalArgumentException("message.getMessageId() should be null");
-
-        message.setMessageId(this.requestId.incrementAndGet());
         
+        if (message.getReplyTo() != null)
+            throw new IllegalArgumentException("message.getReplyTo() should be null");
+        
+        message.setMessageId("request" + UnsignedLong.valueOf(this.requestId.incrementAndGet()).toString());
+        message.setReplyTo(this.replyTo);
+
         CompletableFuture<Message> request = new CompletableFuture<>();
         
         this.inflightRequests.put(message.getMessageId(), request);
@@ -144,9 +154,9 @@ public final class RequestResponseLink extends ClientEntity
             {
                 for (Message message: messages)
                 {
-                    CompletableFuture<Message> inflightRequest = inflightRequests.remove(message.getMessageId());
+                    final CompletableFuture<Message> inflightRequest = inflightRequests.remove(message.getCorrelationId());
 
-                    if (inflightRequest != null)
+                    if (inflightRequest != null && !inflightRequest.isDone())
                         inflightRequest.complete(message);
                 }
             }

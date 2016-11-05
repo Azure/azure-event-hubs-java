@@ -142,19 +142,20 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	@Override
 	public Session getSession(final String path, final String sessionId, final Consumer<Session> onRemoteSessionOpen)
 	{
+                if (StringUtil.isNullOrEmpty(sessionId))
+                    throw new IllegalArgumentException("sessionId cannot be empty");
+                
 		final Session session;
 		if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED)
 		{
 			this.connection = this.getReactor().connectionToHost(this.hostName, ClientConstants.AMQPS_PORT, this.connectionHandler);
 			
 			session = this.connection.session();
-
-			if (!StringUtil.isNullOrEmpty(sessionId))
-				sessionCache.put(sessionId, session);
+			sessionCache.put(sessionId, session);
 		}
 		else
 		{
-			if (!StringUtil.isNullOrEmpty(sessionId) && this.sessionCache.containsKey(sessionId))
+			if (this.sessionCache.containsKey(sessionId))
 			{
 				final Session oldSession = this.sessionCache.get(sessionId);
 				if (oldSession.getLocalState() != EndpointState.CLOSED && oldSession.getRemoteState() != EndpointState.CLOSED)
