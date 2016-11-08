@@ -5,6 +5,7 @@
 package com.microsoft.azure.eventhubs;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.Date;
 import java.util.function.Function;
 import java.util.HashMap;
 import java.util.Map;
@@ -19,8 +20,7 @@ import com.microsoft.azure.servicebus.MessagingFactory;
 import com.microsoft.azure.servicebus.RequestResponseLink;
 import com.microsoft.azure.servicebus.amqp.AmqpException;
 import com.microsoft.azure.servicebus.amqp.AmqpManagementResponseCode;
-import java.time.Instant;
-import java.util.Date;
+
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.AmqpValue;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;

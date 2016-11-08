@@ -74,7 +74,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final IReceiverSettingsProvider settingsProvider,
                         final String sessionId,
                         final String receiveLinkTargetPath,
-                        final SenderSettleMode serviceSettleMode)
+                        final SenderSettleMode serviceSettleMode,
+                        final Duration openTimeout)
 	{
 		super(name, factory);
 
@@ -91,8 +92,11 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                 this.sessionId = sessionId;
                 this.targetPath = receiveLinkTargetPath;
                 this.serviceSettleMode = serviceSettleMode;
+                this.linkOpen = new WorkItem<>(
+                        new CompletableFuture<>(),
+                        openTimeout == null ? factory.getOperationTimeout() : openTimeout);
 		
-		this.pendingReceives = new ConcurrentLinkedQueue<ReceiveWorkItem>();
+		this.pendingReceives = new ConcurrentLinkedQueue<>();
 
 		// onOperationTimeout delegate - per receive call
 		this.onOperationTimedout = new Runnable()
@@ -152,7 +156,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final int prefetchCount,
 			final IReceiverSettingsProvider settingsProvider)
 	{
-            return MessageReceiver.create(factory, name, recvPath, prefetchCount, settingsProvider, null, null, SenderSettleMode.UNSETTLED);
+            return MessageReceiver.create(factory, name, recvPath, prefetchCount, settingsProvider, null, null, SenderSettleMode.UNSETTLED, null);
         }
 
 	// @param connection Connection on which the MessageReceiver's receive Amqp link need to be created on.
@@ -165,9 +169,19 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final IReceiverSettingsProvider settingsProvider,
                         final String sessionId,
                         final String receiveLinkTargetPath,
-                        final SenderSettleMode serviceSettleMode)
+                        final SenderSettleMode serviceSettleMode,
+                        final Duration openTimeout)
 	{
-		MessageReceiver msgReceiver = new MessageReceiver(factory, name, recvPath, prefetchCount, settingsProvider, sessionId, receiveLinkTargetPath, serviceSettleMode);
+		MessageReceiver msgReceiver = new MessageReceiver(
+                        factory,
+                        name,
+                        recvPath,
+                        prefetchCount,
+                        settingsProvider,
+                        sessionId,
+                        receiveLinkTargetPath,
+                        serviceSettleMode,
+                        openTimeout);
 		return msgReceiver.createLink();
 	}
         
@@ -178,7 +192,6 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
 	private CompletableFuture<MessageReceiver> createLink()
 	{
-		this.linkOpen = new WorkItem<MessageReceiver>(new CompletableFuture<MessageReceiver>(), this.operationTimeout);
 		this.scheduleLinkOpenTimeout(this.linkOpen.getTimeoutTracker());
 		try
 		{

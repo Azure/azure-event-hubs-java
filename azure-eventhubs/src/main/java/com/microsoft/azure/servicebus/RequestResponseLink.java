@@ -64,6 +64,8 @@ public final class RequestResponseLink extends ClientEntity
         RequestResponseLink requestResponseLink = new RequestResponseLink(factory, name, path, factory);
         
         final String sessionId = StringUtil.getRandomString();
+        final TimeoutTracker tracker = new TimeoutTracker(factory.getOperationTimeout(), true);
+
         return MessageSender.create(factory, name + ":sender", path, sessionId)
             .thenComposeAsync(new Function<MessageSender, CompletionStage<MessageReceiver>>()
                 {
@@ -92,7 +94,8 @@ public final class RequestResponseLink extends ClientEntity
                             },
                             sessionId,
                             requestResponseLink.replyTo,
-                            SenderSettleMode.SETTLED);
+                            SenderSettleMode.SETTLED,
+                            tracker.remaining());
                     }
                 })
             .thenComposeAsync(new Function<MessageReceiver, CompletionStage<RequestResponseLink>>()
