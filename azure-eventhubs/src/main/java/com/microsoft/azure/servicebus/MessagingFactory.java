@@ -145,13 +145,12 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                 if (StringUtil.isNullOrEmpty(sessionId))
                     throw new IllegalArgumentException("sessionId cannot be empty");
                 
-		final Session session;
+                boolean createSession = false;
+		Session session = null;
 		if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED)
 		{
 			this.connection = this.getReactor().connectionToHost(this.hostName, ClientConstants.AMQPS_PORT, this.connectionHandler);
-			
-			session = this.connection.session();
-			sessionCache.put(sessionId, session);
+			createSession = true;
 		}
 		else
 		{
@@ -161,35 +160,43 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				if (oldSession.getLocalState() != EndpointState.CLOSED && oldSession.getRemoteState() != EndpointState.CLOSED)
 					session = oldSession;
 				else
-				{
-					session = this.connection.session();
-					sessionCache.put(sessionId, session);
-				}
+					createSession = true;
 			}
 			else
 			{
-				session = this.connection.session();
+                                createSession = true;
 			}
 		}
                 
-		session.open();
-                BaseHandler.setHandler(session, new SessionHandler(path, sessionId)
+                if (createSession)
                 {
-                    @Override
-                    public void onSessionRemoteOpen(Event e) 
-                    {
-                        super.onSessionRemoteOpen(e);
-                        onRemoteSessionOpen.accept(e.getSession());
-                    }
-                    
-                    @Override 
-                    public void onSessionLocalClose(Event e)
-                    {
-                        super.onSessionLocalClose(e);
-                        MessagingFactory.this.sessionCache.remove(this.getSessionId());
-                    }
-                });
-                
+                        session = this.connection.session();
+                        sessionCache.put(sessionId, session);
+
+                        BaseHandler.setHandler(session, new SessionHandler(path, sessionId)
+                        {
+                            @Override
+                            public void onSessionRemoteOpen(Event e) 
+                            {
+                                super.onSessionRemoteOpen(e);
+                                onRemoteSessionOpen.accept(e.getSession());
+                            }
+
+                            @Override 
+                            public void onSessionLocalClose(Event e)
+                            {
+                                super.onSessionLocalClose(e);
+                                MessagingFactory.this.sessionCache.remove(this.getSessionId());
+                            }
+                        });
+
+                        session.open();
+                }
+                else
+                {
+                    onRemoteSessionOpen.accept(session);
+                }
+
 		return session;
         }
 
