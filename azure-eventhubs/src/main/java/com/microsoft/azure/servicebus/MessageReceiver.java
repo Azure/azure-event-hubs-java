@@ -659,19 +659,33 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	@Override
 	protected CompletableFuture<Void> onClose()
 	{
-		if (!this.getIsClosed())
-		{
-			if (this.receiveLink != null && this.receiveLink.getLocalState() != EndpointState.CLOSED)
-			{
-				this.receiveLink.close();
-				this.scheduleLinkCloseTimeout(TimeoutTracker.create(this.operationTimeout));
-			}
-			else if (this.receiveLink == null || this.receiveLink.getRemoteState() == EndpointState.CLOSED)
-			{
-				this.linkClose.complete(null);
-			}
-		}
+            if (!this.getIsClosed())
+            {
+                try
+                {
+                    this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
+                        {
+                            @Override
+                            public void onEvent()
+                            {                                    
+                                if (receiveLink != null && receiveLink.getLocalState() != EndpointState.CLOSED)
+                                {
+                                    receiveLink.close();
+                                    scheduleLinkCloseTimeout(TimeoutTracker.create(operationTimeout));
+                                }
+                                else if (receiveLink == null || receiveLink.getRemoteState() == EndpointState.CLOSED)
+                                {
+                                    linkClose.complete(null);
+                                }
+                            }
+                        });
+                }
+                catch(IOException ioException)
+                {
+                    this.linkClose.completeExceptionally(new ServiceBusException(false, "Scheduling close failed with error. See cause for more details.", ioException));
+                }
+            }
 
-		return this.linkClose;
+            return this.linkClose;
 	}
 }

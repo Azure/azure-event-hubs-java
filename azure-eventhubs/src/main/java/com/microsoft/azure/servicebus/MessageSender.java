@@ -885,21 +885,36 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	@Override
 	protected CompletableFuture<Void> onClose()
-	{
-		if (!this.getIsClosed())
-		{
-			if (this.sendLink != null && this.sendLink.getLocalState() != EndpointState.CLOSED)
-			{
-				this.sendLink.close();
-				this.scheduleLinkCloseTimeout(TimeoutTracker.create(this.operationTimeout));
-			}
-			else if (this.sendLink == null || this.sendLink.getRemoteState() == EndpointState.CLOSED)
-			{
-				this.linkClose.complete(null);
-			}
-		}
-
-		return this.linkClose;
+	{           
+            if (!this.getIsClosed())
+            {
+                try
+                {
+                    this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
+                        {
+                            @Override
+                            public void onEvent()
+                            {
+                                if (sendLink != null && sendLink.getLocalState() != EndpointState.CLOSED)
+                                {
+                                    sendLink.close();
+                                    scheduleLinkCloseTimeout(TimeoutTracker.create(operationTimeout));
+                                }
+                                else if (sendLink == null || sendLink.getRemoteState() == EndpointState.CLOSED)
+                                {
+                                    linkClose.complete(null);
+                                }
+                            }
+                        });
+                            
+                }
+                catch (IOException ioException)
+                {
+                    this.linkClose.completeExceptionally(new ServiceBusException(false, "Scheduling close failed. See cause for more details.", ioException));
+                }
+            }
+            
+            return this.linkClose;
 	}
 	
 	private static class WeightedDeliveryTag

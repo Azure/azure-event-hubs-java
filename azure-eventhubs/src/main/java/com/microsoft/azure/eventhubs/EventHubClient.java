@@ -966,7 +966,7 @@ public class EventHubClient extends ClientEntity
 		{
                     synchronized (this.senderCreateSync)
                     {
-                        return this.sender != null 
+                        final CompletableFuture<Void> internalSenderClose = this.sender != null 
                             ? this.sender.close().thenComposeAsync(new Function<Void, CompletableFuture<Void>>()
                                 {
                                     @Override
@@ -976,6 +976,17 @@ public class EventHubClient extends ClientEntity
                                     }
                                 })
                             : this.underlyingFactory.close();
+
+                        return this.managementLink != null
+                            ? this.managementLink.close().thenComposeAsync(new Function<Void, CompletableFuture<Void>>()
+                                {
+                                    @Override
+                                    public CompletableFuture<Void> apply(Void t)
+                                    {
+                                        return internalSenderClose;
+                                    }
+                                })
+                            : internalSenderClose;
                     }
 		}
 
