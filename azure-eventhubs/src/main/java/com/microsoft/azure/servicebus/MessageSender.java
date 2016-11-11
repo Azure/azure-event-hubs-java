@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
+import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Locale;
@@ -37,7 +38,6 @@ import org.apache.qpid.proton.amqp.transport.DeliveryState;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.amqp.transport.SenderSettleMode;
 import org.apache.qpid.proton.engine.BaseHandler;
-import org.apache.qpid.proton.engine.Connection;
 import org.apache.qpid.proton.engine.Delivery;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Sender;
@@ -49,7 +49,6 @@ import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpSender;
 import com.microsoft.azure.servicebus.amqp.SendLinkHandler;
-import com.microsoft.azure.servicebus.amqp.SessionHandler;
 
 /**
  * Abstracts all amqp related details
@@ -62,6 +61,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private final MessagingFactory underlyingFactory;
 	private final String sendPath;
+        private final String sessionId;
 	private final Duration operationTimeout;
 	private final RetryPolicy retryPolicy;
 	private final CompletableFuture<Void> linkClose;
@@ -77,12 +77,21 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private Exception lastKnownLinkError;
 	private Instant lastKnownErrorReportedAt;
 
-	public static CompletableFuture<MessageSender> create(
+        public static CompletableFuture<MessageSender> create(
 			final MessagingFactory factory,
 			final String sendLinkName,
 			final String senderPath)
 	{
-		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath);
+            return MessageSender.create(factory, sendLinkName, senderPath, null);
+        }
+        
+	public static CompletableFuture<MessageSender> create(
+			final MessagingFactory factory,
+			final String sendLinkName,
+			final String senderPath,
+                        final String sessionId)
+	{
+		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath, sessionId);
 		msgSender.openLinkTracker = TimeoutTracker.create(factory.getOperationTimeout());
 		msgSender.initializeLinkOpen(msgSender.openLinkTracker);
 		
@@ -105,13 +114,14 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		return msgSender.linkFirstOpen;
 	}
 
-	private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath)
+	private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath, final String sessionId)
 	{
 		super(sendLinkName, factory);
 
 		this.sendPath = senderPath;
 		this.underlyingFactory = factory;
 		this.operationTimeout = factory.getOperationTimeout();
+                this.sessionId = sessionId;
 		
 		this.lastKnownLinkError = null;
 		this.lastKnownErrorReportedAt = Instant.EPOCH;
@@ -518,6 +528,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			{
 				Rejected rejected = (Rejected) outcome;
 				ErrorCondition error = rejected.getError();
+                                
 				Exception exception = ExceptionUtil.toException(error);
 
 				if (ExceptionUtil.isGeneralSendError(error.getCondition()))
@@ -598,41 +609,46 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private void createSendLink()
 	{
-		final Connection connection = this.underlyingFactory.getConnection();
+            	Consumer<Session> onRemoteSessionOpen = new Consumer<Session>()
+                {
+                    @Override
+                    public void accept(Session session) 
+                    {
+                        final String sendLinkNamePrefix = StringUtil.getRandomString();
+                        final String sendLinkName = !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ?
+                                        sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
+                                        sendLinkNamePrefix;
 
-		final Session session = connection.session();
-		session.setOutgoingWindow(Integer.MAX_VALUE);
-		session.open();
-		BaseHandler.setHandler(session, new SessionHandler(sendPath));
+                        final Sender sender = session.sender(sendLinkName);
+                        final Target target = new Target();
+                        target.setAddress(sendPath);
+                        sender.setTarget(target);
 
-		final String sendLinkNamePrefix = StringUtil.getRandomString();
-		final String sendLinkName = !StringUtil.isNullOrEmpty(connection.getRemoteContainer()) ?
-				sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(connection.getRemoteContainer()) :
-				sendLinkNamePrefix;
-		
-		final Sender sender = session.sender(sendLinkName);
-		final Target target = new Target();
-		target.setAddress(sendPath);
-		sender.setTarget(target);
+                        final Source source = new Source();
+                        sender.setSource(source);
 
-		final Source source = new Source();
-		sender.setSource(source);
+                        sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
 
-		sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
+                        SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
+                        BaseHandler.setHandler(sender, handler);
 
-		SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
-		BaseHandler.setHandler(sender, handler);
+                        MessageSender.this.underlyingFactory.registerForConnectionError(sender);
+                        sender.open();
 
-		this.underlyingFactory.registerForConnectionError(sender);
-		sender.open();
-		
-		if (this.sendLink != null)
-		{
-			final Sender oldSender = this.sendLink;
-			this.underlyingFactory.deregisterForConnectionError(oldSender);
-		}
-		
-		MessageSender.this.sendLink = sender;	
+                        if (MessageSender.this.sendLink != null)
+                        {
+                                final Sender oldSender = MessageSender.this.sendLink;
+                                MessageSender.this.underlyingFactory.deregisterForConnectionError(oldSender);
+                        }
+
+                        MessageSender.this.sendLink = sender;	
+                    }
+                };		
+                
+                this.underlyingFactory.getSession(
+                        this.sendPath,
+                        this.sessionId == null ? StringUtil.getRandomString() : this.sessionId,
+                        onRemoteSessionOpen);
 	}
 
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver
@@ -869,21 +885,36 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	@Override
 	protected CompletableFuture<Void> onClose()
-	{
-		if (!this.getIsClosed())
-		{
-			if (this.sendLink != null && this.sendLink.getLocalState() != EndpointState.CLOSED)
-			{
-				this.sendLink.close();
-				this.scheduleLinkCloseTimeout(TimeoutTracker.create(this.operationTimeout));
-			}
-			else if (this.sendLink == null || this.sendLink.getRemoteState() == EndpointState.CLOSED)
-			{
-				this.linkClose.complete(null);
-			}
-		}
-
-		return this.linkClose;
+	{           
+            if (!this.getIsClosed())
+            {
+                try
+                {
+                    this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
+                        {
+                            @Override
+                            public void onEvent()
+                            {
+                                if (sendLink != null && sendLink.getLocalState() != EndpointState.CLOSED)
+                                {
+                                    sendLink.close();
+                                    scheduleLinkCloseTimeout(TimeoutTracker.create(operationTimeout));
+                                }
+                                else if (sendLink == null || sendLink.getRemoteState() == EndpointState.CLOSED)
+                                {
+                                    linkClose.complete(null);
+                                }
+                            }
+                        });
+                            
+                }
+                catch (IOException ioException)
+                {
+                    this.linkClose.completeExceptionally(new ServiceBusException(false, "Scheduling close failed. See cause for more details.", ioException));
+                }
+            }
+            
+            return this.linkClose;
 	}
 	
 	private static class WeightedDeliveryTag

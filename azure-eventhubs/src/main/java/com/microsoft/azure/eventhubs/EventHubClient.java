@@ -4,14 +4,24 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import java.io.*;
-import java.nio.channels.*;
-import java.time.*;
-import java.util.*;
-import java.util.concurrent.*;
-import java.util.function.*;
+import java.io.IOException;
+import java.time.Instant;
+import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
-import com.microsoft.azure.servicebus.*;
+import com.microsoft.azure.servicebus.ClientConstants;
+import com.microsoft.azure.servicebus.ClientEntity;
+import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.servicebus.IllegalEntityException;
+import com.microsoft.azure.servicebus.IteratorUtil;
+import com.microsoft.azure.servicebus.MessageSender;
+import com.microsoft.azure.servicebus.MessagingFactory;
+import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.servicebus.StringUtil;
+import java.util.concurrent.CompletionStage;
 
 /**
  * Anchor class - all EventHub client operations STARTS here.
@@ -23,11 +33,15 @@ public class EventHubClient extends ClientEntity
 
 	private final String eventHubName;
 	private final Object senderCreateSync;
+        private final Object managementLinkCreateSync;
 
 	private MessagingFactory underlyingFactory;
 	private MessageSender sender;
 	private boolean isSenderCreateStarted;
+        private boolean isManagementLinkCreated;
 	private CompletableFuture<Void> createSender;
+        private CompletableFuture<Void> createManagementLink;
+        private ManagementLink managementLink;
 
 	private EventHubClient(ConnectionStringBuilder connectionString) throws IOException, IllegalEntityException
 	{
@@ -35,6 +49,7 @@ public class EventHubClient extends ClientEntity
 
 		this.eventHubName = connectionString.getEntityPath();
 		this.senderCreateSync = new Object();
+                this.managementLinkCreateSync = new Object();
 	}
 
 	/**
@@ -919,6 +934,30 @@ public class EventHubClient extends ClientEntity
 	{
             return PartitionReceiver.create(this.underlyingFactory,  this.eventHubName, consumerGroupName, partitionId, null, false, dateTime, epoch, true);
 	}
+        
+        public final CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation() throws InterruptedException, ExecutionException
+        {
+            return this.createManagementLink().thenComposeAsync(new Function<Void, CompletableFuture<EventHubRuntimeInformation>>()
+            {
+                @Override
+                public CompletableFuture<EventHubRuntimeInformation> apply(Void t)
+                {
+                    return managementLink.getEventHubRuntimeInformation(eventHubName);
+                }
+            });            
+        }
+        
+        public final CompletableFuture<PartitionRuntimeInformation> getPartitionRuntimeInformation(final String partitionId)
+        {
+            return this.createManagementLink().thenComposeAsync(new Function<Void, CompletableFuture<PartitionRuntimeInformation>>()
+            {
+                @Override
+                public CompletableFuture<PartitionRuntimeInformation> apply(Void t)
+                {
+                    return managementLink.getPartitionRuntimeInformation(eventHubName, partitionId);
+                }
+            });
+        }
 
 	@Override
 	public CompletableFuture<Void> onClose()
@@ -927,7 +966,7 @@ public class EventHubClient extends ClientEntity
 		{
                     synchronized (this.senderCreateSync)
                     {
-                        return this.sender != null 
+                        final CompletableFuture<Void> internalSenderClose = this.sender != null 
                             ? this.sender.close().thenComposeAsync(new Function<Void, CompletableFuture<Void>>()
                                 {
                                     @Override
@@ -937,11 +976,45 @@ public class EventHubClient extends ClientEntity
                                     }
                                 })
                             : this.underlyingFactory.close();
+
+                        return this.managementLink != null
+                            ? this.managementLink.close().thenComposeAsync(new Function<Void, CompletableFuture<Void>>()
+                                {
+                                    @Override
+                                    public CompletableFuture<Void> apply(Void t)
+                                    {
+                                        return internalSenderClose;
+                                    }
+                                })
+                            : internalSenderClose;
                     }
 		}
 
 		return CompletableFuture.completedFuture(null);
 	}
+        
+        private CompletableFuture<Void> createManagementLink()
+        {
+            synchronized (this.managementLinkCreateSync)
+            {
+                if (!this.isManagementLinkCreated)
+                {
+                    this.createManagementLink = ManagementLink.create(this.underlyingFactory, StringUtil.getRandomString())
+                                                .thenAcceptAsync(new Consumer<ManagementLink>()
+                                                {
+                                                    @Override
+                                                    public void accept(ManagementLink createdManagementLink)
+                                                    {
+                                                        managementLink = createdManagementLink;
+                                                    }
+                                                });
+                    
+                    this.isManagementLinkCreated = true;
+                }
+            }
+            
+            return this.createManagementLink;
+        }
 
 	private CompletableFuture<Void> createInternalSender()
 	{
