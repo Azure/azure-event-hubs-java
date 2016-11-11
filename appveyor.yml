@@ -1,0 +1,5 @@
+version: 1.0.{build}
+build_script:
+- cmd: >-
+    mvn package -Dmaven.test.skip=true
+test: off
