@@ -66,6 +66,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
         private Message lastReceivedMessage;
 	private Exception lastKnownLinkError;
 	private int nextCreditToFlow;
+        private boolean creatingLink;
 
 	private MessageReceiver(final MessagingFactory factory,
 			final String name, 
@@ -83,13 +84,13 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		this.operationTimeout = factory.getOperationTimeout();
 		this.receivePath = recvPath;
 		this.prefetchCount = prefetchCount;
-		this.prefetchedMessages = new ConcurrentLinkedQueue<Message>();
-		this.linkClose = new CompletableFuture<Void>();
+		this.prefetchedMessages = new ConcurrentLinkedQueue<>();
+		this.linkClose = new CompletableFuture<>();
 		this.lastKnownLinkError = null;
 		this.receiveTimeout = factory.getOperationTimeout();
 		this.prefetchCountSync = new Object();
                 this.settingsProvider = settingsProvider;
-                this.sessionId = sessionId;
+                this.sessionId = sessionId == null ? StringUtil.getRandomString() : sessionId;
                 this.targetPath = receiveLinkTargetPath;
                 this.serviceSettleMode = serviceSettleMode;
                 this.linkOpen = new WorkItem<>(
@@ -313,7 +314,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 					// This will allow error handling to enact on the enqueued workItem.
 					if (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)
 					{
-						createReceiveLink();
+                                                if (!creatingLink)
+                                                    createReceiveLink();
 					}
 				}
 			});
@@ -389,15 +391,16 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		}
 	}
 
-	public void onError(ErrorCondition error)
+	public void onError(final ErrorCondition error)
 	{		
-		Exception completionException = ExceptionUtil.toException(error);
+		final Exception completionException = ExceptionUtil.toException(error);
 		this.onError(completionException);
 	}
 
 	@Override
-	public void onError(Exception exception)
+	public void onError(final Exception exception)
 	{
+                this.creatingLink = false;
 		this.prefetchedMessages.clear();
 
 		if (this.getIsClosingOrClosed())
@@ -429,9 +432,12 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			final Duration nextRetryInterval = workItem != null && workItem.getTimeoutTracker() != null
 					? this.underlyingFactory.getRetryPolicy().getNextRetryInterval(this.getClientId(), exception, workItem.getTimeoutTracker().remaining())
 					: null;
-			if (nextRetryInterval != null)
+			
+                        boolean recreateScheduled = true;
+
+                        if (nextRetryInterval != null)
 			{
-				try
+                                try
 				{
 					this.underlyingFactory.scheduleOnReactorThread((int) nextRetryInterval.toMillis(), new DispatchHandler()
 					{
@@ -448,9 +454,11 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 				}
 				catch (IOException ignore)
 				{
+                                    recreateScheduled = false;
 				}
-			}
-			else
+                        }			
+                                
+			if (nextRetryInterval == null || !recreateScheduled)
 			{
 				WorkItem<Collection<Message>> pendingReceive = null;
 				while ((pendingReceive = this.pendingReceives.poll()) != null)
@@ -461,7 +469,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		}
 	}
 
-	private void scheduleOperationTimer(TimeoutTracker tracker)
+	private void scheduleOperationTimer(final TimeoutTracker tracker)
 	{
 		if (tracker != null)
 		{
@@ -471,12 +479,14 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
 	private void createReceiveLink()
 	{	
-            final Consumer<Session> onRemoteSessionOpen = new Consumer<Session>()
+            this.creatingLink = true;
+            
+            final Consumer<Session> onSessionOpen = new Consumer<Session>()
             {
                 @Override
                 public void accept(Session session)
                 {
-                    Source source = new Source();
+                    final Source source = new Source();
                     source.setAddress(receivePath);
 
                     final Map<Symbol, UnknownDescribedType> filterMap = MessageReceiver.this.settingsProvider.getFilter(MessageReceiver.this.lastReceivedMessage);
@@ -491,7 +501,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     final Receiver receiver = session.receiver(receiveLinkName);
                     receiver.setSource(source);
                     
-                    Target target = new Target();
+                    final Target target = new Target();
                     if (targetPath != null)
                         target.setAddress(targetPath);
                     
@@ -518,13 +528,23 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     }
 
                     MessageReceiver.this.receiveLink = receiver;
+                    MessageReceiver.this.creatingLink = false;
+                }
+            };
+            
+            final Consumer<ErrorCondition> onSessionOpenFailed = new Consumer<ErrorCondition>()
+            {
+                @Override
+                public void accept(ErrorCondition t)
+                {
+                    onError(t);
                 }
             };
 		
-            this.underlyingFactory.getSession(
-                    this.receivePath,
-                    this.sessionId == null ? StringUtil.getRandomString() : this.sessionId,
-                    onRemoteSessionOpen);
+            this.underlyingFactory.getSession(this.receivePath,
+                    this.sessionId,
+                    onSessionOpen,
+                    onSessionOpenFailed);
         }
 
 	// CONTRACT: message should be delivered to the caller of MessageReceiver.receive() only via Poll on prefetchqueue

@@ -63,10 +63,9 @@ public final class RequestResponseLink extends ClientEntity
     {
         RequestResponseLink requestResponseLink = new RequestResponseLink(factory, name, path, factory);
         
-        final String sessionId = StringUtil.getRandomString();
         final TimeoutTracker tracker = new TimeoutTracker(factory.getOperationTimeout(), true);
 
-        return MessageSender.create(factory, name + ":sender", path, sessionId)
+        return MessageSender.create(factory, name + ":sender", path, null)
             .thenComposeAsync(new Function<MessageSender, CompletionStage<MessageReceiver>>()
                 {
                     @Override
@@ -92,7 +91,7 @@ public final class RequestResponseLink extends ClientEntity
                                     return null;
                                 }
                             },
-                            sessionId,
+                            null,
                             requestResponseLink.replyTo,
                             SenderSettleMode.SETTLED,
                             tracker.remaining());
@@ -124,22 +123,24 @@ public final class RequestResponseLink extends ClientEntity
         message.setMessageId("request" + UnsignedLong.valueOf(this.requestId.incrementAndGet()).toString());
         message.setReplyTo(this.replyTo);
 
-        CompletableFuture<Message> request = new CompletableFuture<>();
+        final CompletableFuture<Message> request = new CompletableFuture<>();
         
         this.inflightRequests.put(message.getMessageId(), request);
-        
         Timer.schedule(new RequestTimeout(message.getMessageId()), this.operationTimeout, TimerType.OneTimeRun);
 
-        return this.sender.send(message)
+        CompletableFuture<Message> sendTask = this.sender.send(message)
             .thenComposeAsync(new Function<Void, CompletableFuture<Message>>()
             {
                 @Override
                 public CompletableFuture<Message> apply(Void t)
                 {
-                    receiver.receive(RECEIVER_PREFETCH).whenCompleteAsync(onReceiveComplete);
                     return request;
                 }
             });
+        
+        receiver.receive(RECEIVER_PREFETCH).whenCompleteAsync(onReceiveComplete);
+
+        return sendTask;
     }
 
     @Override
