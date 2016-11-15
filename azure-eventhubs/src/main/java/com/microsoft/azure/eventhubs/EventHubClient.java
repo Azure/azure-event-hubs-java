@@ -32,14 +32,11 @@ public class EventHubClient extends ClientEntity
 
 	private final String eventHubName;
 	private final Object senderCreateSync;
-        private final Object managementLinkCreateSync;
-
+        
 	private MessagingFactory underlyingFactory;
 	private MessageSender sender;
 	private boolean isSenderCreateStarted;
-        private boolean isManagementLinkCreated;
-	private CompletableFuture<Void> createSender;
-        private CompletableFuture<Void> createManagementLink;
+        private CompletableFuture<Void> createSender;
         
 	private EventHubClient(ConnectionStringBuilder connectionString) throws IOException, IllegalEntityException
 	{
@@ -47,8 +44,7 @@ public class EventHubClient extends ClientEntity
 
 		this.eventHubName = connectionString.getEntityPath();
 		this.senderCreateSync = new Object();
-                this.managementLinkCreateSync = new Object();
-	}
+        }
 
 	/**
 	 * Synchronous version of {@link #createFromConnectionString(String)}. 
