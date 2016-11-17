@@ -38,7 +38,7 @@ public class RequestResponseChannel implements IIOObject {
     private final Sender sendLink;
     private final Receiver receiveLink;
     private final String replyTo;
-    private final HashMap<Object, IOperationResult<Map<String, Object>, Exception>> inflightRequests;
+    private final HashMap<Object, IOperationResult<Message, Exception>> inflightRequests;
     private final AtomicLong requestId;
     private final AtomicInteger openRefCount;
     private final AtomicInteger closeRefCount;
@@ -104,7 +104,7 @@ public class RequestResponseChannel implements IIOObject {
     public void request(
             final ReactorDispatcher dispatcher,
             final Message message,
-            final IOperationResult<Map<String, Object>, Exception> onResponse) {
+            final IOperationResult<Message, Exception> onResponse) {
 
         if (message == null)
             throw new IllegalArgumentException("message cannot be null");
@@ -228,26 +228,9 @@ public class RequestResponseChannel implements IIOObject {
             response.decode(buffer, 0, read);
             delivery.settle();
             
-            final int statusCode = (int) response.getApplicationProperties().getValue().get(AmqpConstants.MANAGEMENT_STATUS_CODE_KEY);
-            final String statusDescription = (String) response.getApplicationProperties().getValue().get(AmqpConstants.MANAGEMENT_STATUS_DESCRIPTION_KEY);
-            
-            final IOperationResult<Map<String, Object>, Exception> responseCallback = inflightRequests.remove(response.getCorrelationId());
-            if (responseCallback != null) {
-                
-                if (statusCode == AmqpManagementResponseCode.ACCEPTED.getValue() || statusCode == AmqpManagementResponseCode.OK.getValue()) {
-                    
-                    if (response.getBody() == null)
-                        responseCallback.onComplete(null);
-                    else
-                        responseCallback.onComplete((Map<String, Object>) ((AmqpValue) response.getBody()).getValue());
-                }
-                else {
-
-                    final Symbol condition = (Symbol) response.getApplicationProperties().getValue().get(AmqpConstants.MANAGEMENT_RESPONSE_ERROR_CONDITION);
-                    final ErrorCondition error = new ErrorCondition(condition, statusDescription);
-                    responseCallback.onError(new AmqpException(error));
-                }
-            }
+            final IOperationResult<Message, Exception> responseCallback = inflightRequests.remove(response.getCorrelationId());
+            if (responseCallback != null)
+                responseCallback.onComplete(response);                
         }
 
         @Override
@@ -262,7 +245,7 @@ public class RequestResponseChannel implements IIOObject {
         @Override
         public void onError(Exception exception) {
             
-            for (IOperationResult<Map<String, Object>, Exception> responseCallback: inflightRequests.values())
+            for (IOperationResult<Message, Exception> responseCallback: inflightRequests.values())
                 responseCallback.onError(exception);
             
             inflightRequests.clear();

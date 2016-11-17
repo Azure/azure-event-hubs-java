@@ -71,8 +71,4 @@ public final class AmqpConstants
 	public static final String AMQP_PROPERTY_GROUP_ID = "group-id";
 	public static final String AMQP_PROPERTY_GROUP_SEQUENCE = "group-sequence";
 	public static final String AMQP_PROPERTY_REPLY_TO_GROUP_ID = "reply-to-group-id";
-        
-        public static final String MANAGEMENT_STATUS_CODE_KEY = "status-code";
-        public static final String MANAGEMENT_STATUS_DESCRIPTION_KEY = "status-description";
-        public static final String MANAGEMENT_RESPONSE_ERROR_CONDITION = "error-condition";
 }

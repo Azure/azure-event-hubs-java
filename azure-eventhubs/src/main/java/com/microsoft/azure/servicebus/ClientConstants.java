@@ -52,6 +52,16 @@ public final class ClientConstants
 
 	public static final String PLATFORM_INFO = getPlatformInfo();
         
+        public static final String CBS_ADDRESS = "$cbs";
+        public static final String PUT_TOKEN_OPERATION = "operation";
+        public static final String PUT_TOKEN_OPERATION_VALUE = "put-token";
+        public static final String PUT_TOKEN_TYPE = "type";
+        public static final String SAS_TOKEN_TYPE = "servicebus.windows.net:sastoken";
+        public static final String PUT_TOKEN_AUDIENCE = "name";
+        public static final String PUT_TOKEN_EXPIRY = "expiration";
+        public static final String PUT_TOKEN_STATUS_CODE = "status-code";
+        public static final String PUT_TOKEN_STATUS_DESCRIPTION = "status-description";        
+        
         public static final String MANAGEMENT_ADDRESS = "$management";
         public static final String MANAGEMENT_EVENTHUB_ENTITY_TYPE = AmqpConstants.VENDOR + ":eventhub";
         public static final String MANAGEMENT_PARTITION_ENTITY_TYPE = AmqpConstants.VENDOR + ":partition";
@@ -67,6 +77,11 @@ public final class ClientConstants
         public static final String MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER = "last_enqueued_sequence_number";
         public static final String MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET = "last_enqueued_offset";
         public static final String MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC = "last_enqueued_time_utc";
+        public static final String MANAGEMENT_STATUS_CODE_KEY = "status-code";
+        public static final String MANAGEMENT_STATUS_DESCRIPTION_KEY = "status-description";
+        public static final String MANAGEMENT_RESPONSE_ERROR_CONDITION = "error-condition";
+        
+        public static final String AMQP_PUT_TOKEN_FAILED_ERROR = "Put token failed. status-code: %s, status-description: %s";
 
 	private static String getPlatformInfo()
 	{
