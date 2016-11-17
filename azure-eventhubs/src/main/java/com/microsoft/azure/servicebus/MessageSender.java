@@ -46,6 +46,7 @@ import org.apache.qpid.proton.engine.impl.DeliveryImpl;
 import org.apache.qpid.proton.message.Message;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
+import com.microsoft.azure.servicebus.amqp.AmqpUtil;
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpSender;
 import com.microsoft.azure.servicebus.amqp.SendLinkHandler;
@@ -228,74 +229,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	{
 		return this.sendCore(bytes, arrayOffset, messageFormat, onSend, tracker, null, null, null);
 	}
-
-	private int getPayloadSize(Message msg)
-	{
-		if (msg == null || msg.getBody() == null)
-		{
-			return 0;
-		}
-
-		Data payloadSection = (Data) msg.getBody();
-		if (payloadSection == null)
-		{
-			return 0;
-		}
-
-		Binary payloadBytes = payloadSection.getValue();
-		if (payloadBytes == null)
-		{
-			return 0;
-		}
-
-		return payloadBytes.getLength();
-	}
-
-	private int getDataSerializedSize(Message amqpMessage)
-	{
-		if (amqpMessage == null)
-		{
-			return 0;
-		}
-
-		int payloadSize = this.getPayloadSize(amqpMessage);
-
-		// EventData - accepts only PartitionKey - which is a String & stuffed into MessageAnnotation
-		MessageAnnotations messageAnnotations = amqpMessage.getMessageAnnotations();
-		ApplicationProperties applicationProperties = amqpMessage.getApplicationProperties();
-		
-		int annotationsSize = 0;
-		int applicationPropertiesSize = 0;
-
-		if (messageAnnotations != null)
-		{
-			for(Symbol value: messageAnnotations.getValue().keySet())
-			{
-				annotationsSize += Util.sizeof(value);
-			}
-			
-			for(Object value: messageAnnotations.getValue().values())
-			{
-				annotationsSize += Util.sizeof(value);
-			}
-		}
-		
-		if (applicationProperties != null)
-		{
-			for(Object value: applicationProperties.getValue().keySet())
-			{
-				applicationPropertiesSize += Util.sizeof(value);
-			}
-			
-			for(Object value: applicationProperties.getValue().values())
-			{
-				applicationPropertiesSize += Util.sizeof(value);
-			}
-		}
-		
-		return annotationsSize + applicationPropertiesSize + payloadSize;
-	}
-
+        
 	public CompletableFuture<Void> send(final Iterable<Message> messages)
 	{
 		if (messages == null || IteratorUtil.sizeEquals(messages, 0))
@@ -322,7 +256,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		{
 			Message messageWrappedByData = Proton.message();
 
-			int payloadSize = this.getDataSerializedSize(amqpMessage);
+			int payloadSize = AmqpUtil.getDataSerializedSize(amqpMessage);
 			int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
 
 			byte[] messageBytes = new byte[allocationSize];
@@ -348,7 +282,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	public CompletableFuture<Void> send(Message msg)
 	{
-		int payloadSize = this.getDataSerializedSize(msg);
+		int payloadSize = AmqpUtil.getDataSerializedSize(msg);
 		int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
 
 		byte[] bytes = new byte[allocationSize];

@@ -55,15 +55,12 @@ public final class ClientConstants
         public static final String MANAGEMENT_ADDRESS = "$management";
         public static final String MANAGEMENT_EVENTHUB_ENTITY_TYPE = AmqpConstants.VENDOR + ":eventhub";
         public static final String MANAGEMENT_PARTITION_ENTITY_TYPE = AmqpConstants.VENDOR + ":partition";
-        public static final String MANAGEMENT_STATUS_CODE_KEY = "status-code";
-        public static final String MANAGEMENT_STATUS_DESCRIPTION_KEY = "status-description";
         public static final String MANAGEMENT_OPERATION_KEY = "operation";
         public static final String READ_OPERATION_VALUE = "READ";
         public static final String MANAGEMENT_ENTITY_TYPE_KEY = "type";
         public static final String MANAGEMENT_ENTITY_NAME_KEY = "name";
         public static final String MANAGEMENT_PARTITION_NAME_KEY = "partition";
         public static final String MANAGEMENT_SECURITY_TOKEN_KEY = "security_token";
-        public static final String MANAGEMENT_RESPONSE_ERROR_CONDITION = "error-condition";
         public static final String MANAGEMENT_RESULT_PARTITION_IDS = "partition_ids";
         public static final String MANAGEMENT_RESULT_PARTITION_COUNT = "partition_count";
         public static final String MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER = "begin_sequence_number";

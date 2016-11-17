@@ -102,7 +102,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		}
 	}
 	
-	private ReactorDispatcher getReactorScheduler()
+	public ReactorDispatcher getReactorScheduler()
 	{
 		synchronized (this.reactorLock)
 		{
@@ -182,14 +182,16 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                             {
                                 super.onSessionRemoteOpen(e);
                                 sessionCreated = true;
-                                onRemoteSessionOpen.accept(e.getSession());
+                                
+                                if (onRemoteSessionOpen != null)
+                                    onRemoteSessionOpen.accept(e.getSession());
                             }
                             
                             @Override 
                             public void onSessionRemoteClose(Event e)
                             {
                                 super.onSessionRemoteClose(e);
-                                if (!sessionCreated)
+                                if (!sessionCreated && onRemoteSessionOpenError != null)
                                     onRemoteSessionOpenError.accept(e.getSession().getRemoteCondition());
                             }
                             
@@ -205,7 +207,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                 }
                 else
                 {
-                    onRemoteSessionOpen.accept(session);
+                    if (onRemoteSessionOpen != null)
+                        onRemoteSessionOpen.accept(session);
                 }
 
 		return session;

@@ -1,0 +1,133 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+package com.microsoft.azure.servicebus.amqp;
+
+import java.util.Locale;
+import org.apache.qpid.proton.amqp.Binary;
+import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
+import org.apache.qpid.proton.amqp.messaging.Data;
+import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
+import org.apache.qpid.proton.message.Message;
+
+/**
+ *
+ * @author sreeramg
+ */
+public class AmqpUtil {
+    
+    private static int getPayloadSize(Message msg)
+	{
+		if (msg == null || msg.getBody() == null)
+		{
+			return 0;
+		}
+
+		Data payloadSection = (Data) msg.getBody();
+		if (payloadSection == null)
+		{
+			return 0;
+		}
+
+		Binary payloadBytes = payloadSection.getValue();
+		if (payloadBytes == null)
+		{
+			return 0;
+		}
+
+		return payloadBytes.getLength();
+	}
+        
+    public static int getDataSerializedSize(Message amqpMessage)
+	{
+		if (amqpMessage == null)
+		{
+			return 0;
+		}
+
+		int payloadSize = getPayloadSize(amqpMessage);
+
+		// EventData - accepts only PartitionKey - which is a String & stuffed into MessageAnnotation
+		MessageAnnotations messageAnnotations = amqpMessage.getMessageAnnotations();
+		ApplicationProperties applicationProperties = amqpMessage.getApplicationProperties();
+		
+		int annotationsSize = 0;
+		int applicationPropertiesSize = 0;
+
+		if (messageAnnotations != null)
+		{
+			for(Symbol value: messageAnnotations.getValue().keySet())
+			{
+				annotationsSize += sizeof(value);
+			}
+			
+			for(Object value: messageAnnotations.getValue().values())
+			{
+				annotationsSize += sizeof(value);
+			}
+		}
+		
+		if (applicationProperties != null)
+		{
+			for(Object value: applicationProperties.getValue().keySet())
+			{
+				applicationPropertiesSize += sizeof(value);
+			}
+			
+			for(Object value: applicationProperties.getValue().values())
+			{
+				applicationPropertiesSize += sizeof(value);
+			}
+		}
+		
+		return annotationsSize + applicationPropertiesSize + payloadSize;
+	}
+
+    private static int sizeof(Object obj)
+	{
+		if (obj instanceof String)
+		{
+			return obj.toString().length() << 1;
+		}
+		
+		if (obj instanceof Symbol)
+		{
+			return ((Symbol) obj).length() << 1;
+		}
+		
+		if (obj instanceof Integer)
+		{
+			return Integer.BYTES;
+		}
+		
+		if (obj instanceof Long)
+		{
+			return Long.BYTES;
+		}
+		
+		if (obj instanceof Short)
+		{
+			return Short.BYTES;
+		}
+		
+		if (obj instanceof Character)
+		{
+			return Character.BYTES;
+		}
+		
+		if (obj instanceof Float)
+		{
+			return Float.BYTES;
+		}
+		
+		if (obj instanceof Double)
+		{
+			return Double.BYTES;
+		}
+		
+		throw new IllegalArgumentException(String.format(Locale.US, "Encoding Type: %s is not supported", obj.getClass()));
+	}
+}
