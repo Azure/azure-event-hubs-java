@@ -33,6 +33,7 @@ public class ActiveClientTokenManager {
 
         @Override
         public void run() {
+            
             if (!clientEntity.getIsClosingOrClosed()) {
                 
                 sendTokenTask.run();
@@ -41,12 +42,11 @@ public class ActiveClientTokenManager {
             }
             else {
                 
-                if (TRACE_LOGGER.isLoggable(Level.FINE))
-			{
-				TRACE_LOGGER.log(Level.FINE,
-						String.format(Locale.US, 
-						"clientEntity[%s] - closing ActiveClientLinkManager", clientEntity.getClientId()));
-			}
+                if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+                        TRACE_LOGGER.log(Level.FINE,
+                                        String.format(Locale.US, 
+                                        "clientEntity[%s] - closing ActiveClientLinkManager", clientEntity.getClientId()));
+                }
             }
         }
         
