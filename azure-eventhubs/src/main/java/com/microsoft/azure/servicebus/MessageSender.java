@@ -6,6 +6,8 @@ package com.microsoft.azure.servicebus;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -48,8 +50,6 @@ import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpSender;
 import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.SendLinkHandler;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 
 /**
  * Abstracts all amqp related details
@@ -70,7 +70,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private final ConcurrentHashMap<String, ReplayableWorkItem<Void>> pendingSendsData;
 	private final PriorityQueue<WeightedDeliveryTag> pendingSends;
 	private final DispatchHandler sendWork;
-
+        private final ActiveClientTokenManager activeClientTokenManager;
+        private final String tokenAudience;
+        
 	private Sender sendLink;
 	private CompletableFuture<MessageSender> linkFirstOpen; 
 	private int linkCredit;
@@ -145,6 +147,39 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				MessageSender.this.processSendWork();
 			}
 		};
+                
+                this.tokenAudience = String.format(ClientConstants.TOKEN_AUDIENCE_FORMAT, underlyingFactory.getHostName(), sendPath);
+                this.activeClientTokenManager = new ActiveClientTokenManager(
+                        this, 
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                        underlyingFactory.getCBSChannel().sendToken(
+                                            underlyingFactory.getReactorScheduler(),
+                                            underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_REFRESH_INTERVAL), 
+                                            tokenAudience, 
+                                            new IOperationResult<Void, Exception>() {
+                                                @Override
+                                                public void onComplete(Void result) {
+                                                    if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+                                                            TRACE_LOGGER.log(Level.FINE,
+                                                                            String.format(Locale.US, 
+                                                                            "path[%s], linkName[%s] - token renewed", sendPath, sendLink.getName()));
+                                                    }
+                                                }
+                                                @Override
+                                                public void onError(Exception error) {
+                                                    MessageSender.this.onError(error);
+                                                }
+                                            });
+                                    }
+                                    catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception) {
+                                        MessageSender.this.onError(exception);
+                                    }
+                                }
+                            }, 
+                            ClientConstants.TOKEN_REFRESH_INTERVAL);
 	}
 
 	public String getSendPath()
@@ -600,7 +635,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                 
                 try
                 {
-                    final String tokenAudience = String.format("amqp://%s/%s", underlyingFactory.getHostName(), sendPath);
+                    
                     this.underlyingFactory.getCBSChannel().sendToken(
                         this.underlyingFactory.getReactorScheduler(),
                         this.underlyingFactory.getTokenProvider().getToken(tokenAudience, Duration.ofHours(1)), 

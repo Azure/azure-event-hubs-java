@@ -5,6 +5,8 @@
 package com.microsoft.azure.servicebus;
 
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collection;
@@ -37,8 +39,6 @@ import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpReceiver;
 import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.ReceiveLinkHandler;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 
 /**
  * Common Receiver that abstracts all amqp related details
@@ -60,7 +60,9 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
         private final String sessionId;
         private final String targetPath;
         private final SenderSettleMode serviceSettleMode;
-
+        private final String tokenAudience;
+        private final ActiveClientTokenManager activeClientTokenManager;
+                    
 	private int prefetchCount;
         private ConcurrentLinkedQueue<Message> prefetchedMessages;
 	private Receiver receiveLink;
@@ -151,6 +153,40 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 				}
 			}
 		};
+                
+                this.tokenAudience = String.format("amqp://%s/%s", underlyingFactory.getHostName(), receivePath);
+                
+                this.activeClientTokenManager = new ActiveClientTokenManager(
+                        this, 
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                        underlyingFactory.getCBSChannel().sendToken(
+                                            underlyingFactory.getReactorScheduler(),
+                                            underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_REFRESH_INTERVAL), 
+                                            tokenAudience, 
+                                            new IOperationResult<Void, Exception>() {
+                                                @Override
+                                                public void onComplete(Void result) {
+                                                    if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+                                                            TRACE_LOGGER.log(Level.FINE,
+                                                                            String.format(Locale.US, 
+                                                                            "path[%s], linkName[%s] - token renewed", receivePath, receiveLink.getName()));
+                                                    }
+                                                }
+                                                @Override
+                                                public void onError(Exception error) {
+                                                    MessageReceiver.this.onError(error);
+                                                }
+                                            });
+                                    }
+                                    catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception) {
+                                        MessageReceiver.this.onError(exception);
+                                    }
+                                }
+                            }, 
+                            ClientConstants.TOKEN_REFRESH_INTERVAL);
 	}
         
         public static CompletableFuture<MessageReceiver> create(
@@ -544,32 +580,29 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                 }
             };
             
-            try
-                {
-                    final String tokenAudience = String.format("amqp://%s/%s", underlyingFactory.getHostName(), receivePath);
-                    this.underlyingFactory.getCBSChannel().sendToken(
-                        this.underlyingFactory.getReactorScheduler(),
-                        this.underlyingFactory.getTokenProvider().getToken(tokenAudience, Duration.ofHours(1)), 
-                        tokenAudience, 
-                        new IOperationResult<Void, Exception>() {
-                            @Override
-                            public void onComplete(Void result) {
-                                underlyingFactory.getSession(
-                                        receivePath,
-                                        sessionId,
-                                        onSessionOpen,
-                                        onSessionOpenFailed);
-                            }
-                            @Override
-                            public void onError(Exception error) {
-                                MessageReceiver.this.onError(error);
-                            }
-                        });
-                }
-                catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception)
-                {
-                    MessageReceiver.this.onError(exception);
-                }
+            try {
+                this.underlyingFactory.getCBSChannel().sendToken(
+                    this.underlyingFactory.getReactorScheduler(),
+                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_REFRESH_INTERVAL), 
+                    tokenAudience, 
+                    new IOperationResult<Void, Exception>() {
+                        @Override
+                        public void onComplete(Void result) {
+                            underlyingFactory.getSession(
+                                    receivePath,
+                                    sessionId,
+                                    onSessionOpen,
+                                    onSessionOpenFailed);
+                        }
+                        @Override
+                        public void onError(Exception error) {
+                            MessageReceiver.this.onError(error);
+                        }
+                    });
+            }
+            catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception) {
+                MessageReceiver.this.onError(exception);
+            }
         }
 
 	// CONTRACT: message should be delivered to the caller of MessageReceiver.receive() only via Poll on prefetchqueue
