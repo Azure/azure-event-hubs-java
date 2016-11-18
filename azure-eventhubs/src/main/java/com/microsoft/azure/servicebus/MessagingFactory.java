@@ -34,6 +34,7 @@ import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
 import com.microsoft.azure.servicebus.amqp.SessionHandler;
+import java.util.List;
 
 /**
  * Abstracts all amqp related details and exposes AmqpConnection object
@@ -274,7 +275,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	@Override
 	public void onConnectionError(ErrorCondition error)
 	{
-		if (!this.open.isDone())
+            	if (!this.open.isDone())
 		{
 			this.onOpenComplete(ExceptionUtil.toException(error));
 		}
@@ -295,10 +296,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			{
 				currentConnection.close();
 			}
-			
-			for (Link link: this.registeredLinks)
+                        
+                        // Clone of the registeredLinks is needed here
+                        // onClose of link will lead to un-register - which will result into iteratorCollectionModified error
+                        final List<Link> registeredLinksCopy = new LinkedList<>(this.registeredLinks);
+			for (Link link: registeredLinksCopy)
 			{
-				final Handler handler = BaseHandler.getHandler(link);
+                                final Handler handler = BaseHandler.getHandler(link);
 				if (handler != null && handler instanceof BaseLinkHandler)
 				{
 					final BaseLinkHandler linkHandler = (BaseLinkHandler) handler;
@@ -481,13 +485,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	@Override
 	public void registerForConnectionError(Link link)
 	{
-		this.registeredLinks.add(link);	
+            	this.registeredLinks.add(link);	
 	}
 
 	@Override
 	public void deregisterForConnectionError(Link link)
 	{
-		this.registeredLinks.remove(link);	
+            	this.registeredLinks.remove(link);	
 	}
 	
 	public void scheduleOnReactorThread(final DispatchHandler handler) throws IOException

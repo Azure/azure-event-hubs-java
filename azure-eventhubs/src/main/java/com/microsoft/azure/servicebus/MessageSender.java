@@ -355,7 +355,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	@Override
 	public void onClose(ErrorCondition condition)
 	{
-		Exception completionException = condition != null
+            	Exception completionException = condition != null
                         ? ExceptionUtil.toException(condition) 
 			: new ServiceBusException(ClientConstants.DEFAULT_IS_TRANSIENT, "The entity has been closed due to transient failures (underlying link closed), please retry the operation.");
 		this.onError(completionException);
@@ -552,7 +552,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	{
                 this.creatingLink = true;
 
-            	final Consumer<Session> onSessionOpen = new Consumer<Session>()
+                final Consumer<Session> onSessionOpen = new Consumer<Session>()
                 {
                     @Override
                     public void accept(Session session) 
@@ -572,7 +572,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
                         sender.setSenderSettleMode(SenderSettleMode.UNSETTLED);
 
-                        SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
+                        final SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
                         BaseHandler.setHandler(sender, handler);
 
                         MessageSender.this.underlyingFactory.registerForConnectionError(sender);

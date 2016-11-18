@@ -35,7 +35,10 @@ import org.apache.qpid.proton.message.Message;
 
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpReceiver;
+import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.ReceiveLinkHandler;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Common Receiver that abstracts all amqp related details
@@ -540,11 +543,33 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     onError(t);
                 }
             };
-		
-            this.underlyingFactory.getSession(this.receivePath,
-                    this.sessionId,
-                    onSessionOpen,
-                    onSessionOpenFailed);
+            
+            try
+                {
+                    final String tokenAudience = String.format("amqp://%s/%s", underlyingFactory.getHostName(), receivePath);
+                    this.underlyingFactory.getCBSChannel().sendToken(
+                        this.underlyingFactory.getReactorScheduler(),
+                        this.underlyingFactory.getTokenProvider().getToken(tokenAudience, Duration.ofHours(1)), 
+                        tokenAudience, 
+                        new IOperationResult<Void, Exception>() {
+                            @Override
+                            public void onComplete(Void result) {
+                                underlyingFactory.getSession(
+                                        receivePath,
+                                        sessionId,
+                                        onSessionOpen,
+                                        onSessionOpenFailed);
+                            }
+                            @Override
+                            public void onError(Exception error) {
+                                MessageReceiver.this.onError(error);
+                            }
+                        });
+                }
+                catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception)
+                {
+                    MessageReceiver.this.onError(exception);
+                }
         }
 
 	// CONTRACT: message should be delivered to the caller of MessageReceiver.receive() only via Poll on prefetchqueue

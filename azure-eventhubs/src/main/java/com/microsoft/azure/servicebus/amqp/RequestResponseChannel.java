@@ -6,10 +6,7 @@ package com.microsoft.azure.servicebus.amqp;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
-import java.util.Collection;
-import java.util.LinkedList;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,8 +16,6 @@ import org.apache.qpid.proton.amqp.messaging.Target;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.amqp.transport.ReceiverSettleMode;
 import org.apache.qpid.proton.amqp.transport.SenderSettleMode;
-import org.apache.qpid.proton.amqp.Symbol;
-import org.apache.qpid.proton.amqp.messaging.AmqpValue;
 import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Delivery;
 import org.apache.qpid.proton.engine.Receiver;
@@ -28,7 +23,6 @@ import org.apache.qpid.proton.engine.Sender;
 import org.apache.qpid.proton.engine.Session;
 import org.apache.qpid.proton.message.Message;
 import org.apache.qpid.proton.Proton;
-import org.apache.qpid.proton.engine.Link;
 import org.apache.qpid.proton.engine.EndpointState;
 
 import com.microsoft.azure.servicebus.StringUtil;
@@ -143,20 +137,22 @@ public class RequestResponseChannel implements IIOObject {
         }
     }
     
-    private void onLinkOpenComplete() {
+    private void onLinkOpenComplete(final Exception exception) {
         
-        if (openRefCount.decrementAndGet() <= 0 && onOpen != null) {
-            final Collection<Link> links = new LinkedList<>();
-            links.add(sendLink);
-            links.add(receiveLink);
-            onOpen.onComplete(null);
-        }
+        if (openRefCount.decrementAndGet() <= 0 && onOpen != null)
+            if (exception == null)
+                onOpen.onComplete(null);
+            else
+                onOpen.onError(exception);
     }
     
-    private void onLinkCloseComplete() {
+    private void onLinkCloseComplete(final Exception exception) {
         
         if (closeRefCount.decrementAndGet() <= 0)
+            if (exception == null)
                 onClose.onComplete(null);
+            else
+                onClose.onError(exception);
     }
 
     @Override
@@ -186,28 +182,20 @@ public class RequestResponseChannel implements IIOObject {
         @Override
         public void onOpenComplete(Exception completionException) {
             
-            if (completionException != null && onOpen != null) {
-                onOpen.onError(completionException);
-                onOpen = null; // to avoid invoking twice
-            }
-            else
-                onLinkOpenComplete();
+            onLinkOpenComplete(completionException);
         }
 
         @Override
         public void onError(Exception exception) {
             
-            if (onClose != null) {
-                onClose.onError(exception);
-                onClose = null; // to avoid invoking twice
-            }
+            onLinkCloseComplete(exception);
         }
 
         @Override
         public void onClose(ErrorCondition condition) {
             
             if (condition == null)
-                onLinkCloseComplete();
+                onLinkCloseComplete(null);
             else
                 onError(new AmqpException(condition));
         }        
@@ -236,10 +224,7 @@ public class RequestResponseChannel implements IIOObject {
         @Override
         public void onOpenComplete(Exception completionException) {
             
-            if (completionException != null && onOpen != null)
-                onOpen.onError(completionException);
-            else
-                onLinkOpenComplete();
+            onLinkOpenComplete(completionException);
         }
 
         @Override
@@ -250,17 +235,15 @@ public class RequestResponseChannel implements IIOObject {
             
             inflightRequests.clear();
             
-            if (onClose != null) {
-                onClose.onError(exception);
-                onClose = null; //to avoid closing twice
-            }
+            if (onClose != null)
+                onLinkCloseComplete(exception);
         }
 
         @Override
         public void onClose(ErrorCondition condition) {
             
             if (condition == null)
-                onLinkCloseComplete();
+                onLinkCloseComplete(null);
             else
                 onError(new AmqpException(condition));
         }        
