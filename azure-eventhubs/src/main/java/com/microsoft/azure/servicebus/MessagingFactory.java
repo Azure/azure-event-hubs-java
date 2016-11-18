@@ -49,11 +49,14 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 	private final ConnectionHandler connectionHandler;
 	private final LinkedList<Link> registeredLinks;
 	private final Object reactorLock;
+        private final Object cbsChannelCreateLock;
         private final Hashtable<String, Session> sessionCache;
+        private final SharedAccessSignatureTokenProvider tokenProvider;
 	
 	private Reactor reactor;
 	private ReactorDispatcher reactorScheduler;
 	private Connection connection;
+        private CBSChannel cbsChannel;
 
 	private Duration operationTimeout;
 	private RetryPolicy retryPolicy;
@@ -74,9 +77,11 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             this.retryPolicy = builder.getRetryPolicy();
             this.registeredLinks = new LinkedList<>();
             this.reactorLock = new Object();
-            this.connectionHandler = new ConnectionHandler(this, builder.getSasKeyName(), builder.getSasKey());
+            this.connectionHandler = new ConnectionHandler(this);
             this.openConnection = new CompletableFuture<>();
             this.sessionCache = new Hashtable<>();
+            this.cbsChannelCreateLock = new Object();
+            this.tokenProvider = new SharedAccessSignatureTokenProvider(builder.getSasKeyName(), builder.getSasKey());
 
             this.closeTask = new CompletableFuture<>();
             this.closeTask.thenAccept(new Consumer<Void>()
@@ -109,6 +114,11 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 			return this.reactorScheduler;
 		}
 	}
+        
+        public SharedAccessSignatureTokenProvider getTokenProvider()
+        {
+            return this.tokenProvider;
+        }
 
 	private void createConnection(ConnectionStringBuilder builder) throws IOException
 	{
@@ -138,6 +148,19 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		final Thread reactorThread = new Thread(new RunReactor(newReactor));
 		reactorThread.start();
 	}
+        
+        public CBSChannel getCBSChannel()
+        {
+            synchronized (this.cbsChannelCreateLock)
+            {
+                if (this.cbsChannel == null)
+                {
+                    this.cbsChannel = new CBSChannel(this.hostName, this, this, this, "cbs-link");
+                }
+            }
+            
+            return this.cbsChannel;
+        }
 
 	@Override
 	public Session getSession(final String path, final String sessionId, final Consumer<Session> onRemoteSessionOpen, final Consumer<ErrorCondition> onRemoteSessionOpenError)

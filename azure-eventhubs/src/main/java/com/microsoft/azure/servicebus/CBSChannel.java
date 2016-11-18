@@ -12,6 +12,7 @@ import java.util.HashMap;
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.message.Message;
+import org.apache.qpid.proton.amqp.messaging.AmqpValue;
 
 import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
 import com.microsoft.azure.servicebus.amqp.IOperation;
@@ -19,10 +20,11 @@ import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
 import com.microsoft.azure.servicebus.amqp.RequestResponseChannel;
 import com.microsoft.azure.servicebus.amqp.AmqpResponseCode;
+import org.apache.qpid.proton.amqp.Binary;
+import org.apache.qpid.proton.amqp.messaging.Data;
 
 public class CBSChannel extends ClientEntity {
 
-    final String path;
     final FaultTolerantObject<RequestResponseChannel> innerChannel;
     final ISessionProvider sessionProvider;
     final IAmqpConnection connectionEventDispatcher;
@@ -32,13 +34,11 @@ public class CBSChannel extends ClientEntity {
             final ClientEntity parent, 
             final ISessionProvider sessionProvider, 
             final IAmqpConnection connection, 
-            final String linkName, 
-            final String path) {
+            final String linkName) {
 
         super(clientId, parent);
         
         this.sessionProvider = sessionProvider;
-        this.path = path;
         this.connectionEventDispatcher = connection;
 
         this.innerChannel = new FaultTolerantObject<>(
@@ -91,10 +91,11 @@ public class CBSChannel extends ClientEntity {
         final Message request= Proton.message();
         final Map<String, Object> properties = new HashMap<>();
         properties.put(ClientConstants.PUT_TOKEN_OPERATION, ClientConstants.PUT_TOKEN_OPERATION_VALUE);
-        properties.put(ClientConstants.PUT_TOKEN_TYPE, ClientConstants.PUT_TOKEN_TYPE);
+        properties.put(ClientConstants.PUT_TOKEN_TYPE, ClientConstants.SAS_TOKEN_TYPE);
         properties.put(ClientConstants.PUT_TOKEN_AUDIENCE, tokenAudience);
         final ApplicationProperties applicationProperties = new ApplicationProperties(properties);
         request.setApplicationProperties(applicationProperties);
+        request.setBody(new AmqpValue(token));
         
         this.innerChannel.runOnOpenedObject(dispatcher, 
                 new IOperationResult<RequestResponseChannel, Exception>() {

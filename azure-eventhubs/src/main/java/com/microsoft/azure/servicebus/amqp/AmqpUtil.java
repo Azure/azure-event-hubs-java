@@ -1,22 +1,19 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
  */
 package com.microsoft.azure.servicebus.amqp;
 
 import java.util.Locale;
+
 import org.apache.qpid.proton.amqp.Binary;
 import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.amqp.messaging.AmqpValue;
 import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.amqp.messaging.Data;
 import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
 import org.apache.qpid.proton.message.Message;
 
-/**
- *
- * @author sreeramg
- */
 public class AmqpUtil {
     
     private static int getPayloadSize(Message msg)
@@ -26,19 +23,35 @@ public class AmqpUtil {
 			return 0;
 		}
 
-		Data payloadSection = (Data) msg.getBody();
-		if (payloadSection == null)
-		{
-			return 0;
-		}
+                if (msg.getBody() instanceof Data)
+                {
+                    final Data payloadSection = (Data) msg.getBody();
+                    if (payloadSection == null)
+                    {
+                            return 0;
+                    }
 
-		Binary payloadBytes = payloadSection.getValue();
-		if (payloadBytes == null)
-		{
-			return 0;
-		}
+                    final Binary payloadBytes = payloadSection.getValue();
+                    if (payloadBytes == null)
+                    {
+                            return 0;
+                    }
 
-		return payloadBytes.getLength();
+                    return payloadBytes.getLength();
+                }
+                
+                if (msg.getBody() instanceof AmqpValue)
+                {
+                    final AmqpValue amqpValue = (AmqpValue) msg.getBody();
+                    if (amqpValue == null)
+                    {
+                        return 0;
+                    }
+                    
+                    return amqpValue.getValue().toString().length() * 2;
+                }
+                
+                return 0;
 	}
         
     public static int getDataSerializedSize(Message amqpMessage)

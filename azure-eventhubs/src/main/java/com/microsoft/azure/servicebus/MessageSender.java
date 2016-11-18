@@ -25,11 +25,8 @@ import java.util.logging.Logger;
 
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Binary;
-import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.Accepted;
-import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.amqp.messaging.Data;
-import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
 import org.apache.qpid.proton.amqp.messaging.Rejected;
 import org.apache.qpid.proton.amqp.messaging.Released;
 import org.apache.qpid.proton.amqp.messaging.Source;
@@ -49,7 +46,10 @@ import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 import com.microsoft.azure.servicebus.amqp.AmqpUtil;
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpSender;
+import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.SendLinkHandler;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 
 /**
  * Abstracts all amqp related details
@@ -598,11 +598,32 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                     }
                 };
                 
-                this.underlyingFactory.getSession(
-                        this.sendPath,
-                        this.sessionId,
-                        onSessionOpen,
-                        onSessionOpenError);
+                try
+                {
+                    final String tokenAudience = String.format("amqp://%s/%s", underlyingFactory.getHostName(), sendPath);
+                    this.underlyingFactory.getCBSChannel().sendToken(
+                        this.underlyingFactory.getReactorScheduler(),
+                        this.underlyingFactory.getTokenProvider().getToken(tokenAudience, Duration.ofHours(1)), 
+                        tokenAudience, 
+                        new IOperationResult<Void, Exception>() {
+                            @Override
+                            public void onComplete(Void result) {
+                                underlyingFactory.getSession(
+                                    sendPath,
+                                    sessionId,
+                                    onSessionOpen,
+                                    onSessionOpenError);
+                            }
+                            @Override
+                            public void onError(Exception error) {
+                                MessageSender.this.onError(error);
+                            }
+                        });
+                }
+                catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception)
+                {
+                    MessageSender.this.onError(exception);
+                }
 	}
 
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver

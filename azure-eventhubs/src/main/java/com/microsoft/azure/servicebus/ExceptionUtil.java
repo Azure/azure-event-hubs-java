@@ -98,6 +98,9 @@ final class ExceptionUtil
         static Exception amqpResponseCodeToException(final int statusCode, final String statusDescription)
         {
             final AmqpResponseCode amqpResponseCode = AmqpResponseCode.valueOf(statusCode);
+            if (amqpResponseCode == null)
+                return new ServiceBusException(true, String.format(ClientConstants.AMQP_PUT_TOKEN_FAILED_ERROR, statusCode, statusDescription));
+
             switch (amqpResponseCode) {
                 case BAD_REQUEST:
                     return new IllegalArgumentException(String.format(ClientConstants.AMQP_PUT_TOKEN_FAILED_ERROR, statusCode, statusDescription));
