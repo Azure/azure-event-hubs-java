@@ -33,6 +33,15 @@ public class FaultTolerantObject<T extends IIOObject> {
         this.closeCallbacks = new ConcurrentLinkedQueue<>();
     }
     
+    // should be invoked from reactor thread
+    public T unsafeGetIfOpened() {
+
+        if (innerObject != null && innerObject.getState() == IIOObject.IOObjectState.OPENED)
+            return innerObject;
+        
+        return null;
+    }
+    
     public void runOnOpenedObject(
         final ReactorDispatcher dispatcher,
         final IOperationResult<T, Exception> openCallback) {

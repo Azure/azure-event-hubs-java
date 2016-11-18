@@ -4,7 +4,6 @@
  */
 package com.microsoft.azure.servicebus;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.Map;
 import java.util.UUID;
 import java.util.HashMap;
@@ -20,66 +19,24 @@ import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
 import com.microsoft.azure.servicebus.amqp.RequestResponseChannel;
 import com.microsoft.azure.servicebus.amqp.AmqpResponseCode;
-import org.apache.qpid.proton.amqp.Binary;
-import org.apache.qpid.proton.amqp.messaging.Data;
 
-public class CBSChannel extends ClientEntity {
+public class CBSChannel {
 
     final FaultTolerantObject<RequestResponseChannel> innerChannel;
     final ISessionProvider sessionProvider;
     final IAmqpConnection connectionEventDispatcher;
     
     public CBSChannel(
-            final String clientId, 
-            final ClientEntity parent, 
             final ISessionProvider sessionProvider, 
             final IAmqpConnection connection, 
             final String linkName) {
 
-        super(clientId, parent);
-        
         this.sessionProvider = sessionProvider;
         this.connectionEventDispatcher = connection;
 
         this.innerChannel = new FaultTolerantObject<>(
-                                new IOperation<RequestResponseChannel>() {
-                                    @Override
-                                    public void run(IOperationResult<RequestResponseChannel, Exception> operationCallback) {
-
-                                        final RequestResponseChannel requestResponseChannel = new RequestResponseChannel(
-                                            "cbs", 
-                                            ClientConstants.CBS_ADDRESS,
-                                            CBSChannel.this.sessionProvider.getSession("cbs-session", UUID.randomUUID().toString(), null, null));
-
-                                        requestResponseChannel.open(
-                                            new IOperationResult<Void, Exception>() {
-                                                @Override
-                                                public void onComplete(Void result) {
-                                                    connectionEventDispatcher.registerForConnectionError(requestResponseChannel.getSendLink());
-                                                    connectionEventDispatcher.registerForConnectionError(requestResponseChannel.getReceiveLink());
-
-                                                    operationCallback.onComplete(requestResponseChannel);
-                                                }
-                                                @Override
-                                                public void onError(Exception error) {
-                                                    operationCallback.onError(error);
-                                                }
-                                            },
-                                            new IOperationResult<Void, Exception>() {
-                                            @Override
-                                            public void onComplete(Void result) {
-                                                connectionEventDispatcher.deregisterForConnectionError(requestResponseChannel.getSendLink());
-                                                connectionEventDispatcher.deregisterForConnectionError(requestResponseChannel.getReceiveLink());
-                                            }
-                                            @Override
-                                            public void onError(Exception error) {
-                                                connectionEventDispatcher.deregisterForConnectionError(requestResponseChannel.getSendLink());
-                                                connectionEventDispatcher.deregisterForConnectionError(requestResponseChannel.getReceiveLink());
-                                            }
-                                        });
-                                    }
-                                },
-                                null);
+                                new OpenRequestResponseChannel(),
+                                new CloseRequestResponseChannel());
     }
 
     public void sendToken(
@@ -131,9 +88,77 @@ public class CBSChannel extends ClientEntity {
                 });
     }
     
-    @Override
-    protected CompletableFuture<Void> onClose() {
-        return null;
+    public void close(
+            final ReactorDispatcher reactorDispatcher,
+            final IOperationResult<Void, Exception> closeCallback) {
+        
+        this.innerChannel.close(reactorDispatcher, closeCallback);
     }
     
+    private class OpenRequestResponseChannel implements IOperation<RequestResponseChannel> {
+        @Override
+        public void run(IOperationResult<RequestResponseChannel, Exception> operationCallback) {
+
+            final RequestResponseChannel requestResponseChannel = new RequestResponseChannel(
+                "cbs", 
+                ClientConstants.CBS_ADDRESS,
+                CBSChannel.this.sessionProvider.getSession("cbs-session", UUID.randomUUID().toString(), null, null));
+
+            requestResponseChannel.open(
+                new IOperationResult<Void, Exception>() {
+                    @Override
+                    public void onComplete(Void result) {
+                        connectionEventDispatcher.registerForConnectionError(requestResponseChannel.getSendLink());
+                        connectionEventDispatcher.registerForConnectionError(requestResponseChannel.getReceiveLink());
+
+                        operationCallback.onComplete(requestResponseChannel);
+                    }
+                    @Override
+                    public void onError(Exception error) {
+                        operationCallback.onError(error);
+                    }
+                },
+                new IOperationResult<Void, Exception>() {
+                @Override
+                public void onComplete(Void result) {
+                    connectionEventDispatcher.deregisterForConnectionError(requestResponseChannel.getSendLink());
+                    connectionEventDispatcher.deregisterForConnectionError(requestResponseChannel.getReceiveLink());
+                }
+                @Override
+                public void onError(Exception error) {
+                    connectionEventDispatcher.deregisterForConnectionError(requestResponseChannel.getSendLink());
+                    connectionEventDispatcher.deregisterForConnectionError(requestResponseChannel.getReceiveLink());
+                }
+            });
+        }
+    }
+
+    private class CloseRequestResponseChannel implements IOperation<Void> {
+
+        @Override
+        public void run(IOperationResult<Void, Exception> closeOperationCallback) {
+            
+            final RequestResponseChannel channelToBeClosed = innerChannel.unsafeGetIfOpened();
+            if (channelToBeClosed == null) {
+             
+                closeOperationCallback.onComplete(null);
+            }
+            else {
+                
+                channelToBeClosed.close(new IOperationResult<Void, Exception>() {
+                    @Override
+                    public void onComplete(Void result) {
+                        closeOperationCallback.onComplete(result);
+                    }
+
+                    @Override
+                    public void onError(Exception error) {
+                        closeOperationCallback.onError(error);
+                    }
+                });
+            }
+            
+        }
+        
+    }
 }

@@ -30,6 +30,7 @@ import com.microsoft.azure.servicebus.amqp.BaseLinkHandler;
 import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
+import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
@@ -156,7 +157,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             {
                 if (this.cbsChannel == null)
                 {
-                    this.cbsChannel = new CBSChannel(this.hostName, this, this, this, "cbs-link");
+                    this.cbsChannel = new CBSChannel(this, this, "cbs-link");
                 }
             }
             
@@ -390,13 +391,39 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             @Override
             public void onEvent()
             {
+                final ReactorDispatcher dispatcher = getReactorScheduler();
+                synchronized (cbsChannelCreateLock) {
+                    
+                    if (cbsChannel != null) {
+                    
+                        cbsChannel.close(
+                                dispatcher,
+                                new IOperationResult<Void, Exception>() {
+                                    
+                                    private void closeConnection() {
+                                        if (connection != null && connection.getRemoteState() != EndpointState.CLOSED)
+                                        {
+                                            if (connection.getLocalState() != EndpointState.CLOSED)
+                                            {
+                                                connection.close();
+                                            }
+                                        }
+                                    }
+                                    
+                                    @Override
+                                    public void onComplete(Void result) {
+                                        this.closeConnection();
+                                    }
+                                    @Override
+                                    public void onError(Exception error) {
+                                        this.closeConnection();
+                                    }
+                                });
+                    }
+                }
+                
                 if (connection != null && connection.getRemoteState() != EndpointState.CLOSED)
                 {
-                    if (connection.getLocalState() != EndpointState.CLOSED)
-                    {
-                        connection.close();
-                    }
-
                     Timer.schedule(new Runnable()
                     {
                         @Override

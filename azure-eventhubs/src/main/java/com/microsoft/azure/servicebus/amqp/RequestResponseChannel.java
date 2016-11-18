@@ -38,7 +38,8 @@ public class RequestResponseChannel implements IIOObject {
     private final AtomicInteger closeRefCount;
     
     private IOperationResult<Void, Exception> onOpen;
-    private IOperationResult<Void, Exception> onClose;
+    private IOperationResult<Void, Exception> onClose; // handles closeLink due to failures
+    private IOperationResult<Void, Exception> onGraceFullClose; // handles intentional close
     
     public RequestResponseChannel(
             final String linkName,
@@ -81,8 +82,9 @@ public class RequestResponseChannel implements IIOObject {
     }
     
     // close should be called exactly once - we use FaultTolerantObject for that
-    public void close() {
+    public void close(final IOperationResult<Void, Exception> onGraceFullClose) {
 
+        this.onGraceFullClose = onGraceFullClose;
         this.sendLink.close();
         this.receiveLink.close();
     }
@@ -149,10 +151,16 @@ public class RequestResponseChannel implements IIOObject {
     private void onLinkCloseComplete(final Exception exception) {
         
         if (closeRefCount.decrementAndGet() <= 0)
-            if (exception == null)
+            if (exception == null) {
                 onClose.onComplete(null);
-            else
+                if (onGraceFullClose != null)
+                    onGraceFullClose.onComplete(null);
+            }
+            else {
                 onClose.onError(exception);
+                if (onGraceFullClose != null)
+                    onGraceFullClose.onError(exception);
+            }
     }
 
     @Override
