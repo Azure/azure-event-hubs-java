@@ -353,8 +353,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 					// This will allow error handling to enact on the enqueued workItem.
 					if (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)
 					{
-                                                if (!creatingLink)
-                                                    createReceiveLink();
+                                                createReceiveLink();
 					}
 				}
 			});
@@ -518,6 +517,9 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
 	private void createReceiveLink()
 	{	
+            if (creatingLink)
+                return;
+            
             this.creatingLink = true;
             
             final Consumer<Session> onSessionOpen = new Consumer<Session>()

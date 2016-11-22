@@ -585,6 +585,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private void createSendLink()
 	{
+                if (this.creatingLink)
+                    return;
+                
                 this.creatingLink = true;
 
                 final Consumer<Session> onSessionOpen = new Consumer<Session>()
@@ -634,8 +637,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                 };
                 
                 try
-                {
-                    
+                {                    
                     this.underlyingFactory.getCBSChannel().sendToken(
                         this.underlyingFactory.getReactorScheduler(),
                         this.underlyingFactory.getTokenProvider().getToken(tokenAudience, Duration.ofHours(1)), 
@@ -741,10 +743,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		
 		if (sendLinkCurrent.getLocalState() == EndpointState.CLOSED || sendLinkCurrent.getRemoteState() == EndpointState.CLOSED)
 		{
-                        if (!this.creatingLink)
-                            this.recreateSendLink();
-
-			return;
+                        this.recreateSendLink();
+                        return;
 		}
 		
 		while (sendLinkCurrent.getLocalState() == EndpointState.ACTIVE && sendLinkCurrent.getRemoteState() == EndpointState.ACTIVE
