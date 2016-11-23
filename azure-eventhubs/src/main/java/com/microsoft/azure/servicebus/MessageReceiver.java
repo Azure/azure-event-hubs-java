@@ -533,13 +533,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     final Map<Symbol, UnknownDescribedType> filterMap = MessageReceiver.this.settingsProvider.getFilter(MessageReceiver.this.lastReceivedMessage);
                     if (filterMap != null)
                         source.setFilter(filterMap);
-
-
-                    final String receiveLinkNamePrefix = StringUtil.getRandomString();
-                    final String receiveLinkName = session.getConnection() != null && !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ? 
-                                    receiveLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
-                                    receiveLinkNamePrefix;
-                    final Receiver receiver = session.receiver(receiveLinkName);
+                    
+                    final Receiver receiver = session.receiver(TrackingUtil.getLinkName(session));
                     receiver.setSource(source);
                     
                     final Target target = new Target();

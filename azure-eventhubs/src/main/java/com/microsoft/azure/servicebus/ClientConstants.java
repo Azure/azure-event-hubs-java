@@ -5,6 +5,7 @@
 package com.microsoft.azure.servicebus;
 
 import java.time.Duration;
+
 import org.apache.qpid.proton.amqp.Symbol;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;

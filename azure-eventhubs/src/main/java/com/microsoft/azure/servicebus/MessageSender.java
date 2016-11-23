@@ -595,12 +595,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                     @Override
                     public void accept(Session session) 
                     {
-                        final String sendLinkNamePrefix = StringUtil.getRandomString();
-                        final String sendLinkName = !StringUtil.isNullOrEmpty(session.getConnection().getRemoteContainer()) ?
-                                        sendLinkNamePrefix.concat(TrackingUtil.TRACKING_ID_TOKEN_SEPARATOR).concat(session.getConnection().getRemoteContainer()) :
-                                        sendLinkNamePrefix;
-
-                        final Sender sender = session.sender(sendLinkName);
+                        final Sender sender = session.sender(TrackingUtil.getLinkName(session));
                         final Target target = new Target();
                         target.setAddress(sendPath);
                         sender.setTarget(target);
