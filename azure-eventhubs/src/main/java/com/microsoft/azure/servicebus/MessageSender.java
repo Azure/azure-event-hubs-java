@@ -666,7 +666,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	// TODO: consolidate common-code written for timeouts in Sender/Receiver
 	private void initializeLinkOpen(TimeoutTracker timeout)
 	{
-		this.linkFirstOpen = new CompletableFuture<MessageSender>();
+		this.linkFirstOpen = new CompletableFuture<>();
 
 		// timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
 		Timer.schedule(
