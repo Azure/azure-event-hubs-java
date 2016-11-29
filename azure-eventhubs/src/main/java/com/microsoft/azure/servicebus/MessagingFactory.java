@@ -401,10 +401,10 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                                 new IOperationResult<Void, Exception>() {
                                     
                                     private void closeConnection() {
-                                        if (connection != null && connection.getRemoteState() != EndpointState.CLOSED)
-                                        {
-                                            if (connection.getLocalState() != EndpointState.CLOSED)
-                                            {
+                                        
+                                        if (connection != null && connection.getRemoteState() != EndpointState.CLOSED) {
+                                            
+                                            if (connection.getLocalState() != EndpointState.CLOSED) {
                                                 connection.close();
                                             }
                                         }
@@ -419,6 +419,12 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                                         this.closeConnection();
                                     }
                                 });
+                    }
+                    
+                    else {
+                        
+                        if (connection != null && connection.getRemoteState() != EndpointState.CLOSED && connection.getLocalState() != EndpointState.CLOSED)
+                            connection.close();
                     }
                 }
                 

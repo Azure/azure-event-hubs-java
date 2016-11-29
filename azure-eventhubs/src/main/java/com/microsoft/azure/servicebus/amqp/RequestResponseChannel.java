@@ -208,9 +208,9 @@ public class RequestResponseChannel implements IIOObject {
         @Override
         public void onClose(ErrorCondition condition) {
             
-            if (condition == null)
+            if (condition == null|| condition.getCondition() == null)
                 onLinkCloseComplete(null);
-            else
+            else 
                 onError(new AmqpException(condition));
         }        
         
@@ -256,7 +256,7 @@ public class RequestResponseChannel implements IIOObject {
         @Override
         public void onClose(ErrorCondition condition) {
             
-            if (condition == null)
+            if (condition == null || condition.getCondition() == null)
                 onLinkCloseComplete(null);
             else
                 onError(new AmqpException(condition));

@@ -443,14 +443,12 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
 		if (this.getIsClosingOrClosed())
 		{
-			this.linkClose.complete(null);
-			
 			WorkItem<Collection<Message>> workItem = null;
 			final boolean isTransientException = exception == null ||
 					(exception instanceof ServiceBusException && ((ServiceBusException) exception).getIsTransient());
 			while ((workItem = this.pendingReceives.poll()) != null)
 			{
-				CompletableFuture<Collection<Message>> future = workItem.getWork();
+				final CompletableFuture<Collection<Message>> future = workItem.getWork();
 				if (isTransientException)
 				{
 					future.complete(null);
@@ -460,6 +458,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 					ExceptionUtil.completeExceptionally(future, exception, this);
 				}
 			}
+                        
+                        this.linkClose.complete(null);
 		}
 		else
 		{
@@ -580,7 +580,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
             try {
                 this.underlyingFactory.getCBSChannel().sendToken(
                     this.underlyingFactory.getReactorScheduler(),
-                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_REFRESH_INTERVAL), 
+                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, Duration.ofSeconds(5)), // ClientConstants.TOKEN_REFRESH_INTERVAL), 
                     tokenAudience, 
                     new IOperationResult<Void, Exception>() {
                         @Override
@@ -691,10 +691,9 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	@Override
 	public void onClose(ErrorCondition condition)
 	{
-		if (condition == null)
+		if (condition == null || condition.getCondition() == null)
 		{
-			this.onError(new ServiceBusException(true, 
-					String.format(Locale.US, "Closing the link. LinkName(%s), EntityPath(%s)", this.receiveLink.getName(), this.receivePath)));
+			this.onError((Exception) null);
 		}
 		else
 		{
