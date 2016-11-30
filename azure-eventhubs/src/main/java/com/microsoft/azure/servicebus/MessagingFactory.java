@@ -83,7 +83,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             this.openConnection = new CompletableFuture<>();
             this.sessionCache = new Hashtable<>();
             this.cbsChannelCreateLock = new Object();
-            this.tokenProvider = new SharedAccessSignatureTokenProvider(builder.getSasKeyName(), builder.getSasKey());
+            this.tokenProvider = builder.getSharedAccessSignature() == null
+                    ? new SharedAccessSignatureTokenProvider(builder.getSasKeyName(), builder.getSasKey())
+                    : new SharedAccessSignatureTokenProvider(builder.getSharedAccessSignature());
 
             this.closeTask = new CompletableFuture<>();
             this.closeTask.thenAccept(new Consumer<Void>()
@@ -251,8 +253,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
 	public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString) throws IOException
 	{
-		ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString);
-		MessagingFactory messagingFactory = new MessagingFactory(builder);
+		final ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString);
+		final MessagingFactory messagingFactory = new MessagingFactory(builder);
 
 		messagingFactory.createConnection(builder);
 		return messagingFactory.open;

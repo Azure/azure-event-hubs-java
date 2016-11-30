@@ -181,7 +181,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                                                 }
                                             });
                                     }
-                                    catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception) {
+                                    catch(IOException|NoSuchAlgorithmException|InvalidKeyException|RuntimeException exception) {
                                         MessageReceiver.this.onError(exception);
                                     }
                                 }
@@ -597,7 +597,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                         }
                     });
             }
-            catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception) {
+            catch(IOException|NoSuchAlgorithmException|InvalidKeyException|RuntimeException exception) {
                 MessageReceiver.this.onError(exception);
             }
         }

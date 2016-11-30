@@ -174,7 +174,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                                                 }
                                             });
                                     }
-                                    catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception) {
+                                    catch(IOException|NoSuchAlgorithmException|InvalidKeyException|RuntimeException exception) {
                                         MessageSender.this.onError(exception);
                                     }
                                 }
@@ -650,7 +650,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                             }
                         });
                 }
-                catch(IOException|NoSuchAlgorithmException|InvalidKeyException exception)
+                catch(IOException|NoSuchAlgorithmException|InvalidKeyException|RuntimeException exception)
                 {
                     MessageSender.this.onError(exception);
                 }
