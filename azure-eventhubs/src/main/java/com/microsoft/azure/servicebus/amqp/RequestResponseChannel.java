@@ -148,7 +148,9 @@ public class RequestResponseChannel implements IIOObject {
                 if (exception != null)
                     onOpen.onError(exception);
                 else {
-                    final ErrorCondition error = this.sendLink.getRemoteCondition() != null ? this.sendLink.getRemoteCondition() : this.receiveLink.getRemoteCondition();
+                    final ErrorCondition error = (this.sendLink.getRemoteCondition() != null && this.sendLink.getRemoteCondition().getCondition() != null)
+                            ? this.sendLink.getRemoteCondition()
+                            : this.receiveLink.getRemoteCondition();
                     onOpen.onError(new AmqpException(error));
                 }
             }

@@ -7,6 +7,7 @@ package com.microsoft.azure.eventhubs.sendrecv;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 import com.microsoft.azure.servicebus.ClientConstants;
@@ -20,7 +21,8 @@ import com.microsoft.azure.servicebus.amqp.IOperation;
 import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
 import com.microsoft.azure.servicebus.amqp.RequestResponseChannel;
-import java.util.concurrent.ExecutionException;
+import junit.framework.AssertionFailedError;
+
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.messaging.AmqpValue;
@@ -144,7 +146,10 @@ public class RequestResponseTest  extends ApiTestBase {
                                         this.onError(new AmqpException(error));
                                     }
 
-                                    task.complete(null);
+                                    if (connectionString.getEntityPath().equalsIgnoreCase((String) resultMap.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY)))
+                                        task.complete(null);
+                                    else
+                                        task.completeExceptionally(new AssertionFailedError("response doesn't have correct eventhub name"));
                                 }
 
                                 @Override

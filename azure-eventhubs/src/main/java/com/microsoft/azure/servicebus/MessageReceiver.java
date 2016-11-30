@@ -369,6 +369,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
 	public void onOpenComplete(Exception exception)
 	{		
+                this.creatingLink = false;
+            
 		if (exception == null)
 		{
 			if (this.linkOpen != null && !this.linkOpen.getWork().isDone())
@@ -438,8 +440,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	@Override
 	public void onError(final Exception exception)
 	{
-                this.creatingLink = false;
-		this.prefetchedMessages.clear();
+                this.prefetchedMessages.clear();
 
 		if (this.getIsClosingOrClosed())
 		{
@@ -564,7 +565,6 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     }
 
                     MessageReceiver.this.receiveLink = receiver;
-                    MessageReceiver.this.creatingLink = false;
                 }
             };
             

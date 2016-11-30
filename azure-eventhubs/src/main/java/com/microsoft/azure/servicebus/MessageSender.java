@@ -339,6 +339,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	@Override
 	public void onOpenComplete(Exception completionException)
 	{
+                this.creatingLink = false;
+
 		if (completionException == null)
 		{
 			this.openLinkTracker = null;
@@ -398,7 +400,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	public void onError(Exception completionException)
 	{
 		this.linkCredit = 0;
-                this.creatingLink = false;
 
 		if (this.getIsClosingOrClosed())
 		{
@@ -616,7 +617,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                         }
 
                         MessageSender.this.sendLink = sender;
-                        MessageSender.this.creatingLink = false;
                     }
                 };		
                 
