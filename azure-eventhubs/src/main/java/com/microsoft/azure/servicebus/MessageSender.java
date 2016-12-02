@@ -809,7 +809,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 						delivery.free();
 					}
 					
-					sendData.getWork().completeExceptionally(
+                                        sendData.getWork().completeExceptionally(
 						sendException != null
 							? new OperationCancelledException("Send operation failed. Please see cause for more details", sendException)
 							: new OperationCancelledException(

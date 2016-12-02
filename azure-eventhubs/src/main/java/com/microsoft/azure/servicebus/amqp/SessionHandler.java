@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.servicebus.amqp;
 
+import java.io.IOException;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -14,6 +16,9 @@ import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Event;
 import org.apache.qpid.proton.engine.Session;
+import org.apache.qpid.proton.amqp.Symbol;
+import org.apache.qpid.proton.reactor.Reactor;
+import org.apache.qpid.proton.engine.Handler;
 
 import com.microsoft.azure.servicebus.ClientConstants;
 
@@ -33,6 +38,42 @@ public class SessionHandler extends BaseHandler
                 this.onRemoteSessionOpenError = onRemoteSessionOpenError;
                 this.onRemoteSessionOpen = onRemoteSessionOpen;
 	}
+        
+        @Override
+        public void onSessionLocalOpen(Event e)
+        {
+            if (onRemoteSessionOpenError != null) {
+                
+                ReactorHandler reactorHandler = null;
+                final Reactor reactor = e.getReactor();
+                final Iterator<Handler> reactorEventHandlers = reactor.getHandler().children();
+                while (reactorEventHandlers.hasNext()) {
+                    final Handler currentHandler = reactorEventHandlers.next();
+                    if (currentHandler instanceof ReactorHandler) {
+                        reactorHandler = (ReactorHandler) currentHandler;
+                        break;
+                    }
+                }
+                
+                final ReactorDispatcher reactorDispatcher = reactorHandler.getReactorDispatcher();
+                final Session session = e.getSession();
+
+                try {
+                    
+                    reactorDispatcher.invoke(ClientConstants.SESSION_OPEN_TIMEOUT_IN_MS, new SessionTimeoutHandler(session));
+                } catch (IOException ignore) {
+                    
+                    if(TRACE_LOGGER.isLoggable(Level.SEVERE)) {
+                            TRACE_LOGGER.log(Level.SEVERE, String.format(Locale.US, "entityName[%s], reactorDispatcherError[%s]", this.entityName, ignore.getMessage()));
+                    }
+                    
+                    session.close();
+                    onRemoteSessionOpenError.accept(new ErrorCondition(
+                            Symbol.getSymbol("amqp:reactorDispatcher:faulted"),
+                            String.format("underlying IO of reactorDispatcher faulted with error: %s", ignore.getMessage())));
+                }
+            }
+        }
 
 	@Override
 	public void onSessionRemoteOpen(Event e) 
@@ -92,5 +133,23 @@ public class SessionHandler extends BaseHandler
 			TRACE_LOGGER.log(Level.FINE, String.format(Locale.US, "entityName[%s]", this.entityName));
 		}
 	}
+        
+        private class SessionTimeoutHandler extends DispatchHandler {
+            
+            private final Session session;
+            
+            public SessionTimeoutHandler(final Session session) {
+                this.session = session;
+            }
+            
+            @Override
+            public void onEvent() {
+                
+                if (!sessionCreated) {
 
+                    session.close();
+                    onRemoteSessionOpenError.accept(new ErrorCondition(Symbol.getSymbol("amqp:session:open-failed"), "session creation timedout."));
+                }
+            }
+        }
 }

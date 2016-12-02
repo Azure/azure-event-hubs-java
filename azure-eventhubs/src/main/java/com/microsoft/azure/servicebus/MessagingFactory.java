@@ -124,7 +124,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
 	private void createConnection(ConnectionStringBuilder builder) throws IOException
 	{
-		this.open = new CompletableFuture<MessagingFactory>();
+		this.open = new CompletableFuture<>();
 		this.startReactor(new ReactorHandler()
 		{
 			@Override
@@ -138,13 +138,14 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		});
 	}
 
-	private void startReactor(ReactorHandler reactorHandler) throws IOException
+	private void startReactor(final ReactorHandler reactorHandler) throws IOException
 	{
 		final Reactor newReactor = ProtonUtil.reactor(reactorHandler);
 		synchronized (this.reactorLock)
 		{
 			this.reactor = newReactor;
 			this.reactorScheduler = new ReactorDispatcher(newReactor);
+                        reactorHandler.unsafeSetReactorDispatcher(this.reactorScheduler);
 		}
 		
 		final Thread reactorThread = new Thread(new RunReactor(newReactor));
