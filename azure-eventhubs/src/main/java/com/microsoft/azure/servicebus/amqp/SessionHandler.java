@@ -7,7 +7,9 @@ package com.microsoft.azure.servicebus.amqp;
 import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.function.Consumer;
 
+import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Event;
@@ -20,10 +22,16 @@ public class SessionHandler extends BaseHandler
 	protected static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
 
 	private final String entityName;
+        private final Consumer<Session> onRemoteSessionOpen;
+        private final Consumer<ErrorCondition> onRemoteSessionOpenError;
         
-	public SessionHandler(final String entityName)
+        private boolean sessionCreated = false;
+        
+	public SessionHandler(final String entityName, final Consumer<Session> onRemoteSessionOpen, final Consumer<ErrorCondition> onRemoteSessionOpenError)
 	{
 		this.entityName = entityName;
+                this.onRemoteSessionOpenError = onRemoteSessionOpenError;
+                this.onRemoteSessionOpen = onRemoteSessionOpen;
 	}
 
 	@Override
@@ -35,11 +43,15 @@ public class SessionHandler extends BaseHandler
 					this.entityName, e.getSession().getIncomingCapacity(), e.getSession().getOutgoingWindow()));
 		}
 
-		Session session = e.getSession();
+		final Session session = e.getSession();
 		if (session != null && session.getLocalState() == EndpointState.UNINITIALIZED)
 		{
 			session.open();
 		}
+                
+                sessionCreated = true;
+                if (this.onRemoteSessionOpen != null)
+                        this.onRemoteSessionOpen.accept(session);
 	}
 
 
@@ -62,11 +74,14 @@ public class SessionHandler extends BaseHandler
 					e.getSession().getRemoteCondition() == null ? "none" : e.getSession().getRemoteCondition().toString()));
 		}
 
-		Session session = e.getSession();
+		final Session session = e.getSession();
 		if (session != null && session.getLocalState() != EndpointState.CLOSED)
 		{
 			session.close();
 		}
+                
+                if (!sessionCreated && this.onRemoteSessionOpenError != null)
+                        this.onRemoteSessionOpenError.accept(session.getRemoteCondition());
 	}
 
 	@Override

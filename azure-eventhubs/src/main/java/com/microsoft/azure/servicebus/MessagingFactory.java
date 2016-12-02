@@ -173,31 +173,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		}
                 
                 final Session session = this.connection.session();
-                
-                BaseHandler.setHandler(session, new SessionHandler(path)
-                {
-                    private boolean sessionCreated = false;
-
-                    @Override
-                    public void onSessionRemoteOpen(Event e) 
-                    {
-                        super.onSessionRemoteOpen(e);
-                        sessionCreated = true;
-
-                        if (onRemoteSessionOpen != null)
-                            onRemoteSessionOpen.accept(e.getSession());
-                    }
-
-                    @Override 
-                    public void onSessionRemoteClose(Event e)
-                    {
-                        super.onSessionRemoteClose(e);
-                        if (!sessionCreated && onRemoteSessionOpenError != null)
-                            onRemoteSessionOpenError.accept(e.getSession().getRemoteCondition());
-                    }
-                });
-
+                BaseHandler.setHandler(session, new SessionHandler(path, onRemoteSessionOpen, onRemoteSessionOpenError));
                 session.open();
+                
 		return session;
         }
 
