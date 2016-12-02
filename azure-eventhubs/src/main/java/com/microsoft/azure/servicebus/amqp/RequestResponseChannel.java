@@ -182,7 +182,10 @@ public class RequestResponseChannel implements IIOObject {
                 && sendLink.getLocalState() == EndpointState.ACTIVE && receiveLink.getRemoteState() == EndpointState.ACTIVE)
             return IOObjectState.OPENED;
         
-        return IOObjectState.CLOSED;
+        if (sendLink.getRemoteState() == EndpointState.CLOSED && receiveLink.getRemoteState() == EndpointState.CLOSED)
+            return IOObjectState.CLOSED;
+        
+        return IOObjectState.CLOSING; // only left cases are if some are active and some are closed
     }
     
     private class RequestHandler implements IAmqpSender {

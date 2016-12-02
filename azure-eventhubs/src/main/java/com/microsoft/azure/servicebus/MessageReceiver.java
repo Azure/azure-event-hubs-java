@@ -367,6 +367,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		return onReceive;
 	}
 
+        @Override
 	public void onOpenComplete(Exception exception)
 	{		
                 this.creatingLink = false;
@@ -464,12 +465,16 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		}
 		else
 		{
-			this.lastKnownLinkError = exception;
-			this.onOpenComplete(exception);
+			this.lastKnownLinkError = exception == null ? this.lastKnownLinkError : exception;
+			
+                        final Exception completionException = exception == null
+                                ? new ServiceBusException(true, "Client encountered transient error for unknown reasons, please retry the operation.") : exception;
+                        
+                        this.onOpenComplete(completionException);
 			
 			final WorkItem<Collection<Message>> workItem = this.pendingReceives.peek();
 			final Duration nextRetryInterval = workItem != null && workItem.getTimeoutTracker() != null
-					? this.underlyingFactory.getRetryPolicy().getNextRetryInterval(this.getClientId(), exception, workItem.getTimeoutTracker().remaining())
+					? this.underlyingFactory.getRetryPolicy().getNextRetryInterval(this.getClientId(), completionException, workItem.getTimeoutTracker().remaining())
 					: null;
 			
                         boolean recreateScheduled = true;
@@ -502,7 +507,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 				WorkItem<Collection<Message>> pendingReceive = null;
 				while ((pendingReceive = this.pendingReceives.poll()) != null)
 				{
-					ExceptionUtil.completeExceptionally(pendingReceive.getWork(), exception, this);
+					ExceptionUtil.completeExceptionally(pendingReceive.getWork(), completionException, this);
 				}
 			}
 		}

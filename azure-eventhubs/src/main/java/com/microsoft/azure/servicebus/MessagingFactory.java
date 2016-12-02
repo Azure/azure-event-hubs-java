@@ -9,6 +9,7 @@ import java.nio.channels.UnresolvedAddressException;
 import java.time.Duration;
 import java.util.Hashtable;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
@@ -35,7 +36,6 @@ import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
 import com.microsoft.azure.servicebus.amqp.SessionHandler;
-import java.util.List;
 
 /**
  * Abstracts all amqp related details and exposes AmqpConnection object
@@ -186,7 +186,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				final Session oldSession = this.sessionCache.get(sessionId);
 				if (oldSession.getLocalState() != EndpointState.CLOSED && oldSession.getRemoteState() != EndpointState.CLOSED)
 					session = oldSession;
-				else
+                                else
 					createSession = true;
 			}
 			else
@@ -284,7 +284,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 		}
 		else
 		{
-			final Connection currentConnection = this.connection;
+                        final Connection currentConnection = this.connection;
 			for (Link link: this.registeredLinks)
 			{
 				if (link.getLocalState() != EndpointState.CLOSED && link.getRemoteState() != EndpointState.CLOSED)
@@ -293,7 +293,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 				}
 			}
 			
-			this.openConnection = new CompletableFuture<Connection>();
+			this.openConnection = new CompletableFuture<>();
 
 			if (currentConnection.getLocalState() != EndpointState.CLOSED && currentConnection.getRemoteState() != EndpointState.CLOSED)
 			{

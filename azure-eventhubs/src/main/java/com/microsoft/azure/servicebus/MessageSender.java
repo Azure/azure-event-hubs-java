@@ -50,6 +50,7 @@ import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpSender;
 import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.SendLinkHandler;
+import java.util.List;
 
 /**
  * Abstracts all amqp related details
@@ -358,7 +359,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				{
 					if (!this.pendingSendsData.isEmpty())
 					{
-						LinkedList<String> unacknowledgedSends = new LinkedList<String>();
+                                                List<String> unacknowledgedSends = new LinkedList<>();
 						unacknowledgedSends.addAll(this.pendingSendsData.keySet());
 		
 						if (unacknowledgedSends.size() > 0)
@@ -390,14 +391,14 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	}
 
 	@Override
-	public void onClose(ErrorCondition condition)
+	public void onClose(final ErrorCondition condition)
 	{
             	final Exception completionException = (condition != null && condition.getCondition() != null) ? ExceptionUtil.toException(condition) : null;
 		this.onError(completionException);
 	}
 
 	@Override
-	public void onError(Exception completionException)
+	public void onError(final Exception completionException)
 	{
 		this.linkCredit = 0;
 
@@ -423,18 +424,21 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		}
 		else
 		{
-			this.lastKnownLinkError = completionException;
+			this.lastKnownLinkError = completionException == null ? this.lastKnownLinkError : completionException;
 			this.lastKnownErrorReportedAt = Instant.now();
-
-			this.onOpenComplete(completionException);
-
+			
+                        final Exception finalCompletionException = completionException == null
+                                ? new ServiceBusException(true, "Client encountered transient error for unknown reasons, please retry the operation.") : completionException;
+    
+                        this.onOpenComplete(finalCompletionException);
+                        
 			final Map.Entry<String, ReplayableWorkItem<Void>> pendingSendEntry = IteratorUtil.getFirst(this.pendingSendsData.entrySet());
 			if (pendingSendEntry != null && pendingSendEntry.getValue() != null)
 			{
 				final TimeoutTracker tracker = pendingSendEntry.getValue().getTimeoutTracker();
                                 if (tracker != null)
 				{
-					final Duration nextRetryInterval = this.retryPolicy.getNextRetryInterval(this.getClientId(), completionException, tracker.remaining());
+					final Duration nextRetryInterval = this.retryPolicy.getNextRetryInterval(this.getClientId(), finalCompletionException, tracker.remaining());
                                         boolean scheduledRecreate = true;
 
                                         if (nextRetryInterval != null)
@@ -465,7 +469,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 						{
 							for (Map.Entry<String, ReplayableWorkItem<Void>> pendingSend: this.pendingSendsData.entrySet())
 							{
-								this.cleanupFailedSend(pendingSend.getValue(), completionException);					
+								this.cleanupFailedSend(pendingSend.getValue(), finalCompletionException);					
 							}
 				
 							this.pendingSendsData.clear();
