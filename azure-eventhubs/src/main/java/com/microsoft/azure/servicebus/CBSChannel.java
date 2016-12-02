@@ -102,7 +102,7 @@ public class CBSChannel {
             final RequestResponseChannel requestResponseChannel = new RequestResponseChannel(
                 "cbs", 
                 ClientConstants.CBS_ADDRESS,
-                CBSChannel.this.sessionProvider.getSession("cbs-session", UUID.randomUUID().toString(), null, null));
+                CBSChannel.this.sessionProvider.getSession("cbs-session", null, null));
 
             requestResponseChannel.open(
                 new IOperationResult<Void, Exception>() {

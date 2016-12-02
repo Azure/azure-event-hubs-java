@@ -20,18 +20,11 @@ public class SessionHandler extends BaseHandler
 	protected static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
 
 	private final String entityName;
-        private final String sessionId;
         
-	public SessionHandler(final String entityName, final String sessionId)
+	public SessionHandler(final String entityName)
 	{
 		this.entityName = entityName;
-                this.sessionId = sessionId;
 	}
-        
-        protected String getSessionId()
-        {
-            return this.sessionId;
-        }
 
 	@Override
 	public void onSessionRemoteOpen(Event e) 

@@ -76,7 +76,7 @@ public class FaultTolerantObject<T extends IIOObject> {
                             }
                         });
                     }
-                    else if (innerObject.getState() == IIOObject.IOObjectState.OPENED) {
+                    else if (innerObject != null && innerObject.getState() == IIOObject.IOObjectState.OPENED) {
                         openCallback.onComplete(innerObject);
                     }
                     else {

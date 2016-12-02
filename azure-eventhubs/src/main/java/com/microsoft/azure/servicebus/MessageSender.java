@@ -63,8 +63,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 	private final MessagingFactory underlyingFactory;
 	private final String sendPath;
-        private final String sessionId;
-	private final Duration operationTimeout;
+        private final Duration operationTimeout;
 	private final RetryPolicy retryPolicy;
 	private final CompletableFuture<Void> linkClose;
 	private final Object pendingSendLock;
@@ -87,16 +86,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			final String sendLinkName,
 			final String senderPath)
 	{
-            return MessageSender.create(factory, sendLinkName, senderPath, null);
-        }
-        
-	public static CompletableFuture<MessageSender> create(
-			final MessagingFactory factory,
-			final String sendLinkName,
-			final String senderPath,
-                        final String sessionId)
-	{
-		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath, sessionId);
+		final MessageSender msgSender = new MessageSender(factory, sendLinkName, senderPath);
 		msgSender.openLinkTracker = TimeoutTracker.create(factory.getOperationTimeout());
 		msgSender.initializeLinkOpen(msgSender.openLinkTracker);
 		
@@ -119,14 +109,13 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		return msgSender.linkFirstOpen;
 	}
 
-	private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath, final String sessionId)
+	private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath)
 	{
 		super(sendLinkName, factory);
 
 		this.sendPath = senderPath;
 		this.underlyingFactory = factory;
 		this.operationTimeout = factory.getOperationTimeout();
-                this.sessionId = sessionId == null ? StringUtil.getRandomString() : sessionId;
 		
 		this.lastKnownLinkError = null;
 		this.lastKnownErrorReportedAt = Instant.EPOCH;
@@ -644,7 +633,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                             public void onComplete(Void result) {
                                 underlyingFactory.getSession(
                                     sendPath,
-                                    sessionId,
                                     onSessionOpen,
                                     onSessionOpenError);
                             }

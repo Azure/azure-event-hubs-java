@@ -52,7 +52,7 @@ public class RequestResponseTest  extends ApiTestBase {
         final RequestResponseChannel requestResponseChannel = new RequestResponseChannel(
                                 "reqresp", 
                                 ClientConstants.MANAGEMENT_ADDRESS,
-                                factory.getSession("path", "sessionId", null, null));
+                                factory.getSession("path", null, null));
         final FaultTolerantObject<RequestResponseChannel> fchannel = new FaultTolerantObject<>(
                 new IOperation<RequestResponseChannel>() {
                     @Override
