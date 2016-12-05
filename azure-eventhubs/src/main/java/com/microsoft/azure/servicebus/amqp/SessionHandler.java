@@ -11,14 +11,16 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.function.Consumer;
 
+import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.BaseHandler;
+import org.apache.qpid.proton.engine.Connection;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Event;
-import org.apache.qpid.proton.engine.Session;
-import org.apache.qpid.proton.amqp.Symbol;
-import org.apache.qpid.proton.reactor.Reactor;
 import org.apache.qpid.proton.engine.Handler;
+import org.apache.qpid.proton.engine.Session;
+import org.apache.qpid.proton.engine.Transport;
+import org.apache.qpid.proton.reactor.Reactor;
 
 import com.microsoft.azure.servicebus.ClientConstants;
 
@@ -31,6 +33,7 @@ public class SessionHandler extends BaseHandler
         private final Consumer<ErrorCondition> onRemoteSessionOpenError;
         
         private boolean sessionCreated = false;
+        private boolean sessionOpenErrorDispatched = false;
         
 	public SessionHandler(final String entityName, final Consumer<Session> onRemoteSessionOpen, final Consumer<ErrorCondition> onRemoteSessionOpenError)
 	{
@@ -121,6 +124,7 @@ public class SessionHandler extends BaseHandler
 			session.close();
 		}
                 
+                this.sessionOpenErrorDispatched = true;
                 if (!sessionCreated && this.onRemoteSessionOpenError != null)
                         this.onRemoteSessionOpenError.accept(session.getRemoteCondition());
 	}
@@ -145,8 +149,29 @@ public class SessionHandler extends BaseHandler
             @Override
             public void onEvent() {
                 
-                if (!sessionCreated) {
+                // notify - if connection or transport error'ed out before even session open completed
+                if (!sessionCreated && !sessionOpenErrorDispatched) {
 
+                    final Connection connection = session.getConnection();
+                    
+                    if (connection != null) {
+                        
+                        if (connection.getRemoteCondition() != null && connection.getRemoteCondition().getCondition() != null) {
+                            
+                            session.close();
+                            onRemoteSessionOpenError.accept(connection.getRemoteCondition());
+                            return;
+                        }
+                        
+                        final Transport transport = connection.getTransport();
+                        if (transport != null && transport.getCondition() != null && transport.getCondition().getCondition() != null) {
+                            
+                            session.close();
+                            onRemoteSessionOpenError.accept(transport.getCondition());
+                            return;
+                        }
+                    }
+                    
                     session.close();
                     onRemoteSessionOpenError.accept(new ErrorCondition(Symbol.getSymbol("amqp:session:open-failed"), "session creation timedout."));
                 }
