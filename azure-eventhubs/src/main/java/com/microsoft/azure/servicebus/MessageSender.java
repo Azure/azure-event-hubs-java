@@ -626,7 +626,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                 {                    
                     this.underlyingFactory.getCBSChannel().sendToken(
                         this.underlyingFactory.getReactorScheduler(),
-                        this.underlyingFactory.getTokenProvider().getToken(tokenAudience, Duration.ofHours(1)), 
+                        this.underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_REFRESH_INTERVAL), 
                         tokenAudience, 
                         new IOperationResult<Void, Exception>() {
                             @Override
