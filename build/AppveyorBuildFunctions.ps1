@@ -59,7 +59,7 @@ function Deploy-AzureResources
 
         $env:EVENT_HUB_CONNECTION_STRING = $settings.Outputs.Get_Item("namespaceConnectionString").Value + ";EntityPath=$EventHubName"
         $env:EPHTESTSTORAGE = $settings.Outputs.Get_Item("storageAccountConnectionString").Value
-        $env:PARTITION_COUNT = 2
+        $env:PARTITION_COUNT = 4
 
         Write-Host "Completed creating Azure resources"
     }
