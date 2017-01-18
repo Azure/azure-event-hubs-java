@@ -2,7 +2,8 @@ function Build-Solution
 {
     Write-Host "Building Event Hubs projects"
 
-    & "mvn package -Dmaven.test.skip=true"
+    $mvnArgs1 ="mvn package -Dmaven.test.skip=true".replace('-D','`-D')
+    Invoke-Expression $mvnArgs1
 
     Write-Host "Building complete"
 }
@@ -81,7 +82,8 @@ function Run-UnitTests
     {
         Write-Host "Running unit tests."
 
-        & "mvn package"
+        $mvnArgs1 ="mvn package"
+        Invoke-Expression $mvnArgs1
     }
     else
     {
