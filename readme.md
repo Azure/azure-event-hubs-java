@@ -110,7 +110,7 @@ The receiver code then creates (at least) one *PartitionReceiver* that will rece
 an offset, in the snippet below it's simply the start of the log.    
 		
 ```Java
-		String partitionId = "0"; // API to get PartitionIds will be released as part of V0.2
+		String partitionId = "0";
 		PartitionReceiver receiver = ehClient.createReceiverSync(
 				EventHubClient.DefaultConsumerGroupName, 
 				partitionId, 
