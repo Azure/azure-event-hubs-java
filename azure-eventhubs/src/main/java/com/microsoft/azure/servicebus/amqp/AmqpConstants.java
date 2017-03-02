@@ -24,7 +24,7 @@ public final class AmqpConstants {
 		add(AMQP_PROPERTY_CORRELATION_ID);
 		add(AMQP_PROPERTY_CONTENT_TYPE);
 		add(AMQP_PROPERTY_CONTENT_ENCODING);
-		add(AMQP_PROPERTY_ABSOLUTE_EXPRITY_time);
+		add(AMQP_PROPERTY_ABSOLUTE_EXPRITY_TIME);
 		add(AMQP_PROPERTY_CREATION_TIME);
 		add(AMQP_PROPERTY_GROUP_ID);
 		add(AMQP_PROPERTY_GROUP_SEQUENCE);
@@ -65,11 +65,14 @@ public final class AmqpConstants {
 	public static final String AMQP_PROPERTY_CORRELATION_ID = "correlation-id";
 	public static final String AMQP_PROPERTY_CONTENT_TYPE = "content-type";
 	public static final String AMQP_PROPERTY_CONTENT_ENCODING = "content-encoding";
-	public static final String AMQP_PROPERTY_ABSOLUTE_EXPRITY_time = "absolute-expiry-time";
+	public static final String AMQP_PROPERTY_ABSOLUTE_EXPRITY_TIME = "absolute-expiry-time";
 	public static final String AMQP_PROPERTY_CREATION_TIME = "creation-time";
 	public static final String AMQP_PROPERTY_GROUP_ID = "group-id";
 	public static final String AMQP_PROPERTY_GROUP_SEQUENCE = "group-sequence";
 	public static final String AMQP_PROPERTY_REPLY_TO_GROUP_ID = "reply-to-group-id";
+        
+        public static final String AMQP_VALUE = "amqp:amqp-value:*";
+        public static final String AMQP_SEQUENCE = "amqp:amqp-sequence:list";
         
         public static final Symbol ENABLE_RECEIVER_RUNTIME_METRIC_NAME = Symbol.valueOf(VENDOR + ":enable-receiver-runtime-metric");
 }

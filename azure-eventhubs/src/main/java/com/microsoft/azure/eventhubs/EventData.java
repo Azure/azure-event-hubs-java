@@ -22,6 +22,9 @@ import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.amqp.messaging.Data;
 import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
 import org.apache.qpid.proton.message.Message;
+import org.apache.qpid.proton.amqp.messaging.AmqpSequence;
+import org.apache.qpid.proton.amqp.messaging.AmqpValue;
+import org.apache.qpid.proton.amqp.messaging.Section;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 
@@ -35,11 +38,14 @@ public class EventData implements Serializable
 
 	transient private Binary bodyData;
 	
+        private final Class bodyType;
+        
 	private Map<String, Object> properties;
 	private SystemProperties systemProperties;
 
 	private EventData()
 	{
+            this.bodyType = Data.class;
 	}
 
 	/**
@@ -71,19 +77,31 @@ public class EventData implements Serializable
 			if (amqpMessage.getCorrelationId() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_CORRELATION_ID, amqpMessage.getCorrelationId());
 			if (amqpMessage.getContentType() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_CONTENT_TYPE, amqpMessage.getContentType());
 			if (amqpMessage.getContentEncoding() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_CONTENT_ENCODING, amqpMessage.getContentEncoding());
-			if (amqpMessage.getProperties().getAbsoluteExpiryTime() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_ABSOLUTE_EXPRITY_time, amqpMessage.getExpiryTime());
+			if (amqpMessage.getProperties().getAbsoluteExpiryTime() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_ABSOLUTE_EXPRITY_TIME, amqpMessage.getExpiryTime());
 			if (amqpMessage.getProperties().getCreationTime() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_CREATION_TIME, amqpMessage.getCreationTime());
 			if (amqpMessage.getGroupId() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_GROUP_ID, amqpMessage.getGroupId());
 			if (amqpMessage.getProperties().getGroupSequence() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_GROUP_SEQUENCE, amqpMessage.getGroupSequence());
 			if (amqpMessage.getReplyToGroupId() != null) receiveProperties.put(AmqpConstants.AMQP_PROPERTY_REPLY_TO_GROUP_ID, amqpMessage.getReplyToGroupId());
 		}
 		
-		this.systemProperties = new SystemProperties(receiveProperties);	
 		this.properties = amqpMessage.getApplicationProperties() == null ? null 
 				: ((Map<String, Object>)(amqpMessage.getApplicationProperties().getValue()));
-
-		this.bodyData = amqpMessage.getBody() == null ? null : ((Data) amqpMessage.getBody()).getValue();
-
+                
+                Section bodySection = amqpMessage.getBody();
+                if (bodySection != null) {
+                    this.bodyType = bodySection.getClass();
+                    if (bodySection instanceof Data)
+                        this.bodyData =  ((Data) bodySection).getValue();
+                    else if (bodySection instanceof AmqpValue)
+                        receiveProperties.put(AmqpConstants.AMQP_VALUE, ((AmqpValue) bodySection).getValue()); 
+                    else if (bodySection instanceof AmqpSequence)
+                        receiveProperties.put(AmqpConstants.AMQP_SEQUENCE, ((AmqpSequence) bodySection).getValue());
+                }
+                else {
+                    this.bodyType = Data.class;
+                }
+                
+		this.systemProperties = new SystemProperties(receiveProperties);	
 		amqpMessage.clear();
 	}
 
@@ -180,7 +198,11 @@ public class EventData implements Serializable
 	 */
 	public byte[] getBody()
 	{
-		return this.bodyData == null ? null : this.bodyData.getArray();
+            if (this.bodyType != Data.class) {
+                throw new IllegalEventDataBodyException(this.bodyType);
+            }
+            
+            return this.bodyData == null ? null : this.bodyData.getArray();
 	}
 	
 	/**
@@ -278,7 +300,7 @@ public class EventData implements Serializable
 							case AmqpConstants.AMQP_PROPERTY_CORRELATION_ID: amqpMessage.setCorrelationId(systemProperty.getValue()); break;
 							case AmqpConstants.AMQP_PROPERTY_CONTENT_TYPE: amqpMessage.setContentType((String) systemProperty.getValue()); break;
 							case AmqpConstants.AMQP_PROPERTY_CONTENT_ENCODING: amqpMessage.setContentEncoding((String) systemProperty.getValue()); break;
-							case AmqpConstants.AMQP_PROPERTY_ABSOLUTE_EXPRITY_time: amqpMessage.setExpiryTime((long) systemProperty.getValue()); break;
+							case AmqpConstants.AMQP_PROPERTY_ABSOLUTE_EXPRITY_TIME: amqpMessage.setExpiryTime((long) systemProperty.getValue()); break;
 							case AmqpConstants.AMQP_PROPERTY_CREATION_TIME: amqpMessage.setCreationTime((long) systemProperty.getValue()); break;
 							case AmqpConstants.AMQP_PROPERTY_GROUP_ID: amqpMessage.setGroupId((String) systemProperty.getValue()); break;
 							case AmqpConstants.AMQP_PROPERTY_GROUP_SEQUENCE: amqpMessage.setGroupSequence((long) systemProperty.getValue()); break;
