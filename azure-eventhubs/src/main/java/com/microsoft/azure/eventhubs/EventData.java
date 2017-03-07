@@ -336,14 +336,7 @@ public class EventData implements Serializable
 		if (length != BODY_DATA_NULL) {
                     
                     final byte[] data = new byte[length];
-
-                    int totalBytesRead = 0;
-                    int currentBytesRead = 0;
-                    while (totalBytesRead < length
-                           && (currentBytesRead = in.read(data, totalBytesRead, length - totalBytesRead)) != -1) {
-                        totalBytesRead += currentBytesRead;
-                    }
-
+                    in.readFully(data, 0, length);
                     this.bodyData = new Binary(data, 0, length);
                 }
 	}
