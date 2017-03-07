@@ -25,7 +25,7 @@ import org.junit.Test;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.IllegalEventDataBodyException;
+import com.microsoft.azure.eventhubs.UnexpectedEventDataBodyException;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
@@ -75,13 +75,13 @@ public class InteropEventBodyTest extends ApiTestBase {
         partitionMsgSender.send(originalMessage).get();
         receivedEvent = receiver.receiveSync(10).iterator().next();
         
-        Assert.assertTrue(receivedEvent.getSystemProperties().get(AmqpConstants.AMQP_VALUE).equals(payload));
+        Assert.assertEquals(payload, receivedEvent.getSystemProperties().get(AmqpConstants.AMQP_VALUE));
         
         try {
             receivedEvent.getBody();
             Assert.assertTrue(false);
-        } catch (IllegalEventDataBodyException exception) {
-            Assert.assertTrue(exception.getSystemPropertyName().equals(AmqpConstants.AMQP_VALUE));
+        } catch (UnexpectedEventDataBodyException exception) {
+            Assert.assertEquals(AmqpConstants.AMQP_VALUE, exception.getSystemPropertyName());
         }
     }
     
@@ -97,13 +97,13 @@ public class InteropEventBodyTest extends ApiTestBase {
         partitionMsgSender.send(originalMessage).get();
         receivedEvent = receiver.receiveSync(10).iterator().next();
         
-        Assert.assertTrue(new String(((List<Data>)(receivedEvent.getSystemProperties().get(AmqpConstants.AMQP_SEQUENCE))).get(0).getValue().getArray()).equals(payload));
+        Assert.assertEquals(payload, new String(((List<Data>)(receivedEvent.getSystemProperties().get(AmqpConstants.AMQP_SEQUENCE))).get(0).getValue().getArray()));
     
         try {
             receivedEvent.getBody();
             Assert.assertTrue(false);
-        } catch (IllegalEventDataBodyException exception) {
-            Assert.assertTrue(exception.getSystemPropertyName().equals(AmqpConstants.AMQP_SEQUENCE));
+        } catch (UnexpectedEventDataBodyException exception) {
+            Assert.assertEquals(AmqpConstants.AMQP_SEQUENCE, exception.getSystemPropertyName());
         }
     }
     

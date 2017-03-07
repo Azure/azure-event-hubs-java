@@ -13,7 +13,7 @@ import org.apache.qpid.proton.amqp.messaging.Data;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 
-public class IllegalEventDataBodyException extends RuntimeException {
+public class UnexpectedEventDataBodyException extends RuntimeException {
     
     private static final Map<Class, String> KNOWN_SECTIONS = new HashMap<Class, String>() {{
         put(AmqpValue.class, AmqpConstants.AMQP_VALUE);
@@ -22,14 +22,17 @@ public class IllegalEventDataBodyException extends RuntimeException {
     
     private final Class bodySection;
     
-    public IllegalEventDataBodyException(final Class actualBodySection) {
+    public UnexpectedEventDataBodyException(final Class actualBodySection) {
         super(KNOWN_SECTIONS.containsKey(actualBodySection)
-            ? String.format("AmqpMessage Body Section will be available in %s.getBody() only if it is of type: %s. If AmqpMessage is sent with any other Body type - it will be added to %s.getSystemProperties(). Use thisException.getSystemPropertyName() method to find this value in %s.getSystemProperties()",
-                    EventData.class, Data.class, EventData.class, EventData.class)
+            ? String.format("AmqpMessage Body Section will be available in %s.getBody() only if it is of type: %s. " + 
+                    "If AmqpMessage has any other type as part of Body Section - it will be added to %s.getSystemProperties()." + 
+                    " Use '%s' as Key to fetch this from %s.getSystemProperties().",
+                    EventData.class, Data.class, EventData.class, KNOWN_SECTIONS.get(actualBodySection), EventData.class)
             : "AmqpMessage Body Section cannot be mapped to any EventData section.");
         this.bodySection = actualBodySection;
     }
     
+    // used for testing
     public String getSystemPropertyName() {
         return KNOWN_SECTIONS.get(this.bodySection);
     }    

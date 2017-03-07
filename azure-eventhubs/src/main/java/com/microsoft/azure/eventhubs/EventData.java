@@ -199,7 +199,7 @@ public class EventData implements Serializable
 	public byte[] getBody()
 	{
             if (this.bodyType != Data.class) {
-                throw new IllegalEventDataBodyException(this.bodyType);
+                throw new UnexpectedEventDataBodyException(this.bodyType);
             }
             
             return this.bodyData == null ? null : this.bodyData.getArray();
