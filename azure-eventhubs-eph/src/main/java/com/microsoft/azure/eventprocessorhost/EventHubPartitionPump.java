@@ -211,7 +211,6 @@ class EventHubPartitionPump extends PartitionPump
 		@Override
 		public void onError(Throwable error)
 		{
-			EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 			if (error == null)
 			{
 				error = new Throwable("No error info supplied by EventHub client");
@@ -220,14 +219,17 @@ class EventHubPartitionPump extends PartitionPump
 			{
 				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.WARNING, EventHubPartitionPump.this.partitionContext,
 						"EventHub client disconnected, probably another host took the partition");
+				// If the receiver has been disconnected, shut down the pump.
+				EventHubPartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
 			}
 			else
 			{
-				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
+				EventHubPartitionPump.this.host.logWithHostAndPartition(Level.WARNING, EventHubPartitionPump.this.partitionContext, "EventHub client error: " + error.toString());
 				if (error instanceof Exception)
 				{
-					EventHubPartitionPump.this.host.logWithHostAndPartition(Level.SEVERE, EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
+					EventHubPartitionPump.this.host.logWithHostAndPartition(Level.WARNING, EventHubPartitionPump.this.partitionContext, "EventHub client error continued", (Exception)error);
 				}
+				// Receiver is expected to recover from any other errors, so do not change the pump status.
 			}
 			EventHubPartitionPump.this.onError(error);
 		}
