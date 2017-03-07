@@ -73,12 +73,7 @@ class EventHubPartitionPump extends PartitionPump
 
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENING)
         {
-            this.internalReceiveHandler = new InternalReceiveHandler();
-            // IEventProcessor.onOpen is called from the base PartitionPump and must have returned in order for execution to reach here, 
-            // meaning it is safe to set the handler and start calling IEventProcessor.onEvents.
-            // Set the status to running before setting the javaClient handler, so the IEventProcessor.onEvents can never race and see status != running.
-            this.pumpStatus = PartitionPumpStatus.PP_RUNNING;
-            this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler, this.host.getEventProcessorOptions().getInvokeProcessorAfterReceiveTimeout());
+        	specializedInstallReceiveHandler();
         }
         
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENFAILED)
@@ -89,6 +84,22 @@ class EventHubPartitionPump extends PartitionPump
         }
     }
     
+    @Override
+    void specializedInstallReceiveHandler()
+    {
+    	// This method can be called during initial setup, or after a receiver has thrown an exception and the handler needs to be reset.
+    	//
+    	// During initial setup: IEventProcessor.onOpen is called from the base PartitionPump and must have returned in order for execution to reach here, 
+        // meaning it is safe to set the handler and start calling IEventProcessor.onEvents.
+        // Set the status to running before setting the javaClient handler, so the IEventProcessor.onEvents can never race and see status != running.
+    	//
+    	// When recovering from a receiver exception: JavaClient cannot throw unless execution is down in JavaClient, so no onEvents call
+    	// is in progress. The previous receive handler will not get any more calls, so it is safe to install a new handler.
+        this.internalReceiveHandler = new InternalReceiveHandler();
+        this.pumpStatus = PartitionPumpStatus.PP_RUNNING;
+        this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler, this.host.getEventProcessorOptions().getInvokeProcessorAfterReceiveTimeout());
+    }
+    
     private void openClients() throws ServiceBusException, IOException, InterruptedException, ExecutionException
     {
     	// Create new client
@@ -97,7 +108,7 @@ class EventHubPartitionPump extends PartitionPump
 		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
 		this.internalOperationFuture = null;
 		
-	// Create new receiver and set options
+		// Create new receiver and set options
         ReceiverOptions options = new ReceiverOptions();
         options.setReceiverRuntimeMetricEnabled(this.host.getEventProcessorOptions().getReceiverRuntimeMetricEnabled());
     	Object startAt = this.partitionContext.getInitialOffset();

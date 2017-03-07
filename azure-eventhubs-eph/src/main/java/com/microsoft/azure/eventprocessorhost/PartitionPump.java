@@ -74,6 +74,8 @@ abstract class PartitionPump
     }
 
     abstract void specializedStartPump();
+    
+    abstract void specializedInstallReceiveHandler();
 
     PartitionPumpStatus getPumpStatus()
     {
@@ -193,6 +195,12 @@ abstract class PartitionPump
 	    	// If the error was fatal, notify upstream that this pump is dead so that cleanup will occur.
 	    	// Failing to do so results in reactor threads leaking.
 	    	this.pump.onPumpError(this.partitionContext.getPartitionId());
+    	}
+    	else
+    	{
+    		// Non-fatal errors still kill the existing receive handler. Install a new one.
+    		this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Installing new receive handler after error");
+    		specializedInstallReceiveHandler();
     	}
     }
 }
