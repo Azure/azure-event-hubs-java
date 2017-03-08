@@ -27,6 +27,7 @@ import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.UnexpectedEventDataBodyException;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.PartitionSender;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
@@ -41,6 +42,7 @@ public class InteropEventBodyTest extends ApiTestBase {
     static MessagingFactory msgFactory;
     static PartitionReceiver receiver;
     static MessageSender partitionMsgSender;
+    static PartitionSender partitionSender;
 
     static final String partitionId = "0";
     static EventData receivedEvent;
@@ -56,6 +58,7 @@ public class InteropEventBodyTest extends ApiTestBase {
         ehClient = EventHubClient.createFromConnectionStringSync(connectionString);
         msgFactory = MessagingFactory.createFromConnectionString(connectionString).get();
         receiver = ehClient.createReceiverSync(TestContext.getConsumerGroupName(), partitionId, Instant.now());
+        partitionSender = ehClient.createPartitionSenderSync(partitionId);
         partitionMsgSender = MessageSender.create(msgFactory, "link1", connStrBuilder.getEntityPath() + "/partitions/" + partitionId).get();
         
         // run out of messages in that specific partition - to account for clock-skew with Instant.now() on test machine vs eventhubs service
@@ -79,7 +82,18 @@ public class InteropEventBodyTest extends ApiTestBase {
         
         try {
             receivedEvent.getBody();
-            Assert.assertTrue(false);
+            Assert.assertTrue(false); // this line shouldn't be reachable
+        } catch (UnexpectedEventDataBodyException exception) {
+            Assert.assertEquals(AmqpConstants.AMQP_VALUE, exception.getSystemPropertyName());
+        }
+        
+        partitionSender.sendSync(receivedEvent);
+        reSentAndReceivedEvent = receiver.receiveSync(10).iterator().next();
+        Assert.assertEquals(payload, reSentAndReceivedEvent.getSystemProperties().get(AmqpConstants.AMQP_VALUE));
+        
+        try {
+            reSentAndReceivedEvent.getBody();
+            Assert.assertTrue(false); // this line shouldn't be reachable
         } catch (UnexpectedEventDataBodyException exception) {
             Assert.assertEquals(AmqpConstants.AMQP_VALUE, exception.getSystemPropertyName());
         }
@@ -101,7 +115,18 @@ public class InteropEventBodyTest extends ApiTestBase {
     
         try {
             receivedEvent.getBody();
-            Assert.assertTrue(false);
+            Assert.assertTrue(false); // getBody() should throw; this line shouldn't be reachable
+        } catch (UnexpectedEventDataBodyException exception) {
+            Assert.assertEquals(AmqpConstants.AMQP_SEQUENCE, exception.getSystemPropertyName());
+        }
+        
+        partitionSender.sendSync(receivedEvent);
+        reSentAndReceivedEvent = receiver.receiveSync(10).iterator().next();
+        Assert.assertEquals(payload, new String(((List<Data>)(reSentAndReceivedEvent.getSystemProperties().get(AmqpConstants.AMQP_SEQUENCE))).get(0).getValue().getArray()));
+
+        try {
+            reSentAndReceivedEvent.getBody();
+            Assert.assertTrue(false); // getBody() should throw; this line shouldn't be reachable
         } catch (UnexpectedEventDataBodyException exception) {
             Assert.assertEquals(AmqpConstants.AMQP_SEQUENCE, exception.getSystemPropertyName());
         }

@@ -29,6 +29,8 @@ public final class AmqpConstants {
 		add(AMQP_PROPERTY_GROUP_ID);
 		add(AMQP_PROPERTY_GROUP_SEQUENCE);
 		add(AMQP_PROPERTY_REPLY_TO_GROUP_ID);
+                add(AmqpConstants.AMQP_VALUE);
+                add(AmqpConstants.AMQP_SEQUENCE);
 	}});
 	
 	public static final String APACHE = "apache.org";
