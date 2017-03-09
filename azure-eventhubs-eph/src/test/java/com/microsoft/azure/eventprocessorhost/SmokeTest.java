@@ -44,6 +44,8 @@ public class SmokeTest extends TestBase
 		waitForTelltale(settings);
 
 		Assert.assertTrue(settings.outProcessorFactory.getOnEventsContext().getRuntimeInformation() != null);
+
+		testFinish(settings, SmokeTest.ANY_NONZERO_COUNT);
 	}
 	
 	@Test
@@ -86,19 +88,35 @@ public class SmokeTest extends TestBase
 	@Test
 	public void receiveFromCheckpoint() throws Exception
 	{
-		PerTestSettings firstSettings = receiveFromCheckpointIteration(1, SmokeTest.ANY_NONZERO_COUNT, null);
+		PerTestSettings firstSettings = receiveFromCheckpointIteration(1, SmokeTest.ANY_NONZERO_COUNT, null, PrefabEventProcessor.CheckpointChoices.CKP_EXPLICIT);
 		
-		receiveFromCheckpointIteration(2, firstSettings.outPartitionIds.size(), firstSettings.inoutEPHConstructorArgs.getStorageContainerName());
+		receiveFromCheckpointIteration(2, firstSettings.outPartitionIds.size(), firstSettings.inoutEPHConstructorArgs.getStorageContainerName(),
+				firstSettings.inDoCheckpoint);
 	}
 
-	private PerTestSettings receiveFromCheckpointIteration(int iteration, int expectedMessages, String containerName) throws Exception
+	@Test
+	public void receiveFromCheckpointNoArgs() throws Exception
 	{
-		PerTestSettings settings = new PerTestSettings("receiveFromCkpt-iter-" + iteration);
+		PerTestSettings firstSettings = receiveFromCheckpointIteration(1, SmokeTest.ANY_NONZERO_COUNT, null, PrefabEventProcessor.CheckpointChoices.CKP_NOARGS);
+		
+		receiveFromCheckpointIteration(2, firstSettings.outPartitionIds.size(), firstSettings.inoutEPHConstructorArgs.getStorageContainerName(),
+				firstSettings.inDoCheckpoint);
+	}
+
+	private PerTestSettings receiveFromCheckpointIteration(int iteration, int expectedMessages, String containerName,
+			PrefabEventProcessor.CheckpointChoices checkpointCallType) throws Exception
+	{
+		String distinguisher = "e";
+		if (checkpointCallType == PrefabEventProcessor.CheckpointChoices.CKP_NOARGS)
+		{
+			distinguisher = "n";
+		}
+		PerTestSettings settings = new PerTestSettings("recvFromCkpt-" + iteration + "-" + distinguisher);
 		if (containerName != null)
 		{
 			settings.inoutEPHConstructorArgs.setStorageContainerName(containerName);
 		}
-		settings.inDoCheckpoint = true;
+		settings.inDoCheckpoint = checkpointCallType;
 		settings = testSetup(settings);
 
 		for (String id: settings.outPartitionIds)
