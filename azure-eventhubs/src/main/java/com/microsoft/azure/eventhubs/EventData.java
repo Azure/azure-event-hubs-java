@@ -28,6 +28,9 @@ import org.apache.qpid.proton.amqp.messaging.Section;
 import org.apache.qpid.proton.message.Message;
 
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
+import java.util.LinkedList;
+import org.apache.qpid.proton.amqp.UnsignedInteger;
+import org.apache.qpid.proton.message.impl.MessageImpl;
 
 /**
  * The data structure encapsulating the Event being sent-to and received-from EventHubs.
@@ -39,15 +42,12 @@ public class EventData implements Serializable
         private static final int BODY_DATA_NULL = -1;
 
 	transient private Binary bodyData;
-	
-        private final Class bodyType;
         
 	private Map<String, Object> properties;
 	private SystemProperties systemProperties;
 
 	private EventData()
 	{
-            this.bodyType = Data.class;
 	}
 
 	/**
@@ -89,18 +89,30 @@ public class EventData implements Serializable
 		this.properties = amqpMessage.getApplicationProperties() == null ? null 
 				: ((Map<String, Object>)(amqpMessage.getApplicationProperties().getValue()));
                 
+                // As per AMQP spec - body section can be (0 or more AmqpData) or (AmqpValue) or (Zero or More AmqpSequence) sections
+                // proton-j doesn't support multiple data sections or AmqpSequence sections in AmqpMessage yet
+                // while exposing raw-body section we will return Iterable<T> for Data and Sequence sections - to abide by AMQP contract
                 Section bodySection = amqpMessage.getBody();
                 if (bodySection != null) {
-                    this.bodyType = bodySection.getClass();
-                    if (bodySection instanceof Data)
-                        this.bodyData =  ((Data) bodySection).getValue();
-                    else if (bodySection instanceof AmqpValue)
-                        receiveProperties.put(AmqpConstants.AMQP_VALUE, ((AmqpValue) bodySection).getValue()); 
-                    else if (bodySection instanceof AmqpSequence)
-                        receiveProperties.put(AmqpConstants.AMQP_SEQUENCE, ((AmqpSequence) bodySection).getValue());
-                }
-                else {
-                    this.bodyType = Data.class;
+                    if (bodySection instanceof Data) {
+                        this.bodyData = ((Data) bodySection).getValue();
+                        if (this.bodyData != null) {
+                            List<ByteBuffer> data = new LinkedList<>();
+                            data.add(this.bodyData.asByteBuffer());
+                            receiveProperties.put(AmqpConstants.AMQP_BODY, (Iterable<ByteBuffer>) data);
+                        }
+                    }
+                    else if (bodySection instanceof AmqpValue) {
+                        receiveProperties.put(AmqpConstants.AMQP_BODY, ((AmqpValue) bodySection).getValue()); UnsignedInteger
+                    }
+                    else if (bodySection instanceof AmqpSequence) {
+                        List sequenceData = ((AmqpSequence) bodySection).getValue();
+                        if (sequenceData != null) {
+                            List<List> sequenceList = new LinkedList<>();
+                            sequenceList.add(sequenceData);
+                            receiveProperties.put(AmqpConstants.AMQP_BODY, sequenceList);
+                        }
+                    }
                 }
                 
 		this.systemProperties = new SystemProperties(receiveProperties);	
@@ -200,10 +212,6 @@ public class EventData implements Serializable
 	 */
 	public byte[] getBody()
 	{
-            if (this.bodyType != Data.class) {
-                throw new UnexpectedEventDataBodyException(this.bodyType);
-            }
-            
             return this.bodyData == null ? null : this.bodyData.getArray();
 	}
 	
@@ -307,8 +315,21 @@ public class EventData implements Serializable
 							case AmqpConstants.AMQP_PROPERTY_GROUP_ID: amqpMessage.setGroupId((String) systemProperty.getValue()); break;
 							case AmqpConstants.AMQP_PROPERTY_GROUP_SEQUENCE: amqpMessage.setGroupSequence((long) systemProperty.getValue()); break;
 							case AmqpConstants.AMQP_PROPERTY_REPLY_TO_GROUP_ID: amqpMessage.setReplyToGroupId((String) systemProperty.getValue()); break;
-                                                        case AmqpConstants.AMQP_VALUE: amqpMessage.setBody(new AmqpValue(systemProperty.getValue())); break;
-                                                        case AmqpConstants.AMQP_SEQUENCE: amqpMessage.setBody(new AmqpSequence((List) systemProperty.getValue())); break;
+                                                        case AmqpConstants.AMQP_BODY: 
+                                                        {
+                                                            Object value = systemProperty.getValue();
+                                                            if (value instanceof Iterable) {
+                                                                Object valueItem = ((Iterable) value).iterator().next();
+                                                                if (valueItem instanceof List) {
+                                                                    amqpMessage.setBody(new AmqpSequence((List) valueItem)); 
+                                                                }
+                                                            }
+                                                            else {                                                           
+                                                                amqpMessage.setBody(new AmqpValue(systemProperty.getValue()));
+                                                            }
+                                                            
+                                                            break;
+                                                        }
                                                         default: throw new RuntimeException("unreachable");
 						}
 					else
@@ -325,6 +346,7 @@ public class EventData implements Serializable
 
 		if (this.bodyData != null)
 		{
+                    
 			amqpMessage.setBody(new Data(this.bodyData));
 		}
 
