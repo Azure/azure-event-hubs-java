@@ -83,7 +83,8 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 			final boolean offsetInclusive,
 			final Instant dateTime,
 			final Long epoch,
-			final boolean isEpochReceiver)
+			final boolean isEpochReceiver,
+                        final ReceiverOptions receiverOptions)
 					throws ServiceBusException
 	{
 		super(null, null);
@@ -98,6 +99,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 		this.epoch = epoch;
 		this.isEpochReceiver = isEpochReceiver;
 		this.receiveHandlerLock = new Object();
+                this.receiverOptions = receiverOptions;
                 
                 if (this.receiverOptions != null && this.receiverOptions.getReceiverRuntimeMetricEnabled())
                     this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
@@ -125,9 +127,8 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 			throw new IllegalArgumentException("specify valid string for argument - 'consumerGroupName'");
 		}
 
-		final PartitionReceiver receiver = new PartitionReceiver(factory, eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, dateTime, epoch, isEpochReceiver);
-		receiver.receiverOptions = receiverOptions;
-                return receiver.createInternalReceiver().thenApplyAsync(new Function<Void, PartitionReceiver>()
+		final PartitionReceiver receiver = new PartitionReceiver(factory, eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, dateTime, epoch, isEpochReceiver, receiverOptions);
+		return receiver.createInternalReceiver().thenApplyAsync(new Function<Void, PartitionReceiver>()
 		{
 			public PartitionReceiver apply(Void a)
 			{
