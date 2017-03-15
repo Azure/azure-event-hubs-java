@@ -18,6 +18,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.qpid.proton.amqp.messaging.DeliveryAnnotations;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.UnknownDescribedType;
 import org.apache.qpid.proton.message.Message;
@@ -97,6 +98,9 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 		this.epoch = epoch;
 		this.isEpochReceiver = isEpochReceiver;
 		this.receiveHandlerLock = new Object();
+                
+                if (this.receiverOptions != null && this.receiverOptions.getReceiverRuntimeMetricEnabled())
+                    this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
 	}
 
         static CompletableFuture<PartitionReceiver> create(MessagingFactory factory, 
@@ -313,12 +317,10 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                                 
                                 if (lastMessageRef != null && lastMessageRef.get() != null) {
                                     
-                                    if (PartitionReceiver.this.runtimeInformation == null)
-                                        PartitionReceiver.this.runtimeInformation = new ReceiverRuntimeInformation(PartitionReceiver.this.partitionId);
-                                    
-                                    if (lastMessageRef.get().getDeliveryAnnotations() != null && lastMessageRef.get().getDeliveryAnnotations().getValue() != null) {
+                                    DeliveryAnnotations deliveryAnnotations = lastMessageRef.get().getDeliveryAnnotations();
+                                    if (deliveryAnnotations != null && deliveryAnnotations.getValue() != null) {
                                         
-                                        Map<Symbol, Object> deliveryAnnotationsMap = lastMessageRef.get().getDeliveryAnnotations().getValue();
+                                        Map<Symbol, Object> deliveryAnnotationsMap = deliveryAnnotations.getValue();
                                         PartitionReceiver.this.runtimeInformation.setRuntimeInformation(
                                                 (long) deliveryAnnotationsMap.get(ClientConstants.LAST_ENQUEUED_SEQUENCE_NUMBER),
                                                 ((Date) deliveryAnnotationsMap.get(ClientConstants.LAST_ENQUEUED_TIME_UTC)).toInstant(),
