@@ -1,6 +1,8 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.CompletableFuture;
 
@@ -77,7 +79,7 @@ public class Repros extends TestBase
 	 * receivers. Then we finally determined that a thread was leaked every time a receiver was closed, with no special
 	 * sauce required.
 	 */
-	@Test
+	//@Test
 	public void rawEpochStealing() throws Exception
 	{
 		RealEventHubUtilities utils = new RealEventHubUtilities();
@@ -170,6 +172,24 @@ public class Repros extends TestBase
 			System.out.println("Threads: " + Thread.activeCount());
 		}
 	}
+	
+	/*
+	 * A simple loop that keeps sending and receiving forever with logging turned up.
+	 * Useful for things like killing the connection manually to induce receiver errors.
+	 */
+	@Test
+	public void sendAndReceiveForever() throws Exception
+	{
+		PerTestSettings settings = new PerTestSettings("sendAndReceiveForever");
+		settings = testSetup(settings);
+		Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE).setLevel(Level.FINER);
+
+		while (true)
+		{
+			settings.outUtils.sendToPartition("0", "and going");
+			Thread.sleep(1000);
+		}
+	}	
 	
 	private class Blah extends PartitionReceiveHandler
 	{

@@ -74,6 +74,8 @@ abstract class PartitionPump
     }
 
     abstract void specializedStartPump();
+    
+    abstract void specializedInstallReceiveHandler();
 
     PartitionPumpStatus getPumpStatus()
     {
@@ -166,11 +168,11 @@ abstract class PartitionPump
         }
         catch (Exception e)
         {
-            // TODO -- do we pass errors from IEventProcessor.onEvents to IEventProcessor.onError?
-        	// Depending on how you look at it, that's either pointless (if the user's code throws, the user's code should already know about it) or
-        	// a convenient way of centralizing error handling.
-        	// In the meantime, just trace it.
         	this.host.logWithHostAndPartition(Level.SEVERE, this.partitionContext, "Got exception from onEvents", e);
+        	// Pass errors from IEventProcessor.onEvents to IEventProcessor.onError, to match behavior of other
+        	// versions of EPH. Synchronization is OK because we can only get here if onEvents has returned or by
+        	// throwing out of onEvents.
+        	this.processor.onError(this.partitionContext, e);
         }
 	}
     
@@ -178,7 +180,7 @@ abstract class PartitionPump
     {
     	// How this method gets called:
     	// 1) JavaClient calls an error handler installed by EventHubPartitionPump.
-    	// 2) That error handler calls EventHubPartitionPump.onError.
+    	// 2) That error handler calls EventHubPartitionPump.onError. It also decides whether the error is fatal to the pump.
     	// 3) EventHubPartitionPump doesn't override onError, so the call winds up here.
     	//
     	// JavaClient can only make the call in (1) when execution is down in javaClient. Therefore no onEvents
@@ -187,9 +189,18 @@ abstract class PartitionPump
     	
     	// Notify the user's IEventProcessor
     	this.processor.onError(this.partitionContext, error);
-    	
-    	// Notify upstream that this pump is dead so that cleanup will occur.
-    	// Failing to do so results in reactor threads leaking.
-    	this.pump.onPumpError(this.partitionContext.getPartitionId());
+
+    	if (this.pumpStatus == PartitionPumpStatus.PP_ERRORED)
+    	{
+	    	// If the error was fatal, notify upstream that this pump is dead so that cleanup will occur.
+	    	// Failing to do so results in reactor threads leaking.
+	    	this.pump.onPumpError(this.partitionContext.getPartitionId());
+    	}
+    	else
+    	{
+    		// Non-fatal errors still kill the existing receive handler. Install a new one.
+    		this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Installing new receive handler after error");
+    		specializedInstallReceiveHandler();
+    	}
     }
 }

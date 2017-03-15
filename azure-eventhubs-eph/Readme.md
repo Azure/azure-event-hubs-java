@@ -6,15 +6,16 @@ not present in that lower layer:
 1. Event Processor Host removes the need to write a receive loop. The user simply creates a Java class which
    implements the IEventProcessor interface, and Event Processor Host will call an instance of that class when
    events are available.
-2. Event Processor Host removes the need to think about partitions. It creates as many instances of the event
+2. Event Processor Host removes the need to think about partitions. By default, it creates as many instances of the event
    processor class as are required to receive events from all partitions. Each instance will only ever handle
-   events from one partition, further simplifying the processing code.
+   events from one partition, further simplifying the processing code. If you need a different pattern, you can
+   replace the event processor factory and generate and dispense event processor instances in any way you like.
 3. Event Processor Host allows easy load balancing. Utilizing a shared persistent store for leases on partitions
    (by default based on Azure Storage), instances of Event Processor Host receiving from the same consumer group
    of the same Event Hub can be spread across multiple machines and partitions will be distributed across those
    machines as evenly as possible. These instances can be started and stopped at any time, and partitions will be
-   redistributed as needed. It is even allowed to have more instances than partitions as a form of hot standby. (Note that
-   partition distribution is based solely on the number of partitions per instance, not event flow rate.)
+   redistributed as needed. It is even allowed to have more instances than partitions as a form of hot standby. (Note that 
+   partition distribution is based solely on the number of partitions per instance, not event flow rate or any other metric.)
 4. Event Processor Host allows the event processor to create a persistent "checkpoint" that describes a position in
    the partition's event stream, and if restarted it automatically begins receiving at the next event after the checkpoint.
    Because checkpointing is usually an expensive operation, it is up to the user's event processor code to create
@@ -42,10 +43,14 @@ The onEvents method is where the real work of processing
 events occurs: whenever additional events become available for the partition, this method will be called with a batch of events.
 The maximum number of events in a batch can be controlled by an option when the event processor class is registered, described below,
 and defaults to 10; the actual number of events in a particular batch will vary between 1 and the specified maximum. onEvents may also
-be called with null on receive timeout, if an option is set when the event processor class is registered, but by default will not.
+be called with an empty iterable on receive timeout, if an option is set when the event processor class is registered, but by default will not.
+Note that if onEvents throws an exception out to the calling code before processing all events in the iterable, it loses the opportunity to
+process the remaining events. We strongly recommend having a try-catch inside the loop which iterates over the events.
 
-Any particular instance of the event processor is permanently associated with a partition. For convenience, a PartitionContext object
-is provided to every call, but the partition id will never change from call to call.
+By default, any particular instance of the event processor is permanently associated with a partition. A PartitionContext
+object is provided to every call, but the partition id will never change from call to call. If you are using a non-default event processor
+factory to implement a different pattern, such as one where an event processor instance can handle events from multiple partitions,
+then the PartitionContext becomes more useful.
 
 PartitionContext also provides the means to create a checkpoint for the partition. The code snippet below checkpoints after
 processing every event, for the purpose of providing an example. Because checkpointing is usually an expensive operation, this
@@ -78,7 +83,16 @@ pattern is not appropriate for every application.
             System.out.println("SAMPLE: Partition " + context.getPartitionId() + " got message batch");
             for (EventData data : events)
             {
-                // Do something useful with the event here.
+            	  try
+            	  {
+                    // Do something useful with the event here.
+                }
+                catch (Exception e) // Replace with specific exceptions to catch.
+                {
+                    // Handle the message-specific issue, or at least swallow the exception so the
+                    // loop can go on to process the next event. Throwing out of onEvents results in
+                    // skipping the entire rest of the batch.
+                }
 
                 context.checkpoint(data);
             }
@@ -89,7 +103,7 @@ pattern is not appropriate for every application.
 ###Step 2: Implement the General Error Notification Handler
 
 This is a class which implements Consumer<ExceptionReceivedEventArgs>. There is just one required method, accept, which will be
-called with an argument of type ExceptionReceivedEventArgs if an error occurs which is not tied to any particular partition. The
+called with an argument of type ExceptionReceivedEventArgs if an error occurs which is not tied to any particular event processor. The
 ExceptionReceivedEventArgs contains information specifying the instance of EventProcessorHost where the error occurred, the
 exception, and the action being performed at the time of the error. To install this handler, an object of this class is passed
 as an option when the event processor class is registered. Recovering from the error, if possible, is up to Event Processor Host; this
@@ -109,7 +123,7 @@ notification is primarily informational.
 ###Step 3: Instantiate EventProcessorHost
 
 In order to do this, the user will first need to build a connection string for the Event Hub. This may be conveniently done using
-the ConnectionStringBuilder class provided by the Java client for Azure Event Hubs. Make sure the sasKey has listen as well as manage permissions; the manage permissions are needed to request the partitions.
+the ConnectionStringBuilder class provided by the Java client for Azure Event Hubs. Make sure the sasKey has listen permission.
 
 The EventProcessorHost class itself has multiple constructors. All of them require the path to the Event Hub, the name of the consumer
 group to receive from, and the connection string for the Event Hub. The most basic constructor also requires an Azure Storage
@@ -178,9 +192,17 @@ shown here is very, very conservative.
 
 ## Threading Notes
 
-Within IEventProcessor, the methods onOpen, onEvents, and onClose are serialized. There is no guarantee that calls to these methods
-will be on any particular thread, but there will only be one call to any of these methods at a time. This greatly simplifies the
-implementation of onEvents, in particular. The onError method does not share this guarantee. 
+Calls to the IEventProcessor methods onOpen, onEvents, and onClose are serialized for a given partition. There is no guarantee that
+calls to these methods will be on any particular thread, but there will only be one call to any of these methods at a time. The onError
+method does not share this guarantee. In particular, if onEvents throws an exception up to the caller, then onError will be called with
+that exception. Technically onError is not running at the same time as onEvents, since onEvents has terminated by throwing, but shared data
+may be in an unexpected state.
+
+When using the default event processor factory, there is one IEventProcessor instance per partition, and each instance is permanently tied
+to one partition. Under these conditions, an IEventProcessor instance is effectively single-threaded, except for onError. A user-supplied
+event processor factory can implement any pattern, such as creating only one IEventProcessor instance and dispensing that instance for use
+by every partition. In that example, onEvents will not receive multiple calls for any given partition at the same time, but it can be called
+on multiple threads for different partitions.
 
 ## Running Tests
 
