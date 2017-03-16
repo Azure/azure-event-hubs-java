@@ -10,6 +10,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -194,14 +195,14 @@ public class EventData implements Serializable
 	}
 
         /**
-         * This method should be used to read the value of AMQP Body on the received {@link EventData}.
-         * <p>If the Body always has Data section use {@link EventData#getBody()} method.
+         * Get the value of AMQP Body on the received {@link EventData}.
+         * <p>If the AMQP message Body is always guaranteed to have Data section, use {@link #getBytes()} method.
          * @return returns the Object which could represent either Data or AmqpValue or AmqpSequence.
          * <p>{@link Binary} if the Body is Data section
          * <p>{@link List} if the Body is AmqpSequence
          * <p>package org.apache.qpid.proton.amqp contains various AMQP types that could be returned.
          */
-        public Object getRawPayload()
+        public Object getObject()
         {
             return this.amqpBody;
         }
@@ -210,7 +211,9 @@ public class EventData implements Serializable
 	 * Get Actual Payload/Data wrapped by EventData.
 	 * This is the underlying array and should be used in conjunction with {@link #getBodyOffset()} and {@link #getBodyLength()}.
  	 * @return byte[] of the actual data <p>null if the body of the AMQP message doesn't have Data section
+         * @deprecated use {@link #getBytes()}
 	 */
+        @Deprecated
 	public byte[] getBody()
 	{
             return this.bodyData == null ? null : this.bodyData.getArray();
@@ -221,7 +224,9 @@ public class EventData implements Serializable
 	 * @return returns the byte[] of the actual data
 	 * @see #getBodyLength()
 	 * @see #getBody()
+         * @deprecated use {@link #getBytes()}
 	 */
+        @Deprecated
 	public int getBodyOffset()
 	{
 		return this.bodyData == null ? 0 : this.bodyData.getArrayOffset();
@@ -232,11 +237,34 @@ public class EventData implements Serializable
 	 * @return returns the byte[] of the actual data
 	 * @see #getBody()
 	 * @see #getBodyOffset()
+         * @deprecated use {@link #getBytes()}
 	 */
+        @Deprecated
 	public int getBodyLength()
 	{
 		return this.bodyData == null ? 0 : this.bodyData.getLength();
 	}
+        
+        /**
+         * Get Actual Payload/Data wrapped by EventData.
+         * @return byte[] of the actual data <p>null if the body of the AMQP message doesn't have Data section
+         * <p>If this {@link EventData}'s body is part of a byte buffer (or a larger byte[]), this method could return a copy of bytes
+         */
+        public byte[] getBytes() {
+            
+            if (this.bodyData == null || this.bodyData.getArray() == null)
+                return null;
+            
+            // EventHub - MessageReceiver creates the underlying byte[] where the AmqpMessage is decoded to
+            if (this.bodyData.getArrayOffset() == 0 
+                && this.bodyData.getArray().length == this.bodyData.getLength()) {
+                return this.bodyData.getArray();
+            }
+            else {
+                byte[] copiedBytes = Arrays.copyOfRange(this.bodyData.getArray(), this.bodyData.getArrayOffset(), this.bodyData.getLength());
+                return copiedBytes;
+            }            
+        }
 
 	/**
 	 * Application property bag

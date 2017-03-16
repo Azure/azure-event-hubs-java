@@ -76,13 +76,13 @@ public class InteropEventBodyTest extends ApiTestBase {
         partitionMsgSender.send(originalMessage).get();
         receivedEvent = receiver.receiveSync(10).iterator().next();
         
-        Assert.assertEquals(payload, receivedEvent.getRawPayload());
-        Assert.assertEquals(receivedEvent.getBody(), null);
+        Assert.assertEquals(payload, receivedEvent.getObject());
+        Assert.assertEquals(receivedEvent.getBytes(), null);
         
         partitionSender.sendSync(receivedEvent);
         reSentAndReceivedEvent = receiver.receiveSync(10).iterator().next();
-        Assert.assertEquals(payload, reSentAndReceivedEvent.getRawPayload());
-        Assert.assertEquals(reSentAndReceivedEvent.getBody(), null);
+        Assert.assertEquals(payload, reSentAndReceivedEvent.getObject());
+        Assert.assertEquals(reSentAndReceivedEvent.getBytes(), null);
     }
     
     @Test
@@ -97,13 +97,13 @@ public class InteropEventBodyTest extends ApiTestBase {
         partitionMsgSender.send(originalMessage).get();
         receivedEvent = receiver.receiveSync(10).iterator().next();
         
-        Assert.assertEquals(payload, new String(((List<Data>) receivedEvent.getRawPayload()).get(0).getValue().getArray()));
-        Assert.assertEquals(receivedEvent.getBody(), null);
+        Assert.assertEquals(payload, new String(((List<Data>) receivedEvent.getObject()).get(0).getValue().getArray()));
+        Assert.assertEquals(receivedEvent.getBytes(), null);
         
         partitionSender.sendSync(receivedEvent);
         reSentAndReceivedEvent = receiver.receiveSync(10).iterator().next();
-        Assert.assertEquals(payload, new String(((List<Data>) reSentAndReceivedEvent.getRawPayload()).get(0).getValue().getArray()));
-        Assert.assertArrayEquals(reSentAndReceivedEvent.getBody(), null);
+        Assert.assertEquals(payload, new String(((List<Data>) reSentAndReceivedEvent.getObject()).get(0).getValue().getArray()));
+        Assert.assertArrayEquals(reSentAndReceivedEvent.getBytes(), null);
     }
     
     @AfterClass
