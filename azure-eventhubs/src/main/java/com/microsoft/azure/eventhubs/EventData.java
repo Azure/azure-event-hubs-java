@@ -10,7 +10,6 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -35,6 +34,13 @@ import com.microsoft.azure.servicebus.amqp.AmqpConstants;
  * Each EventHubs partition can be visualized as a Stream of {@link EventData}.
  * <p>
  * Serializing a received {@link EventData} with AMQP sections other than ApplicationProperties (with primitive java types) and Data section is not supported.
+ * <p>
+ * Here's how AMQP message sections map to {@link EventData}. Here's the reference used for AMQP 1.0 specification: http://docs.oasis-open.org/amqp/core/v1.0/os/amqp-core-complete-v1.0-os.pdf
+ * <pre>
+ * i.   {@link #getProperties()} - AMQPMessage.ApplicationProperties section
+ * ii.  {@link #getBytes()} - if AMQPMessage.Body has Data section
+ * iii. {@link #getObject()} - if AMQPMessage.Body has AMQPValue or AMQPSequence sections
+ * </pre>
  */
 public class EventData implements Serializable
 {
@@ -195,7 +201,9 @@ public class EventData implements Serializable
 	}
 
         /**
-         * Get the value of AMQP Body on the received {@link EventData}.
+         * Use this method only if, the sender could be sending messages using third-party AMQP libraries.
+         * <p>If all the senders of EventHub use client libraries released and maintained by Microsoft Azure EventHubs, this method is not needed.
+         * <p>Get the value of AMQP messages' Body section on the received {@link EventData}.
          * <p>If the AMQP message Body is always guaranteed to have Data section, use {@link #getBytes()} method.
          * @return returns the Object which could represent either Data or AmqpValue or AmqpSequence.
          * <p>{@link Binary} if the Body is Data section
@@ -247,23 +255,16 @@ public class EventData implements Serializable
         
         /**
          * Get Actual Payload/Data wrapped by EventData.
-         * @return byte[] of the actual data <p>null if the body of the AMQP message doesn't have Data section
-         * <p>If this {@link EventData}'s body is part of a byte buffer (or a larger byte[]), this method could return a copy of bytes
+         * @return byte[] of the actual data
+         * <p>null if the body of the message has other inter-operable AMQP messages, whose body does not represent byte[].
+         * In that case use {@link #getObject()}.
          */
         public byte[] getBytes() {
             
-            if (this.bodyData == null || this.bodyData.getArray() == null)
+            if (this.bodyData == null)
                 return null;
             
-            // EventHub - MessageReceiver creates the underlying byte[] where the AmqpMessage is decoded to
-            if (this.bodyData.getArrayOffset() == 0 
-                && this.bodyData.getArray().length == this.bodyData.getLength()) {
-                return this.bodyData.getArray();
-            }
-            else {
-                byte[] copiedBytes = Arrays.copyOfRange(this.bodyData.getArray(), this.bodyData.getArrayOffset(), this.bodyData.getLength());
-                return copiedBytes;
-            }            
+            return this.bodyData.getArray();            
         }
 
 	/**
