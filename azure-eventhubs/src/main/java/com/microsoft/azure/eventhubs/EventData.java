@@ -41,6 +41,9 @@ import com.microsoft.azure.servicebus.amqp.AmqpConstants;
  * ii.  {@link #getBytes()} - if AMQPMessage.Body has Data section
  * iii. {@link #getObject()} - if AMQPMessage.Body has AMQPValue or AMQPSequence sections
  * </pre>
+ * While using client libraries released by Microsoft Azure EventHubs, sections (i) and (ii) alone are sufficient.
+ * Section (iii) is used for advanced scenarios, where the sending application uses third-party AMQP library to send the message to EventHubs and the receiving application
+ * uses this client library to receive {@link EventData}.
  */
 public class EventData implements Serializable
 {
@@ -202,7 +205,7 @@ public class EventData implements Serializable
 
         /**
          * Use this method only if, the sender could be sending messages using third-party AMQP libraries.
-         * <p>If all the senders of EventHub use client libraries released and maintained by Microsoft Azure EventHubs, this method is not needed.
+         * <p>If all the senders of EventHub use client libraries released and maintained by Microsoft Azure EventHubs, use {@link #getBytes()} method.
          * <p>Get the value of AMQP messages' Body section on the received {@link EventData}.
          * <p>If the AMQP message Body is always guaranteed to have Data section, use {@link #getBytes()} method.
          * @return returns the Object which could represent either Data or AmqpValue or AmqpSequence.
