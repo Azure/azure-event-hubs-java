@@ -18,6 +18,7 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.qpid.proton.amqp.messaging.DeliveryAnnotations;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.UnknownDescribedType;
 import org.apache.qpid.proton.message.Message;
@@ -82,7 +83,8 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 			final boolean offsetInclusive,
 			final Instant dateTime,
 			final Long epoch,
-			final boolean isEpochReceiver)
+			final boolean isEpochReceiver,
+                        final ReceiverOptions receiverOptions)
 					throws ServiceBusException
 	{
 		super(null, null);
@@ -97,6 +99,10 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 		this.epoch = epoch;
 		this.isEpochReceiver = isEpochReceiver;
 		this.receiveHandlerLock = new Object();
+                this.receiverOptions = receiverOptions;
+                
+                if (this.receiverOptions != null && this.receiverOptions.getReceiverRuntimeMetricEnabled())
+                    this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
 	}
 
         static CompletableFuture<PartitionReceiver> create(MessagingFactory factory, 
@@ -121,9 +127,8 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 			throw new IllegalArgumentException("specify valid string for argument - 'consumerGroupName'");
 		}
 
-		final PartitionReceiver receiver = new PartitionReceiver(factory, eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, dateTime, epoch, isEpochReceiver);
-		receiver.receiverOptions = receiverOptions;
-                return receiver.createInternalReceiver().thenApplyAsync(new Function<Void, PartitionReceiver>()
+		final PartitionReceiver receiver = new PartitionReceiver(factory, eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, dateTime, epoch, isEpochReceiver, receiverOptions);
+		return receiver.createInternalReceiver().thenApplyAsync(new Function<Void, PartitionReceiver>()
 		{
 			public PartitionReceiver apply(Void a)
 			{
@@ -282,7 +287,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 	 *     {
 	 *         for(EventData receivedEvent: receivedEvents)
 	 *         {
-	 *             System.out.println(String.format("Message Payload: %s", new String(receivedEvent.getBody(), Charset.defaultCharset())));
+	 *             System.out.println(String.format("Message Payload: %s", new String(receivedEvent.getBytes(), Charset.defaultCharset())));
 	 *             System.out.println(String.format("Offset: %s, SeqNo: %s, EnqueueTime: %s", 
 	 *                 receivedEvent.getSystemProperties().getOffset(), 
 	 *                 receivedEvent.getSystemProperties().getSequenceNumber(), 
@@ -313,12 +318,10 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                                 
                                 if (lastMessageRef != null && lastMessageRef.get() != null) {
                                     
-                                    if (PartitionReceiver.this.runtimeInformation == null)
-                                        PartitionReceiver.this.runtimeInformation = new ReceiverRuntimeInformation(PartitionReceiver.this.partitionId);
-                                    
-                                    if (lastMessageRef.get().getDeliveryAnnotations() != null && lastMessageRef.get().getDeliveryAnnotations().getValue() != null) {
+                                    DeliveryAnnotations deliveryAnnotations = lastMessageRef.get().getDeliveryAnnotations();
+                                    if (deliveryAnnotations != null && deliveryAnnotations.getValue() != null) {
                                         
-                                        Map<Symbol, Object> deliveryAnnotationsMap = lastMessageRef.get().getDeliveryAnnotations().getValue();
+                                        Map<Symbol, Object> deliveryAnnotationsMap = deliveryAnnotations.getValue();
                                         PartitionReceiver.this.runtimeInformation.setRuntimeInformation(
                                                 (long) deliveryAnnotationsMap.get(ClientConstants.LAST_ENQUEUED_SEQUENCE_NUMBER),
                                                 ((Date) deliveryAnnotationsMap.get(ClientConstants.LAST_ENQUEUED_TIME_UTC)).toInstant(),
@@ -467,7 +470,18 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 			
 			if(TRACE_LOGGER.isLoggable(Level.FINE))
 			{
-				TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], action[createReceiveLink], offset[%s], offsetInclusive[%s]", this.internalReceiver.getReceivePath(), lastReceivedOffset, offsetInclusiveFlag));
+				String logReceivePath = "";
+				if (this.internalReceiver == null)
+				{
+					// During startup, internalReceiver is still null. Need to handle this special case when logging during startup
+					// or the reactor thread crashes with NPE when calling internalReceiver.getReceivePath() and no receiving occurs.
+					logReceivePath = "receiverPath[RECEIVER IS NULL]";
+				}
+				else
+				{
+					logReceivePath = "receiverPath[" + this.internalReceiver.getReceivePath() + "]";
+				}
+				TRACE_LOGGER.log(Level.FINE, String.format("%s, action[createReceiveLink], offset[%s], offsetInclusive[%s]", logReceivePath, lastReceivedOffset, offsetInclusiveFlag));
 			}
 
 			filter =  new UnknownDescribedType(AmqpConstants.STRING_FILTER,

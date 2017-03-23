@@ -1,7 +1,6 @@
-/*
+ /*
  * Copyright (c) Microsoft. All rights reserved.
- * Licensed under the MIT license. See LICENSE file in the project root for full license information.
- */
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information. */
 
 package com.microsoft.azure.eventprocessorhost;
 
@@ -43,9 +42,11 @@ public class SmokeTest extends TestBase
 		settings.outUtils.sendToAny(settings.outTelltale);
 		waitForTelltale(settings);
 
+                // correctness of runtimeInfo is already tested in javaclient - this is only testing for presence of non-default value
 		Assert.assertTrue(settings.outProcessorFactory.getOnEventsContext().getRuntimeInformation() != null);
+                Assert.assertTrue(settings.outProcessorFactory.getOnEventsContext().getRuntimeInformation().getLastSequenceNumber() > 0);
 
-		testFinish(settings, SmokeTest.ANY_NONZERO_COUNT);
+   testFinish(settings, SmokeTest.ANY_NONZERO_COUNT);
 	}
 	
 	@Test

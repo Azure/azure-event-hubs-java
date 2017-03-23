@@ -32,6 +32,8 @@ public class PartitionContext
         this.partitionId = partitionId;
         this.eventHubPath = eventHubPath;
         this.consumerGroupName = consumerGroupName;
+
+      this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
     }
 
     public String getConsumerGroupName()
