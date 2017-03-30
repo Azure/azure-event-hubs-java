@@ -10,13 +10,15 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collection;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledFuture;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -59,16 +61,20 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	private final IReceiverSettingsProvider settingsProvider;
         private final String tokenAudience;
         private final ActiveClientTokenManager activeClientTokenManager;
-                    
+        private final WorkItem<MessageReceiver> linkOpen;
+	private final ConcurrentLinkedQueue<Message> prefetchedMessages;
+        private final ReceiveWork receiveWork;
+        private final CreateAndReceive createAndReceive;
+	            
 	private int prefetchCount;
-        private ConcurrentLinkedQueue<Message> prefetchedMessages;
-	private Receiver receiveLink;
-	private WorkItem<MessageReceiver> linkOpen;
+        private Receiver receiveLink;
 	private Duration receiveTimeout;
         private Message lastReceivedMessage;
 	private Exception lastKnownLinkError;
 	private int nextCreditToFlow;
         private boolean creatingLink;
+        private ScheduledFuture openTimer;
+        private ScheduledFuture closeTimer;
 
 	private MessageReceiver(final MessagingFactory factory,
 			final String name, 
@@ -95,52 +101,31 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		// onOperationTimeout delegate - per receive call
 		this.onOperationTimedout = new Runnable()
 		{
-			public void run()
-			{
-				WorkItem<Collection<Message>> topWorkItem = null;
-				boolean workItemTimedout = false;
-				while((topWorkItem = MessageReceiver.this.pendingReceives.peek()) != null)
-				{
-					if (topWorkItem.getTimeoutTracker().remaining().toMillis() <= MessageReceiver.MIN_TIMEOUT_DURATION_MILLIS)
-					{
-						WorkItem<Collection<Message>> dequedWorkItem = MessageReceiver.this.pendingReceives.poll();
-						if (dequedWorkItem != null)
-						{
-							workItemTimedout = true;
-							dequedWorkItem.getWork().complete(null);
-						}
-						else
-							break;
-					}
-					else
-					{
-						MessageReceiver.this.scheduleOperationTimer(topWorkItem.getTimeoutTracker());
-						break;
-					}
-				}
-
-				if (workItemTimedout)
-				{
-					// workaround to push the sendflow-performative to reactor
-					// this sets the receiveLink endpoint to modified state
-					// (and increment the unsentCredits in proton by 0)
-					try
-					{
-						MessageReceiver.this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
-						{
-							@Override
-							public void onEvent()
-							{
-								MessageReceiver.this.receiveLink.flow(0);
-							}
-						});
-					}
-					catch (IOException ignore)
-					{
-					}
-				}
-			}
+                    public void run()
+                    {
+                        WorkItem<Collection<Message>> topWorkItem = null;
+                        while((topWorkItem = MessageReceiver.this.pendingReceives.peek()) != null)
+                        {
+                            if (topWorkItem.getTimeoutTracker().remaining().toMillis() <= MessageReceiver.MIN_TIMEOUT_DURATION_MILLIS)
+                            {
+                                WorkItem<Collection<Message>> dequedWorkItem = MessageReceiver.this.pendingReceives.poll();
+                                if (dequedWorkItem != null && dequedWorkItem.getWork() != null && !dequedWorkItem.getWork().isDone()) {
+                                        dequedWorkItem.getWork().complete(null);
+                                }
+                                else
+                                        break;
+                            }
+                            else
+                            {
+                                MessageReceiver.this.scheduleOperationTimer(topWorkItem.getTimeoutTracker());
+                                break;
+                            }
+                        }
+                    }
 		};
+                
+                this.receiveWork = new ReceiveWork();
+                this.createAndReceive = new CreateAndReceive();
                 
                 this.tokenAudience = String.format("amqp://%s/%s", underlyingFactory.getHostName(), receivePath);
                 
@@ -231,7 +216,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		{
 			if (returnMessages == null)
 			{
-				returnMessages = new LinkedList<Message>();
+				returnMessages = new LinkedList<>();
 			}
 
 			returnMessages.add(currentMessage);
@@ -304,36 +289,16 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			this.scheduleOperationTimer(TimeoutTracker.create(this.receiveTimeout));
 		}
 
-		CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<Collection<Message>>();
+		CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<>();
+                pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
 		
-		try
-		{
-			this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
-			{
-				@Override
-				public void onEvent()
-				{
-					final List<Message> messages = receiveCore(maxMessageCount);
-					if (messages != null)
-						onReceive.complete(messages);
-					else
-						pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
-
-					// calls to reactor should precede enqueue of the workItem into PendingReceives.
-					// This will allow error handling to enact on the enqueued workItem.
-					if (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)
-					{
-                                                createReceiveLink();
-					}
-				}
-			});
+		try {
+                    this.underlyingFactory.scheduleOnReactorThread(this.createAndReceive);
 		}
-		catch (IOException ioException)
-		{
-			onReceive.completeExceptionally(
-					new ServiceBusException(false, "Receive failed while dispatching to Reactor, see cause for more details.", ioException));
+		catch (IOException ioException) {
+                    onReceive.completeExceptionally(new OperationCancelledException("Receive failed while dispatching to Reactor, see cause for more details.", ioException));
 		}
-
+                
 		return onReceive;
 	}
 
@@ -344,9 +309,17 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
             
 		if (exception == null)
 		{
+                        if (this.getIsClosingOrClosed()) {
+                            
+                            this.receiveLink.close();
+                            return;
+                        }
+                        
 			if (this.linkOpen != null && !this.linkOpen.getWork().isDone())
 			{
 				this.linkOpen.getWork().complete(this);
+                                if (this.openTimer != null)
+                                    this.openTimer.cancel(false);
 			}
 
 			this.lastKnownLinkError = null;
@@ -368,6 +341,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			{
 				this.setClosed();
 				ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), exception, this);
+                                this.openTimer.cancel(false);
 			}
 
 			this.lastKnownLinkError = exception;
@@ -377,14 +351,12 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	@Override
 	public void onReceiveComplete(Delivery delivery)
 	{
-		Message message = null;
-		
 		int msgSize = delivery.pending();
 		byte[] buffer = new byte[msgSize];
 		
 		int read = receiveLink.recv(buffer, 0, msgSize);
 		
-		message = Proton.message();
+		Message message = Proton.message();
 		message.decode(buffer, 0, read);
                 
 		delivery.settle();
@@ -392,14 +364,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		this.prefetchedMessages.add(message);
 		this.underlyingFactory.getRetryPolicy().resetRetryCount(this.getClientId());
 		
-		final ReceiveWorkItem currentReceive = this.pendingReceives.poll();
-		if (currentReceive != null && !currentReceive.getWork().isDone())
-		{
-			List<Message> messages = this.receiveCore(currentReceive.maxMessageCount);
-
-			CompletableFuture<Collection<Message>> future = currentReceive.getWork();
-			future.complete(messages);
-		}
+                this.receiveWork.onEvent();
 	}
 
 	public void onError(final ErrorCondition error)
@@ -415,6 +380,9 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
 		if (this.getIsClosingOrClosed())
 		{
+                        if (this.closeTimer != null)
+                            this.closeTimer.cancel(false);
+                        
 			WorkItem<Collection<Message>> workItem = null;
 			final boolean isTransientException = exception == null ||
 					(exception instanceof ServiceBusException && ((ServiceBusException) exception).getIsTransient());
@@ -458,7 +426,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 						@Override
 						public void onEvent()
 						{
-							if (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)
+							if (!MessageReceiver.this.getIsClosingOrClosed()
+                                                                && (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED))
 							{
 								createReceiveLink();
 								underlyingFactory.getRetryPolicy().incrementRetryCount(getClientId());
@@ -492,7 +461,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	}
 
 	private void createReceiveLink()
-	{	
+	{
             if (creatingLink)
                 return;
             
@@ -503,6 +472,14 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                 @Override
                 public void accept(Session session)
                 {
+                    // if the MessageReceiver is closed - we no-longer need to create the link
+                    if (MessageReceiver.this.getIsClosingOrClosed()) {
+                        
+                        MessageReceiver.this.underlyingFactory.deregisterForConnectionError(MessageReceiver.this.receiveLink);
+                        session.close();
+                        return;
+                    }
+                    
                     final Source source = new Source();
                     source.setAddress(receivePath);
 
@@ -545,12 +522,15 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                 }
             };
             
-            final Consumer<ErrorCondition> onSessionOpenFailed = new Consumer<ErrorCondition>()
+            final BiConsumer<ErrorCondition, Exception> onSessionOpenFailed = new BiConsumer<ErrorCondition, Exception>()
             {
                 @Override
-                public void accept(ErrorCondition t)
+                public void accept(ErrorCondition t, Exception u)
                 {
-                    onError(t);
+                    if (t != null)
+                        onError(t);
+                    else if (u != null)
+                        onError(u);
                 }
             };
             
@@ -562,6 +542,9 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     new IOperationResult<Void, Exception>() {
                         @Override
                         public void onComplete(Void result) {
+                            if (MessageReceiver.this.getIsClosingOrClosed())
+                                return;
+                            
                             underlyingFactory.getSession(
                                     receivePath,
                                     onSessionOpen,
@@ -613,7 +596,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	private void scheduleLinkOpenTimeout(final TimeoutTracker timeout)
 	{
 		// timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-		Timer.schedule(
+		this.openTimer = Timer.schedule(
 				new Runnable()
 				{
 					public void run()
@@ -641,7 +624,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	private void scheduleLinkCloseTimeout(final TimeoutTracker timeout)
 	{
 		// timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-		Timer.schedule(
+		this.closeTimer = Timer.schedule(
 				new Runnable()
 				{
 					public void run()
@@ -657,6 +640,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 							}
 
 							ExceptionUtil.completeExceptionally(linkClose, operationTimedout, MessageReceiver.this);
+                                                        MessageReceiver.this.onError((Exception) null);
 						}
 					}
 				}
@@ -713,18 +697,23 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
             {
                 try
                 {
+                    this.activeClientTokenManager.cancel();
+                    scheduleLinkCloseTimeout(TimeoutTracker.create(operationTimeout));
+                    
                     this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
                         {
                             @Override
                             public void onEvent()
-                            {                                    
+                            {
                                 if (receiveLink != null && receiveLink.getLocalState() != EndpointState.CLOSED)
                                 {
                                     receiveLink.close();
-                                    scheduleLinkCloseTimeout(TimeoutTracker.create(operationTimeout));
                                 }
                                 else if (receiveLink == null || receiveLink.getRemoteState() == EndpointState.CLOSED)
                                 {
+                                    if (closeTimer != null)
+                                        closeTimer.cancel(false);
+                                    
                                     linkClose.complete(null);
                                 }
                             }
@@ -738,4 +727,35 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
             return this.linkClose;
 	}
+        
+        private final class ReceiveWork extends DispatchHandler {
+            
+            @Override
+            public void onEvent() {
+
+                ReceiveWorkItem pendingReceive;
+                while (!prefetchedMessages.isEmpty() && (pendingReceive = pendingReceives.poll()) != null) {
+                    
+                    if (pendingReceive.getWork() != null && !pendingReceive.getWork().isDone()) {
+                        
+                        Collection<Message> receivedMessages = receiveCore(pendingReceive.maxMessageCount);
+                        pendingReceive.getWork().complete(receivedMessages);
+                    }
+                }
+            }
+        }
+        
+        private final class CreateAndReceive extends DispatchHandler {
+            
+            @Override
+            public void onEvent() {
+                
+                receiveWork.onEvent();
+                
+                if (!MessageReceiver.this.getIsClosingOrClosed()
+                    && (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)) {
+                        createReceiveLink();
+                }
+            }
+        }
 }

@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -80,6 +81,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private Exception lastKnownLinkError;
 	private Instant lastKnownErrorReportedAt;
         private boolean creatingLink;
+        private ScheduledFuture closeTimer;
+        private ScheduledFuture openTimer;
 
         public static CompletableFuture<MessageSender> create(
 			final MessagingFactory factory,
@@ -224,7 +227,24 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		if (lastKnownError != null)
 		{
 			sendWaiterData.setLastKnownException(lastKnownError);
-		}
+		}                
+                
+                ScheduledFuture<?> timeoutTimerTask = timeoutTask == null ? 
+                        Timer.schedule(new Runnable()
+                            {
+                                @Override
+                                public void run()
+                                {
+                                    if (!sendWaiterData.getWork().isDone())
+                                    {
+                                        MessageSender.this.pendingSendsData.remove(deliveryTag);
+                                        MessageSender.this.throwSenderTimeout(sendWaiterData.getWork(), sendWaiterData.getLastKnownException());
+                                    }
+                                }
+                            }, this.operationTimeout, TimerType.OneTimeRun)
+                        : timeoutTask;
+
+                sendWaiterData.setTimeoutTask(timeoutTimerTask);
 
 		synchronized (this.pendingSendLock)
 		{
@@ -239,7 +259,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		catch (IOException ioException)
 		{
 			onSendFuture.completeExceptionally(
-					new ServiceBusException(false, "Send failed while dispatching to Reactor, see cause for more details.", ioException));
+					new OperationCancelledException("Send failed while dispatching to Reactor, see cause for more details.", ioException));
 		}
 
 		return onSendFuture;
@@ -333,6 +353,12 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 		if (completionException == null)
 		{
+                        if (this.getIsClosingOrClosed()) {
+                            
+                            this.sendLink.close();
+                            return;
+                        }
+                        
 			this.openLinkTracker = null;
 
 			this.lastKnownLinkError = null;
@@ -341,6 +367,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			if (!this.linkFirstOpen.isDone())
 			{
 				this.linkFirstOpen.complete(this);
+                                if (this.openTimer != null)
+                                    this.openTimer.cancel(false);
 			}
 			else
 			{
@@ -393,6 +421,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 		if (this.getIsClosingOrClosed())
 		{
+                        if (this.closeTimer != null && !this.closeTimer.isDone())
+                            this.closeTimer.cancel(false);
+                        
 			synchronized (this.pendingSendLock)
 			{
 				for (Map.Entry<String, ReplayableWorkItem<Void>> pendingSend: this.pendingSendsData.entrySet())
@@ -409,6 +440,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			}
 			
 			this.linkClose.complete(null);
+                        
 			return;
 		}
 		else
@@ -439,7 +471,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 								@Override
 								public void onEvent()
 								{
-									if (sendLink.getLocalState() == EndpointState.CLOSED || sendLink.getRemoteState() == EndpointState.CLOSED)
+									if (!MessageSender.this.getIsClosingOrClosed()
+                                                                            && sendLink.getLocalState() == EndpointState.CLOSED || sendLink.getRemoteState() == EndpointState.CLOSED)
 									{
 										recreateSendLink();
 									}
@@ -587,6 +620,13 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                     @Override
                     public void accept(Session session) 
                     {
+                        if (MessageSender.this.getIsClosingOrClosed()) {
+                            
+                            MessageSender.this.underlyingFactory.deregisterForConnectionError(MessageSender.this.sendLink);
+                            session.close();
+                            return;
+                        }
+                        
                         final Sender sender = session.sender(TrackingUtil.getLinkName(session));
                         final Target target = new Target();
                         target.setAddress(sendPath);
@@ -613,12 +653,15 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                     }
                 };		
                 
-                final Consumer<ErrorCondition> onSessionOpenError = new Consumer<ErrorCondition>()
+                final BiConsumer<ErrorCondition, Exception> onSessionOpenError = new BiConsumer<ErrorCondition, Exception>()
                 {
                     @Override
-                    public void accept(ErrorCondition t)
+                    public void accept(ErrorCondition t, Exception u)
                     {
-                        MessageSender.this.onClose(t);
+                        if (t != null)
+                            MessageSender.this.onClose(t);
+                        else if (u != null)
+                            MessageSender.this.onError(u);
                     }
                 };
                 
@@ -631,6 +674,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                         new IOperationResult<Void, Exception>() {
                             @Override
                             public void onComplete(Void result) {
+                                if (MessageSender.this.getIsClosingOrClosed())
+                                    return;
+                                
                                 underlyingFactory.getSession(
                                     sendPath,
                                     onSessionOpen,
@@ -654,7 +700,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		this.linkFirstOpen = new CompletableFuture<>();
 
 		// timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-		Timer.schedule(
+		this.openTimer = Timer.schedule(
 				new Runnable()
 				{
 					public void run()
@@ -724,26 +770,32 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	// actual send on the SenderLink should happen only in this method & should run on Reactor Thread
 	private void processSendWork()
 	{
-		final Sender sendLinkCurrent = this.sendLink;
-		
-		if (sendLinkCurrent.getLocalState() == EndpointState.CLOSED || sendLinkCurrent.getRemoteState() == EndpointState.CLOSED)
+                if (this.sendLink.getLocalState() == EndpointState.CLOSED || this.sendLink.getRemoteState() == EndpointState.CLOSED)
 		{
-                        this.recreateSendLink();
+                        if (this.getIsClosingOrClosed())
+                            this.recreateSendLink();
+                        
                         return;
 		}
 		
-		while (sendLinkCurrent.getLocalState() == EndpointState.ACTIVE && sendLinkCurrent.getRemoteState() == EndpointState.ACTIVE
+		while (this.sendLink.getLocalState() == EndpointState.ACTIVE && this.sendLink.getRemoteState() == EndpointState.ACTIVE
 				&& this.linkCredit > 0)
 		{
-			final WeightedDeliveryTag deliveryTag;
+			final WeightedDeliveryTag weightedDelivery;
 			final ReplayableWorkItem<Void> sendData;
+                        final String deliveryTag;
 			synchronized (this.pendingSendLock)
 			{
-				deliveryTag = this.pendingSends.poll();
-				sendData = deliveryTag != null 
-						? this.pendingSendsData.get(deliveryTag.getDeliveryTag())
-						: null;
-			}
+				weightedDelivery = this.pendingSends.poll();
+                                if (weightedDelivery != null) {
+                                    deliveryTag = weightedDelivery.getDeliveryTag();
+                                    sendData =  this.pendingSendsData.get(deliveryTag);
+                                }
+                                else {
+                                    sendData = null;
+                                    deliveryTag = null;
+                                }
+                        }
 			
 			if (sendData != null)
 			{
@@ -751,7 +803,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				{
 					// CoreSend could enque Sends into PendingSends Queue and can fail the SendCompletableFuture
 					// (when It fails to schedule the ProcessSendWork on reactor Thread)
-					this.pendingSendsData.remove(sendData);
+					this.pendingSendsData.remove(deliveryTag);
 					continue;
 				}
 				
@@ -762,13 +814,13 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				
 				try
 				{
-					delivery = sendLinkCurrent.delivery(deliveryTag.getDeliveryTag().getBytes());
+					delivery = this.sendLink.delivery(deliveryTag.getBytes());
 					delivery.setMessageFormat(sendData.getMessageFormat());
 					
-					sentMsgSize = sendLinkCurrent.send(sendData.getMessage(), 0, sendData.getEncodedMessageSize());
+					sentMsgSize = this.sendLink.send(sendData.getMessage(), 0, sendData.getEncodedMessageSize());
 					assert sentMsgSize == sendData.getEncodedMessageSize() : "Contract of the ProtonJ library for Sender.Send API changed";
 	
-					linkAdvance = sendLinkCurrent.advance();
+					linkAdvance = this.sendLink.advance();
 				}
 				catch(Exception exception)
 				{
@@ -778,21 +830,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				if (linkAdvance)
 				{
 					this.linkCredit--;
-					
-					ScheduledFuture<?> timeoutTask = Timer.schedule(new Runnable()
-					{
-						@Override
-						public void run()
-						{
-							if (!sendData.getWork().isDone())
-							{
-								MessageSender.this.pendingSendsData.remove(deliveryTag);
-								MessageSender.this.throwSenderTimeout(sendData.getWork(), sendData.getLastKnownException());
-							}
-						}
-					}, this.operationTimeout, TimerType.OneTimeRun);
-					
-					sendData.setTimeoutTask(timeoutTask);
 					sendData.setWaitingForAck();
 				}
 				else
@@ -809,8 +846,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 						delivery.free();
 					}
 					
-                                        sendData.getWork().completeExceptionally(
-						sendException != null
+                                        sendData.getWork().completeExceptionally(sendException != null
 							? new OperationCancelledException("Send operation failed. Please see cause for more details", sendException)
 							: new OperationCancelledException(
 									String.format(Locale.US, "Send operation failed while advancing delivery(tag: %s) on SendLink(path: %s).", this.sendPath, deliveryTag)));
@@ -818,7 +854,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			}
 			else
 			{
-				if (deliveryTag != null)
+				if (weightedDelivery != null)
 				{
 					if (TRACE_LOGGER.isLoggable(Level.SEVERE))
 					{
@@ -856,7 +892,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	private void scheduleLinkCloseTimeout(final TimeoutTracker timeout)
 	{
 		// timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-		Timer.schedule(
+		this.closeTimer = Timer.schedule(
 				new Runnable()
 				{
 					public void run()
@@ -872,7 +908,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 							}
 
 							ExceptionUtil.completeExceptionally(linkClose, operationTimedout, MessageSender.this);
-						}
+                                                        MessageSender.this.onError((Exception) null);
+                                                }
 					}
 				}
 				, timeout.remaining()
@@ -886,6 +923,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
             {
                 try
                 {
+                    this.activeClientTokenManager.cancel();
+                    scheduleLinkCloseTimeout(TimeoutTracker.create(operationTimeout));
                     this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler()
                         {
                             @Override
@@ -894,10 +933,12 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                                 if (sendLink != null && sendLink.getLocalState() != EndpointState.CLOSED)
                                 {
                                     sendLink.close();
-                                    scheduleLinkCloseTimeout(TimeoutTracker.create(operationTimeout));
                                 }
                                 else if (sendLink == null || sendLink.getRemoteState() == EndpointState.CLOSED)
                                 {
+                                    if (closeTimer != null)
+                                        closeTimer.cancel(false);
+                                    
                                     linkClose.complete(null);
                                 }
                             }
