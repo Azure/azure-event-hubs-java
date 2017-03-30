@@ -341,7 +341,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			{
 				this.setClosed();
 				ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), exception, this);
-                                this.openTimer.cancel(false);
+                                if (this.openTimer != null)
+                                    this.openTimer.cancel(false);
 			}
 
 			this.lastKnownLinkError = exception;

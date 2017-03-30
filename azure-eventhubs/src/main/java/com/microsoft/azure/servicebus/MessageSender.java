@@ -403,6 +403,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			{
 				this.setClosed();
 				ExceptionUtil.completeExceptionally(this.linkFirstOpen, completionException, this);
+                                if (this.openTimer != null)
+                                    this.openTimer.cancel(false);
 			}
 		}
 	}
@@ -472,7 +474,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 								public void onEvent()
 								{
 									if (!MessageSender.this.getIsClosingOrClosed()
-                                                                            && sendLink.getLocalState() == EndpointState.CLOSED || sendLink.getRemoteState() == EndpointState.CLOSED)
+                                                                            && (sendLink.getLocalState() == EndpointState.CLOSED || sendLink.getRemoteState() == EndpointState.CLOSED))
 									{
 										recreateSendLink();
 									}
@@ -772,7 +774,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 	{
                 if (this.sendLink.getLocalState() == EndpointState.CLOSED || this.sendLink.getRemoteState() == EndpointState.CLOSED)
 		{
-                        if (this.getIsClosingOrClosed())
+                        if (!this.getIsClosingOrClosed())
                             this.recreateSendLink();
                         
                         return;
@@ -854,7 +856,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			}
 			else
 			{
-				if (weightedDelivery != null)
+				if (deliveryTag != null)
 				{
 					if (TRACE_LOGGER.isLoggable(Level.SEVERE))
 					{
