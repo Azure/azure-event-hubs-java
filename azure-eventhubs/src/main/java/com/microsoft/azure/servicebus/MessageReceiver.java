@@ -59,22 +59,22 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	private final CompletableFuture<Void> linkClose;
 	private final Object prefetchCountSync;
 	private final IReceiverSettingsProvider settingsProvider;
-        private final String tokenAudience;
-        private final ActiveClientTokenManager activeClientTokenManager;
-        private final WorkItem<MessageReceiver> linkOpen;
+    private final String tokenAudience;
+    private final ActiveClientTokenManager activeClientTokenManager;
+    private final WorkItem<MessageReceiver> linkOpen;
 	private final ConcurrentLinkedQueue<Message> prefetchedMessages;
-        private final ReceiveWork receiveWork;
-        private final CreateAndReceive createAndReceive;
+    private final ReceiveWork receiveWork;
+    private final CreateAndReceive createAndReceive;
 	            
 	private int prefetchCount;
-        private Receiver receiveLink;
+    private Receiver receiveLink;
 	private Duration receiveTimeout;
-        private Message lastReceivedMessage;
+    private Message lastReceivedMessage;
 	private Exception lastKnownLinkError;
 	private int nextCreditToFlow;
-        private boolean creatingLink;
-        private ScheduledFuture openTimer;
-        private ScheduledFuture closeTimer;
+    private boolean creatingLink;
+    private ScheduledFuture openTimer;
+    private ScheduledFuture closeTimer;
 
 	private MessageReceiver(final MessagingFactory factory,
 			final String name, 
@@ -93,73 +93,77 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		this.lastKnownLinkError = null;
 		this.receiveTimeout = factory.getOperationTimeout();
 		this.prefetchCountSync = new Object();
-                this.settingsProvider = settingsProvider;
-                this.linkOpen = new WorkItem<>(new CompletableFuture<>(), factory.getOperationTimeout());
+        this.settingsProvider = settingsProvider;
+        this.linkOpen = new WorkItem<>(new CompletableFuture<>(), factory.getOperationTimeout());
 		
 		this.pendingReceives = new ConcurrentLinkedQueue<>();
 
 		// onOperationTimeout delegate - per receive call
 		this.onOperationTimedout = new Runnable()
 		{
-                    public void run()
+            public void run()
+            {
+                WorkItem<Collection<Message>> topWorkItem = null;
+                while((topWorkItem = MessageReceiver.this.pendingReceives.peek()) != null)
+                {
+                    if (topWorkItem.getTimeoutTracker().remaining().toMillis() <= MessageReceiver.MIN_TIMEOUT_DURATION_MILLIS)
                     {
-                        WorkItem<Collection<Message>> topWorkItem = null;
-                        while((topWorkItem = MessageReceiver.this.pendingReceives.peek()) != null)
-                        {
-                            if (topWorkItem.getTimeoutTracker().remaining().toMillis() <= MessageReceiver.MIN_TIMEOUT_DURATION_MILLIS)
-                            {
-                                WorkItem<Collection<Message>> dequedWorkItem = MessageReceiver.this.pendingReceives.poll();
-                                if (dequedWorkItem != null && dequedWorkItem.getWork() != null && !dequedWorkItem.getWork().isDone()) {
-                                        dequedWorkItem.getWork().complete(null);
-                                }
-                                else
-                                        break;
-                            }
-                            else
-                            {
-                                MessageReceiver.this.scheduleOperationTimer(topWorkItem.getTimeoutTracker());
-                                break;
-                            }
+                        WorkItem<Collection<Message>> dequedWorkItem = MessageReceiver.this.pendingReceives.poll();
+                        if (dequedWorkItem != null && dequedWorkItem.getWork() != null && !dequedWorkItem.getWork().isDone()) {
+                                dequedWorkItem.getWork().complete(null);
                         }
+                        else
+                                break;
                     }
+                    else
+                    {
+                        MessageReceiver.this.scheduleOperationTimer(topWorkItem.getTimeoutTracker());
+                        break;
+                    }
+                }
+            }
 		};
                 
-                this.receiveWork = new ReceiveWork();
-                this.createAndReceive = new CreateAndReceive();
-                
-                this.tokenAudience = String.format("amqp://%s/%s", underlyingFactory.getHostName(), receivePath);
-                
-                this.activeClientTokenManager = new ActiveClientTokenManager(
-                        this, 
-                        new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                        underlyingFactory.getCBSChannel().sendToken(
-                                            underlyingFactory.getReactorScheduler(),
-                                            underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_REFRESH_INTERVAL), 
-                                            tokenAudience, 
-                                            new IOperationResult<Void, Exception>() {
-                                                @Override
-                                                public void onComplete(Void result) {
-                                                    if (TRACE_LOGGER.isLoggable(Level.FINE)) {
-                                                            TRACE_LOGGER.log(Level.FINE,
-                                                                            String.format(Locale.US, 
-                                                                            "path[%s], linkName[%s] - token renewed", receivePath, receiveLink.getName()));
-                                                    }
-                                                }
-                                                @Override
-                                                public void onError(Exception error) {
-                                                    MessageReceiver.this.onError(error);
-                                                }
-                                            });
-                                    }
-                                    catch(IOException|NoSuchAlgorithmException|InvalidKeyException|RuntimeException exception) {
-                                        MessageReceiver.this.onError(exception);
-                                    }
-                                }
-                            }, 
-                            ClientConstants.TOKEN_REFRESH_INTERVAL);
+        this.receiveWork = new ReceiveWork();
+        this.createAndReceive = new CreateAndReceive();
+
+        this.tokenAudience = String.format("amqp://%s/%s", underlyingFactory.getHostName(), receivePath);
+
+        this.activeClientTokenManager = new ActiveClientTokenManager(
+                this,
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                                underlyingFactory.getCBSChannel().sendToken(
+                                    underlyingFactory.getReactorScheduler(),
+                                    underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_REFRESH_INTERVAL),
+                                    tokenAudience,
+                                    new IOperationResult<Void, Exception>() {
+                                        @Override
+                                        public void onComplete(Void result) {
+                                            if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+                                                TRACE_LOGGER.log(Level.FINE,
+                                                String.format(Locale.US,
+                                                    "path[%s], linkName[%s] - token renewed", receivePath, receiveLink.getName()));
+                                            }
+                                        }
+                                        @Override
+                                        public void onError(Exception error) {
+                                            if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+                                                TRACE_LOGGER.log(Level.FINE,
+                                                String.format(Locale.US,
+                                                    "path[%s], linkName[%s], tokenRenewalFailure[%s]", receivePath, receiveLink.getName(), error.getMessage()));
+                                            }
+                                        }
+                                    });
+                            }
+                            catch(IOException|NoSuchAlgorithmException|InvalidKeyException|RuntimeException exception) {
+                                MessageReceiver.this.onError(exception);
+                            }
+                        }
+                    },
+                    ClientConstants.TOKEN_REFRESH_INTERVAL);
 	}
         
 	// @param connection Connection on which the MessageReceiver's receive Amqp link need to be created on.
@@ -210,9 +214,9 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	private List<Message> receiveCore(final int messageCount)
 	{
 		List<Message> returnMessages = null;
-		Message currentMessage = this.pollPrefetchQueue();
+		Message currentMessage;
 	
-		while (currentMessage != null) 
+		while ((currentMessage = this.pollPrefetchQueue()) != null)
 		{
 			if (returnMessages == null)
 			{
@@ -224,8 +228,6 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			{
 				break;
 			}
-
-			currentMessage = this.pollPrefetchQueue();
 		}
 		
 		return returnMessages;
@@ -290,13 +292,13 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		}
 
 		CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<>();
-                pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
+        pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
 		
 		try {
-                    this.underlyingFactory.scheduleOnReactorThread(this.createAndReceive);
+            this.underlyingFactory.scheduleOnReactorThread(this.createAndReceive);
 		}
 		catch (IOException ioException) {
-                    onReceive.completeExceptionally(new OperationCancelledException("Receive failed while dispatching to Reactor, see cause for more details.", ioException));
+            onReceive.completeExceptionally(new OperationCancelledException("Receive failed while dispatching to Reactor, see cause for more details.", ioException));
 		}
                 
 		return onReceive;
@@ -305,21 +307,21 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
         @Override
 	public void onOpenComplete(Exception exception)
 	{		
-                this.creatingLink = false;
+        this.creatingLink = false;
             
 		if (exception == null)
 		{
-                        if (this.getIsClosingOrClosed()) {
-                            
-                            this.receiveLink.close();
-                            return;
-                        }
+            if (this.getIsClosingOrClosed()) {
+
+                this.receiveLink.close();
+                return;
+            }
                         
 			if (this.linkOpen != null && !this.linkOpen.getWork().isDone())
 			{
 				this.linkOpen.getWork().complete(this);
-                                if (this.openTimer != null)
-                                    this.openTimer.cancel(false);
+                if (this.openTimer != null)
+                    this.openTimer.cancel(false);
 			}
 
 			this.lastKnownLinkError = null;
@@ -341,8 +343,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			{
 				this.setClosed();
 				ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), exception, this);
-                                if (this.openTimer != null)
-                                    this.openTimer.cancel(false);
+                if (this.openTimer != null)
+                    this.openTimer.cancel(false);
 			}
 
 			this.lastKnownLinkError = exception;
@@ -365,7 +367,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		this.prefetchedMessages.add(message);
 		this.underlyingFactory.getRetryPolicy().resetRetryCount(this.getClientId());
 		
-                this.receiveWork.onEvent();
+        this.receiveWork.onEvent();
 	}
 
 	public void onError(final ErrorCondition error)
@@ -377,13 +379,14 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 	@Override
 	public void onError(final Exception exception)
 	{
-                this.prefetchedMessages.clear();
+        this.prefetchedMessages.clear();
+		this.underlyingFactory.deregisterForConnectionError(this.receiveLink);
 
 		if (this.getIsClosingOrClosed())
 		{
-                        if (this.closeTimer != null)
-                            this.closeTimer.cancel(false);
-                        
+            if (this.closeTimer != null)
+                this.closeTimer.cancel(false);
+
 			WorkItem<Collection<Message>> workItem = null;
 			final boolean isTransientException = exception == null ||
 					(exception instanceof ServiceBusException && ((ServiceBusException) exception).getIsTransient());
@@ -400,27 +403,27 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 				}
 			}
                         
-                        this.linkClose.complete(null);
+            this.linkClose.complete(null);
 		}
 		else
 		{
 			this.lastKnownLinkError = exception == null ? this.lastKnownLinkError : exception;
 			
-                        final Exception completionException = exception == null
-                                ? new ServiceBusException(true, "Client encountered transient error for unknown reasons, please retry the operation.") : exception;
-                        
-                        this.onOpenComplete(completionException);
+            final Exception completionException = exception == null
+                    ? new ServiceBusException(true, "Client encountered transient error for unknown reasons, please retry the operation.") : exception;
+
+            this.onOpenComplete(completionException);
 			
 			final WorkItem<Collection<Message>> workItem = this.pendingReceives.peek();
 			final Duration nextRetryInterval = workItem != null && workItem.getTimeoutTracker() != null
 					? this.underlyingFactory.getRetryPolicy().getNextRetryInterval(this.getClientId(), completionException, workItem.getTimeoutTracker().remaining())
 					: null;
 			
-                        boolean recreateScheduled = true;
+            boolean recreateScheduled = true;
 
-                        if (nextRetryInterval != null)
+            if (nextRetryInterval != null)
 			{
-                                try
+                try
 				{
 					this.underlyingFactory.scheduleOnReactorThread((int) nextRetryInterval.toMillis(), new DispatchHandler()
 					{
@@ -438,9 +441,9 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 				}
 				catch (IOException ignore)
 				{
-                                    recreateScheduled = false;
+                    recreateScheduled = false;
 				}
-                        }			
+            }
                                 
 			if (nextRetryInterval == null || !recreateScheduled)
 			{
@@ -476,7 +479,6 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     // if the MessageReceiver is closed - we no-longer need to create the link
                     if (MessageReceiver.this.getIsClosingOrClosed()) {
                         
-                        MessageReceiver.this.underlyingFactory.deregisterForConnectionError(MessageReceiver.this.receiveLink);
                         session.close();
                         return;
                     }
@@ -512,12 +514,6 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     MessageReceiver.this.underlyingFactory.registerForConnectionError(receiver);
 
                     receiver.open();
-
-                    if (MessageReceiver.this.receiveLink != null)
-                    {
-                            final Receiver oldReceiver = MessageReceiver.this.receiveLink;
-                            MessageReceiver.this.underlyingFactory.deregisterForConnectionError(oldReceiver);
-                    }
 
                     MessageReceiver.this.receiveLink = receiver;
                 }
@@ -588,8 +584,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 			
 			if(TRACE_LOGGER.isLoggable(Level.FINE))
 			{
-				TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], linkname[%s], updated-link-credit[%s], sentCredits[%s]",
-						this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), tempFlow));
+				TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], linkname[%s], updated-link-credit[%s], sentCredits[%s], ThreadId[%s]",
+						this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), tempFlow, Thread.currentThread().getId()));
 			}
 		}
 	}
@@ -736,7 +732,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
                 ReceiveWorkItem pendingReceive;
                 while (!prefetchedMessages.isEmpty() && (pendingReceive = pendingReceives.poll()) != null) {
-                    
+
                     if (pendingReceive.getWork() != null && !pendingReceive.getWork().isDone()) {
                         
                         Collection<Message> receivedMessages = receiveCore(pendingReceive.maxMessageCount);
