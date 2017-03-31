@@ -150,8 +150,8 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                                         }
                                         @Override
                                         public void onError(Exception error) {
-                                            if (TRACE_LOGGER.isLoggable(Level.FINE)) {
-                                                TRACE_LOGGER.log(Level.FINE,
+                                            if (TRACE_LOGGER.isLoggable(Level.WARNING)) {
+                                                TRACE_LOGGER.log(Level.WARNING,
                                                 String.format(Locale.US,
                                                     "path[%s], linkName[%s], tokenRenewalFailure[%s]", receivePath, receiveLink.getName(), error.getMessage()));
                                             }
@@ -184,10 +184,10 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 		return msgReceiver.createLink();
 	}
         
-        public String getReceivePath()
-	{
-		return this.receivePath;
-	}
+    public String getReceivePath()
+    {
+        return this.receivePath;
+    }
 
 	private CompletableFuture<MessageReceiver> createLink()
 	{

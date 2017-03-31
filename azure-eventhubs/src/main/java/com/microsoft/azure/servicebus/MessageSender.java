@@ -164,7 +164,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                                                 @Override
                                                 public void onError(Exception error) {
                                                     if (TRACE_LOGGER.isLoggable(Level.WARNING)) {
-                                                        TRACE_LOGGER.log(Level.FINE,
+                                                        TRACE_LOGGER.log(Level.WARNING,
                                                         String.format(Locale.US,
                                                             "path[%s], linkName[%s] - tokenRenewalFailure[%s]", sendPath, sendLink.getName(), error.getMessage()));
                                                     }
