@@ -199,32 +199,13 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			final int messageFormat,
 			final CompletableFuture<Void> onSend,
 			final TimeoutTracker tracker,
-			final String deliveryTag,
 			final Exception lastKnownError,
 			final ScheduledFuture<?> timeoutTask)
 	{
 		this.throwIfClosed(this.lastKnownLinkError);
 
-		if (tracker != null && onSend != null && (tracker.remaining().isNegative() || tracker.remaining().isZero()))
-		{
-			if (TRACE_LOGGER.isLoggable(Level.FINE))
-			{
-				TRACE_LOGGER.log(Level.FINE,
-						String.format(Locale.US, 
-						"path[%s], linkName[%s], deliveryTag[%s] - timed out at sendCore", this.sendPath, this.sendLink.getName(), deliveryTag));
-			}
-
-			if (timeoutTask != null)
-			{
-				timeoutTask.cancel(false);
-			}
-			
-			this.throwSenderTimeout(onSend, null);
-			return onSend;
-		}
-
 		final boolean isRetrySend = (onSend != null);
-		final String tag = (deliveryTag == null) ? UUID.randomUUID().toString().replace("-", StringUtil.EMPTY) : deliveryTag;
+		final String deliveryTag = UUID.randomUUID().toString().replace("-", StringUtil.EMPTY);
 		
 		final CompletableFuture<Void> onSendFuture = (onSend == null) ? new CompletableFuture<>() : onSend;
 		
@@ -237,27 +218,19 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			sendWaiterData.setLastKnownException(lastKnownError);
 		}                
                 
-                ScheduledFuture<?> timeoutTimerTask = timeoutTask == null ? 
-                        Timer.schedule(new Runnable()
-                            {
-                                @Override
-                                public void run()
-                                {
-                                    if (!sendWaiterData.getWork().isDone())
-                                    {
-                                        MessageSender.this.pendingSendsData.remove(deliveryTag);
-                                        MessageSender.this.throwSenderTimeout(sendWaiterData.getWork(), sendWaiterData.getLastKnownException());
-                                    }
-                                }
-                            }, this.operationTimeout, TimerType.OneTimeRun)
-                        : timeoutTask;
+                if (timeoutTask != null)
+                    timeoutTask.cancel(false);
+                
+                final ScheduledFuture<?> timeoutTimerTask = Timer.schedule(
+                        new SendTimeout(deliveryTag, sendWaiterData),
+                        sendWaiterData.getTimeoutTracker().remaining(), TimerType.OneTimeRun);
 
                 sendWaiterData.setTimeoutTask(timeoutTimerTask);
 
 		synchronized (this.pendingSendLock)
 		{
-			this.pendingSendsData.put(tag, sendWaiterData);
-			this.pendingSends.offer(new WeightedDeliveryTag(tag, isRetrySend ? 1 : 0));
+			this.pendingSendsData.put(deliveryTag, sendWaiterData);
+			this.pendingSends.offer(new WeightedDeliveryTag(deliveryTag, isRetrySend ? 1 : 0));
 		}
 		
 		try
@@ -280,7 +253,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			final CompletableFuture<Void> onSend,
 			final TimeoutTracker tracker)
 	{
-		return this.sendCore(bytes, arrayOffset, messageFormat, onSend, tracker, null, null, null);
+		return this.sendCore(bytes, arrayOffset, messageFormat, onSend, tracker, null, null);
 	}
         
 	public CompletableFuture<Void> send(final Iterable<Message> messages)
@@ -566,7 +539,14 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 									@Override
 									public void onEvent()
 									{
-										MessageSender.this.reSend(deliveryTag, pendingSendWorkItem, false);
+										MessageSender.this.sendCore(
+                                                                                        pendingSendWorkItem.getMessage(), 
+                                                                                        pendingSendWorkItem.getEncodedMessageSize(), 
+                                                                                        pendingSendWorkItem.getMessageFormat(),
+                                                                                        pendingSendWorkItem.getWork(),
+                                                                                        pendingSendWorkItem.getTimeoutTracker(),
+                                                                                        pendingSendWorkItem.getLastKnownException(),
+                                                                                        pendingSendWorkItem.getTimeoutTask());
 									}
 								});
 					}
@@ -596,21 +576,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		}
 	}
 
-	private void reSend(final String deliveryTag, final ReplayableWorkItem<Void> pendingSend, boolean reuseDeliveryTag)
-	{
-		if (pendingSend != null)
-		{
-			this.sendCore(pendingSend.getMessage(), 
-					pendingSend.getEncodedMessageSize(), 
-					pendingSend.getMessageFormat(),
-					pendingSend.getWork(),
-					pendingSend.getTimeoutTracker(),
-					reuseDeliveryTag ? deliveryTag : null,
-					pendingSend.getLastKnownException(),
-					pendingSend.getTimeoutTask());
-		}
-	}
-	
 	private void cleanupFailedSend(final ReplayableWorkItem<Void> failedSend, final Exception exception)
 	{
 		if (failedSend.getTimeoutTask() != null)
@@ -988,4 +953,27 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			return deliveryTag1.getPriority() - deliveryTag0.getPriority();
 		}	
 	}
+        
+        private class SendTimeout implements Runnable
+        {
+            private final String deliveryTag;
+            private final ReplayableWorkItem<Void> sendWaiterData;
+            
+            public SendTimeout(
+                    final String deliveryTag,
+                    final ReplayableWorkItem<Void> sendWaiterData) {
+                this.sendWaiterData = sendWaiterData;
+                this.deliveryTag = deliveryTag;
+            }
+            
+            @Override
+            public void run()
+            {
+                if (!sendWaiterData.getWork().isDone())
+                {
+                    MessageSender.this.pendingSendsData.remove(deliveryTag);
+                    MessageSender.this.throwSenderTimeout(sendWaiterData.getWork(), sendWaiterData.getLastKnownException());
+                }
+            }
+        }
 }
