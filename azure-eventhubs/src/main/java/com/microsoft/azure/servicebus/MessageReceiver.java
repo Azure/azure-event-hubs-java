@@ -162,7 +162,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                                 if (TRACE_LOGGER.isLoggable(Level.WARNING)) {
                                     TRACE_LOGGER.log(Level.WARNING,
                                     String.format(Locale.US,
-                                        "path[%s], linkName[%s], tokenRenewalScheduleFailure[%s]", receivePath, receiveLink.getName(), error.getMessage()));
+                                        "path[%s], linkName[%s], tokenRenewalScheduleFailure[%s]", receivePath, receiveLink.getName(), exception.getMessage()));
                                 }
                             }
                         }
