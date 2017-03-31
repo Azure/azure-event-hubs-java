@@ -159,7 +159,11 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                                     });
                             }
                             catch(IOException|NoSuchAlgorithmException|InvalidKeyException|RuntimeException exception) {
-                                MessageReceiver.this.onError(exception);
+                                if (TRACE_LOGGER.isLoggable(Level.WARNING)) {
+                                    TRACE_LOGGER.log(Level.WARNING,
+                                    String.format(Locale.US,
+                                        "path[%s], linkName[%s], tokenRenewalScheduleFailure[%s]", receivePath, receiveLink.getName(), error.getMessage()));
+                                }
                             }
                         }
                     },

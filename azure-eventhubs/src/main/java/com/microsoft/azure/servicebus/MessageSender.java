@@ -172,7 +172,11 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                                             });
                                     }
                                     catch(IOException|NoSuchAlgorithmException|InvalidKeyException|RuntimeException exception) {
-                                        MessageSender.this.onError(exception);
+                                        if (TRACE_LOGGER.isLoggable(Level.WARNING)) {
+                                            TRACE_LOGGER.log(Level.WARNING,
+                                            String.format(Locale.US,
+                                                "path[%s], linkName[%s] - tokenRenewalScheduleFailure[%s]", sendPath, sendLink.getName(), error.getMessage()));
+                                        }
                                     }
                                 }
                             }, 
