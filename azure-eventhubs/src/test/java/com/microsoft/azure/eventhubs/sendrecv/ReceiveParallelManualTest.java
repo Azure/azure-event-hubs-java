@@ -60,7 +60,7 @@ public class ReceiveParallelManualTest extends ApiTestBase
         }
         @Override
         public void run() {
-/*
+
             try {
                 TestBase.pushEventsToPartition(ehClient, sPartitionId, 25000).get();
             } catch (InterruptedException e) {
@@ -69,7 +69,7 @@ public class ReceiveParallelManualTest extends ApiTestBase
                 e.printStackTrace();
             } catch (ServiceBusException e) {
                 e.printStackTrace();
-            }*/
+            }
 
             PartitionReceiver offsetReceiver1 = null;
             try {

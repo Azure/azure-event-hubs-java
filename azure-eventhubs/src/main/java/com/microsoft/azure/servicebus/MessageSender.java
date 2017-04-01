@@ -205,7 +205,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		this.throwIfClosed(this.lastKnownLinkError);
 
 		final boolean isRetrySend = (onSend != null);
-		final String deliveryTag = UUID.randomUUID().toString().replace("-", StringUtil.EMPTY);
 		
 		final CompletableFuture<Void> onSendFuture = (onSend == null) ? new CompletableFuture<>() : onSend;
 		
@@ -213,7 +212,10 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 				new ReplayableWorkItem<>(bytes, arrayOffset, messageFormat, onSendFuture, this.operationTimeout) : 
 				new ReplayableWorkItem<>(bytes, arrayOffset, messageFormat, onSendFuture, tracker);
 
-		if (lastKnownError != null)
+                final TimeoutTracker currentSendTracker = sendWaiterData.getTimeoutTracker();
+		final String deliveryTag = UUID.randomUUID().toString().replace("-", StringUtil.EMPTY) + "_" + currentSendTracker.elapsed().getSeconds();
+		
+                if (lastKnownError != null)
 		{
 			sendWaiterData.setLastKnownException(lastKnownError);
 		}                
@@ -223,7 +225,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                 
                 final ScheduledFuture<?> timeoutTimerTask = Timer.schedule(
                         new SendTimeout(deliveryTag, sendWaiterData),
-                        sendWaiterData.getTimeoutTracker().remaining(), TimerType.OneTimeRun);
+                        currentSendTracker.remaining(), TimerType.OneTimeRun);
 
                 sendWaiterData.setTimeoutTask(timeoutTimerTask);
 
@@ -263,7 +265,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			throw new IllegalArgumentException("Sending Empty batch of messages is not allowed.");
 		}
 
-		Message firstMessage = messages.iterator().next();			
+		final Message firstMessage = messages.iterator().next();			
 		if (IteratorUtil.sizeEquals(messages, 1))
 		{
 			return this.send(firstMessage);
@@ -271,10 +273,10 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
 		// proton-j doesn't support multiple dataSections to be part of AmqpMessage
 		// here's the alternate approach provided by them: https://github.com/apache/qpid-proton/pull/54
-		Message batchMessage = Proton.message();
+		final Message batchMessage = Proton.message();
 		batchMessage.setMessageAnnotations(firstMessage.getMessageAnnotations());
 
-		byte[] bytes = new byte[ClientConstants.MAX_MESSAGE_LENGTH_BYTES];
+		final byte[] bytes = new byte[ClientConstants.MAX_MESSAGE_LENGTH_BYTES];
 		int encodedSize = batchMessage.encode(bytes, 0, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
 		int byteArrayOffset = encodedSize;
 
@@ -295,7 +297,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			}
 			catch(BufferOverflowException exception)
 			{
-				final CompletableFuture<Void> sendTask = new CompletableFuture<Void>();
+				final CompletableFuture<Void> sendTask = new CompletableFuture<>();
 				sendTask.completeExceptionally(new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s kb", ClientConstants.MAX_MESSAGE_LENGTH_BYTES / 1024), exception));
 				return sendTask;
 			}
@@ -311,7 +313,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		int payloadSize = AmqpUtil.getDataSerializedSize(msg);
 		int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
 
-		byte[] bytes = new byte[allocationSize];
+		final byte[] bytes = new byte[allocationSize];
 		int encodedSize = 0;
 		try
 		{
@@ -511,10 +513,10 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			}
 			else if (outcome instanceof Rejected)
 			{
-				Rejected rejected = (Rejected) outcome;
-				ErrorCondition error = rejected.getError();
+				final Rejected rejected = (Rejected) outcome;
+				final ErrorCondition error = rejected.getError();
                                 
-				Exception exception = ExceptionUtil.toException(error);
+				final Exception exception = ExceptionUtil.toException(error);
 
 				if (ExceptionUtil.isGeneralSendError(error.getCondition()))
 				{
@@ -522,7 +524,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 					this.lastKnownErrorReportedAt = Instant.now();
 				}
 
-				Duration retryInterval = this.retryPolicy.getNextRetryInterval(
+				final Duration retryInterval = this.retryPolicy.getNextRetryInterval(
 						this.getClientId(), exception, pendingSendWorkItem.getTimeoutTracker().remaining());
 				if (retryInterval == null)
 				{
@@ -570,9 +572,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 		}
 		else
 		{
-			if (TRACE_LOGGER.isLoggable(Level.WARNING))
-				TRACE_LOGGER.log(Level.WARNING, 
-						String.format(Locale.US, "path[%s], linkName[%s], delivery[%s] - mismatch", this.sendPath, this.sendLink.getName(), deliveryTag));
+			if (TRACE_LOGGER.isLoggable(Level.FINE))
+				TRACE_LOGGER.log(Level.FINE, 
+						String.format(Locale.US, "path[%s], linkName[%s], delivery[%s] - mismatch (or send timedout)", this.sendPath, this.sendLink.getName(), deliveryTag));
 		}
 	}
 
@@ -825,9 +827,9 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 			{
 				if (deliveryTag != null)
 				{
-					if (TRACE_LOGGER.isLoggable(Level.SEVERE))
+					if (TRACE_LOGGER.isLoggable(Level.FINE))
 					{
-						TRACE_LOGGER.log(Level.SEVERE,
+						TRACE_LOGGER.log(Level.FINE,
 								String.format(Locale.US, "path[%s], linkName[%s], deliveryTag[%s] - sendData not found for this delivery.",
 								this.sendPath, this.sendLink.getName(), deliveryTag));
 					}
