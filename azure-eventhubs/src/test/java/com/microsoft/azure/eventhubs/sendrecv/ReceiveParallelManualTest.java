@@ -13,7 +13,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
-import com.microsoft.azure.servicebus.IteratorUtil;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -27,9 +26,10 @@ import com.microsoft.azure.eventhubs.PartitionSender;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
 import com.microsoft.azure.servicebus.amqp.AmqpConstants;
+import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.servicebus.IteratorUtil;
+import com.microsoft.azure.servicebus.ServiceBusException;
 
 public class ReceiveParallelManualTest extends ApiTestBase
 {
@@ -110,6 +110,9 @@ public class ReceiveParallelManualTest extends ApiTestBase
         }
     }
 
+	// Run this test manually and introduce network failures to test
+	// send/receive code is resilient to n/w failures 
+	// and continues to run once the n/w is back online
 	// @Test()
 	public void testReceiverStartOfStreamFilters() throws Exception
 	{
