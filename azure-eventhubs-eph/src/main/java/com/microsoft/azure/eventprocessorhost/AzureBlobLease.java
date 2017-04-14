@@ -16,12 +16,14 @@ class AzureBlobLease extends Lease
 	private String offset = null; // null means checkpoint is uninitialized
 	private long sequenceNumber = 0;
 	
+	private transient AzureStorageCheckpointLeaseManager leaseManager; // do not serialize!
+	
 	AzureBlobLease(String partitionId, CloudBlockBlob blob)
 	{
 		super(partitionId);
 		this.blob = blob;
 	}
-	
+
 	AzureBlobLease(AzureBlobLease source)
 	{
 		super(source);
@@ -29,7 +31,7 @@ class AzureBlobLease extends Lease
 		this.sequenceNumber = source.sequenceNumber;
 		this.blob = source.blob;
 	}
-	
+
 	AzureBlobLease(AzureBlobLease source, CloudBlockBlob blob)
 	{
 		super(source);
@@ -43,6 +45,8 @@ class AzureBlobLease extends Lease
 		super(source);
 		this.blob = blob;
 	}
+	
+	void setLeaseManager(AzureStorageCheckpointLeaseManager lm) { this.leaseManager = lm; }
 	
 	CloudBlockBlob getBlob() { return this.blob; }
 	
@@ -62,7 +66,28 @@ class AzureBlobLease extends Lease
 	@Override
 	public boolean isExpired() throws Exception
 	{
-		this.blob.downloadAttributes(); // Get the latest metadata
+		boolean downloadedOK = false;
+		int retrycount = 0;
+		
+		while (!downloadedOK)
+		{
+			try
+			{
+				this.blob.downloadAttributes(); // Get the latest metadata
+				downloadedOK = true;
+			}
+			catch (StorageException se)
+			{
+				downloadedOK = false;
+				if (++retrycount > 5)
+				{
+					// Give up retrying
+					throw se;
+				}
+				Thread.sleep(5000);
+				this.blob = this.leaseManager.reinitAndReplaceBlob(se, getPartitionId());
+			}
+		}
 		LeaseState currentState = this.blob.getProperties().getLeaseState();
 		return (currentState != LeaseState.LEASED); 
 	}
