@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /*
  * Performance BenchMark is specific to customers load pattern!!
@@ -38,7 +39,7 @@ import java.util.function.BiConsumer;
  * This program generates 10000 samples of "latency per send call in milliseconds"
  * After the completion of this program - copy the output to an excel sheet & crunch the numbers (like avg, %'s etc)
  */
-public class BenchMarkIngressLatency {
+public class IngressBenchmark {
 
     public static void main(String[] args)
             throws ServiceBusException, ExecutionException, InterruptedException, IOException {
@@ -55,20 +56,21 @@ public class BenchMarkIngressLatency {
         // 1 - EVENT SIZE
         // 2 - NO OF CONCURRENT SENDS per sec
         // 3 - NO OF EVENTS - CLIENTS CAN BATCH & SEND <-- and there by optimize on ACKs returned from the Service (typically, this number is supposed to help bring 2 down)
-        // 4 - NO OF SENDERS PER CONNECTION <-- This sample doesn't include this / only demonstrates what can be achieved using 1 Sender AMQP link using 1 Connection
+        // 4 - NO OF SENDERS PER CONNECTION <-- This sample uses 1 Sender AMQP link per 1 Connection
+        // 5 - TOTAL NO. OF CONNECTIONS <-- This value directly impacts the degree of parallelism while sending
         // ***************************************************************************************************************
-        final int EVENT_SIZE = 1024; // 1 kb
+        final int EVENT_SIZE = 1024; // 1 kb <-- Change these knobs to determine target throughput; default is set to 10 * 10 * 1024 = 100 KB per SendLatency
         final int NO_OF_CONCURRENT_SENDS = 10;
         final int BATCH_SIZE = 10;
 
+        final int NO_OF_CONNECTIONS = 10;
 
-        // Consider creating a pool of EventHubClient objects - based on the predicted load per process and this Benchmark test outcome
-        // if you want to send 10 MBperSEC from a single process to 1 EventHub - you might want 2-3 of these
-        // EventHubClient reserves its own **PHYSICAL SOCKET**
-        final EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString());
+        // each EventHubClient reserves its own **PHYSICAL SOCKET**
+        final EventHubClientPool ehClient = new EventHubClientPool(NO_OF_CONNECTIONS, connStr.toString());
+        ehClient.initialize().get();
 
 
-        for (int dataSetCount = 0; dataSetCount < 1000; dataSetCount++) {
+        for (int perfSample = 0; perfSample < 5000; perfSample++) {
             final List<EventData> eventDataList = new LinkedList<>();
 
             for (int batchSize = 0; batchSize < BATCH_SIZE; batchSize++) {
@@ -93,6 +95,55 @@ public class BenchMarkIngressLatency {
             CompletableFuture.anyOf(sendTasks).get();
         }
 
-        ehClient.closeSync();
+        ehClient.close().get();
+    }
+
+    public static class EventHubClientPool {
+
+        private final int poolSize;
+        private final String connectionString;
+        private final Object previouslySentLock = new Object();
+        private final EventHubClient[] clients;
+
+        private int previouslySent = 0;
+
+        EventHubClientPool(final int poolSize, final String connectionString) {
+            this.poolSize = poolSize;
+            this.connectionString = connectionString;
+            this.clients = new EventHubClient[this.poolSize];
+        }
+
+        public CompletableFuture<Void> initialize() throws IOException, ServiceBusException {
+            final CompletableFuture[] createSenders = new CompletableFuture[this.poolSize];
+            for (int count = 0; count < poolSize; count++) {
+                final int clientsIndex = count;
+                createSenders[count] = EventHubClient.createFromConnectionString(this.connectionString).thenAccept(new Consumer<EventHubClient>() {
+                    @Override
+                    public void accept(EventHubClient eventHubClient) {
+                        clients[clientsIndex] = eventHubClient;
+                    }
+                });
+            }
+
+            return CompletableFuture.allOf(createSenders);
+        }
+
+        public CompletableFuture<Void> send(Iterable<EventData> events) {
+            final int poolIndex;
+            synchronized (this.previouslySentLock) {
+                poolIndex = this.previouslySent++ % poolSize;
+            }
+
+            return clients[poolIndex].send(events);
+        }
+
+        public CompletableFuture<Void> close() {
+            final CompletableFuture[] closers = new CompletableFuture[this.poolSize];
+            for (int count = 0; count < poolSize; count++) {
+                closers[count] = this.clients[count].close();
+            }
+
+            return CompletableFuture.allOf(closers);
+        }
     }
 }
