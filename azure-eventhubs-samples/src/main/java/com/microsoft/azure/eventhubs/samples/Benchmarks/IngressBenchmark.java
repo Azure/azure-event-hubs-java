@@ -25,18 +25,20 @@ import java.util.function.Consumer;
  *
  * This sample is intended to highlight various variables available to tune latencies
  *
- * Two variables that cannot be exercised in the below Code - are
+ * Three variables are not exercised in the below Code - are
  * 1) Network proximity
  *      (make sure to run in same region/AzureDataCenter as your target scenario - to get identical results)
  * 2) Throughput units configured on the EventHubs namespace
  *      Latency numbers can only be measured when the target load is <= allowed load
  *      if the Target load (no. of messages per sec or no. of bytes transferred per sec) exceeds the Throughput unit configuration
  *      then you might see a long tail in 999'ile of ~4 secs - which service intentionally delays to slow down the sender
+ * 3) Number of Senders per Connection
+ *      if you are interested in high throughput scenarios keep this 1 Sender per Connection (that's what the below sample does)
  *
  * If you are running this against an EventHubs Namespace in a shared public instance
  * - results might slightly vary across runs; if you want more predictable results - use Dedicated EventHubs.
  *
- * This program generates 10000 samples of "latency per send call in milliseconds"
+ * This program generates 50000 samples of "latency per send call in milliseconds"
  * After the completion of this program - copy the output to an excel sheet & crunch the numbers (like avg, %'s etc)
  */
 public class IngressBenchmark {
@@ -54,23 +56,23 @@ public class IngressBenchmark {
         // ***************************************************************************************************************
         // List of variables involved
         // 1 - EVENT SIZE
-        // 2 - NO OF CONCURRENT SENDS per sec
-        // 3 - NO OF EVENTS - CLIENTS CAN BATCH & SEND <-- and there by optimize on ACKs returned from the Service (typically, this number is supposed to help bring 2 down)
-        // 4 - NO OF SENDERS PER CONNECTION <-- This sample uses 1 Sender AMQP link per 1 Connection
-        // 5 - TOTAL NO. OF CONNECTIONS <-- This value directly impacts the degree of parallelism while sending
+        // 2 - NO OF CONCURRENT SENDS
+        // 3 - BATCH SIZE  - aka NO OF EVENTS CLIENTS CAN BATCH & SEND <-- and there by optimize on ACKs returned from the Service (typically, this number is supposed to help bring 2 down)
+        // 4 - NO. OF CONNECTIONS <-- This value directly impacts the degree of parallelism while sending
         // ***************************************************************************************************************
-        final int EVENT_SIZE = 1024; // 1 kb <-- Change these knobs to determine target throughput; default is set to 10 * 10 * 1024 = 100 KB per SendLatency
-        final int NO_OF_CONCURRENT_SENDS = 10;
-        final int BATCH_SIZE = 10;
+        final int EVENT_SIZE = 1024; // 1 kb <-- Change these knobs to determine target throughput; default is set to 5 * 5 * 1024 = 100 KB per SendLatency
+        final int NO_OF_CONCURRENT_SENDS = 5;
+        final int BATCH_SIZE = 5;
 
         final int NO_OF_CONNECTIONS = 10;
 
         // each EventHubClient reserves its own **PHYSICAL SOCKET**
-        final EventHubClientPool ehClient = new EventHubClientPool(NO_OF_CONNECTIONS, connStr.toString());
-        ehClient.initialize().get();
+        final EventHubClientPool ehClientPool = new EventHubClientPool(NO_OF_CONNECTIONS, connStr.toString());
+        ehClientPool.initialize().get();
 
 
-        for (int perfSample = 0; perfSample < 5000; perfSample++) {
+        final CompletableFuture<Void>[] sendTasks = new CompletableFuture[NO_OF_CONCURRENT_SENDS];
+        for (int perfSample = 0; perfSample < 50000 - NO_OF_CONCURRENT_SENDS + 1; perfSample++) {
             final List<EventData> eventDataList = new LinkedList<>();
 
             for (int batchSize = 0; batchSize < BATCH_SIZE; batchSize++) {
@@ -80,70 +82,28 @@ public class IngressBenchmark {
                 eventDataList.add(eventData);
             }
 
-            final CompletableFuture<Void>[] sendTasks = new CompletableFuture[NO_OF_CONCURRENT_SENDS];
+            // if a SendTask is complete - replace it with new Sender Task to maintain NO of concurrent sends
             for (int concurrentSends = 0; concurrentSends < NO_OF_CONCURRENT_SENDS; concurrentSends++) {
-                final Instant beforeSend = Instant.now();
-                sendTasks[concurrentSends] = ehClient.send(eventDataList).whenComplete(new BiConsumer<Void, Throwable>() {
-                    @Override
-                    public void accept(Void aVoid, Throwable throwable) {
-                        System.out.println(String.format("%s,%s", throwable == null ? "success" : "failure", Duration.between(beforeSend, Instant.now()).toMillis()));
-                    }
-                });
+                boolean isInitializing = (sendTasks[concurrentSends] == null);
+                if (isInitializing || sendTasks[concurrentSends].isDone()) {
+                    final Instant beforeSend = Instant.now();
+                    sendTasks[concurrentSends] = ehClientPool.send(eventDataList).whenComplete(new BiConsumer<Void, Throwable>() {
+                        @Override
+                        public void accept(Void aVoid, Throwable throwable) {
+                            System.out.println(String.format("%s,%s", throwable == null ? "success" : "failure", Duration.between(beforeSend, Instant.now()).toMillis()));
+                        }
+                    });
+
+                    if (!isInitializing)
+                        break;
+                }
             }
 
-            // wait for the first send to return - to control the send-pipe line speed & degree of parallelism
+            // wait for one send to return and proceed to replace it with new SendTask
+            // - to control the send-pipe line speed & degree of parallelism
             CompletableFuture.anyOf(sendTasks).get();
         }
 
-        ehClient.close().get();
-    }
-
-    public static class EventHubClientPool {
-
-        private final int poolSize;
-        private final String connectionString;
-        private final Object previouslySentLock = new Object();
-        private final EventHubClient[] clients;
-
-        private int previouslySent = 0;
-
-        EventHubClientPool(final int poolSize, final String connectionString) {
-            this.poolSize = poolSize;
-            this.connectionString = connectionString;
-            this.clients = new EventHubClient[this.poolSize];
-        }
-
-        public CompletableFuture<Void> initialize() throws IOException, ServiceBusException {
-            final CompletableFuture[] createSenders = new CompletableFuture[this.poolSize];
-            for (int count = 0; count < poolSize; count++) {
-                final int clientsIndex = count;
-                createSenders[count] = EventHubClient.createFromConnectionString(this.connectionString).thenAccept(new Consumer<EventHubClient>() {
-                    @Override
-                    public void accept(EventHubClient eventHubClient) {
-                        clients[clientsIndex] = eventHubClient;
-                    }
-                });
-            }
-
-            return CompletableFuture.allOf(createSenders);
-        }
-
-        public CompletableFuture<Void> send(Iterable<EventData> events) {
-            final int poolIndex;
-            synchronized (this.previouslySentLock) {
-                poolIndex = this.previouslySent++ % poolSize;
-            }
-
-            return clients[poolIndex].send(events);
-        }
-
-        public CompletableFuture<Void> close() {
-            final CompletableFuture[] closers = new CompletableFuture[this.poolSize];
-            for (int count = 0; count < poolSize; count++) {
-                closers[count] = this.clients[count].close();
-            }
-
-            return CompletableFuture.allOf(closers);
-        }
+        ehClientPool.close().get();
     }
 }
