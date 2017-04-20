@@ -52,12 +52,14 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     private final LinkedList<Link> registeredLinks;
     private final Object reactorLock;
     private final Object cbsChannelCreateLock;
+    private final Object mgmtChannelCreateLock;
     private final SharedAccessSignatureTokenProvider tokenProvider;
 
     private Reactor reactor;
     private ReactorDispatcher reactorScheduler;
     private Connection connection;
     private CBSChannel cbsChannel;
+    private ManagementChannel mgmtChannel;
 
     private Duration operationTimeout;
     private RetryPolicy retryPolicy;
@@ -77,6 +79,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         this.reactorLock = new Object();
         this.connectionHandler = new ConnectionHandler(this);
         this.cbsChannelCreateLock = new Object();
+        this.mgmtChannelCreateLock = new Object();
         this.tokenProvider = builder.getSharedAccessSignature() == null
                 ? new SharedAccessSignatureTokenProvider(builder.getSasKeyName(), builder.getSasKey())
                 : new SharedAccessSignatureTokenProvider(builder.getSharedAccessSignature());
@@ -143,6 +146,16 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         }
 
         return this.cbsChannel;
+    }
+    
+    public ManagementChannel getManagementChannel() {
+    	synchronized (this.mgmtChannelCreateLock) {
+    		if (this.mgmtChannel == null) {
+    			this.mgmtChannel = new ManagementChannel(this, this, "mgmt-link");
+    		}
+    	}
+    	
+    	return this.mgmtChannel;
     }
 
     @Override

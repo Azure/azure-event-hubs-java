@@ -7,7 +7,11 @@ package com.microsoft.azure.eventhubs;
 import java.io.IOException;
 import java.nio.channels.UnresolvedAddressException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
@@ -18,6 +22,7 @@ import com.microsoft.azure.servicebus.ClientEntity;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.servicebus.IllegalEntityException;
 import com.microsoft.azure.servicebus.IteratorUtil;
+import com.microsoft.azure.servicebus.ManagementChannel;
 import com.microsoft.azure.servicebus.MessageSender;
 import com.microsoft.azure.servicebus.MessagingFactory;
 import com.microsoft.azure.servicebus.RetryPolicy;
@@ -1254,5 +1259,50 @@ public class EventHubClient extends ClientEntity {
         }
 
         return this.createSender;
+    }
+    
+    public CompletableFuture<EventHubRuntimeInformation> GetRuntimeInformation() {
+    	Map<String, String> request = new HashMap<String, String>();
+        request.put(ClientConstants.MANAGEMENT_ENTITY_TYPE_KEY, ClientConstants.MANAGEMENT_EVENTHUB_ENTITY_TYPE);
+        request.put(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY, this.eventHubName);
+        request.put(ClientConstants.MANAGEMENT_OPERATION_KEY, ClientConstants.READ_OPERATION_VALUE);
+    	
+        ManagementChannel mgmt = this.underlyingFactory.getManagementChannel();
+        return mgmt.doManagementRequestResponse(this.underlyingFactory.getReactorScheduler(), request).
+        	thenComposeAsync(new Function<Map<String, Object>, CompletableFuture<EventHubRuntimeInformation>>() {
+	        	@Override
+	        	public CompletableFuture<EventHubRuntimeInformation> apply(Map<String, Object> rawdata)	{
+	        		EventHubRuntimeInformation result = new EventHubRuntimeInformation(
+	        				(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
+	        				((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_CREATED_AT)).toInstant(),
+	        				(int)rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_COUNT),
+	        				(String[])rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_IDS));
+	            	return CompletableFuture.completedFuture(result);
+	        	}
+	        });
+    }
+    
+    public CompletableFuture<EventHubPartitionRuntimeInformation> GetPartitionRuntimeInformation(String partitionId) {
+    	Map<String, String> request = new HashMap<String, String>();
+        request.put(ClientConstants.MANAGEMENT_ENTITY_TYPE_KEY, ClientConstants.MANAGEMENT_PARTITION_ENTITY_TYPE);
+        request.put(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY, this.eventHubName);
+        request.put(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY, partitionId);
+        request.put(ClientConstants.MANAGEMENT_OPERATION_KEY, ClientConstants.READ_OPERATION_VALUE);
+        
+        ManagementChannel mgmt = this.underlyingFactory.getManagementChannel();
+		return mgmt.doManagementRequestResponse(this.underlyingFactory.getReactorScheduler(), request).
+			thenComposeAsync(new Function<Map<String, Object>, CompletableFuture<EventHubPartitionRuntimeInformation>>() {
+				@Override
+				public CompletableFuture<EventHubPartitionRuntimeInformation> apply(Map<String, Object> rawdata) {
+					EventHubPartitionRuntimeInformation result = new EventHubPartitionRuntimeInformation(
+							(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
+							(String)rawdata.get(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY),
+							(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER),
+							(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER),
+							(String)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET),
+							((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC)).toInstant());
+					return CompletableFuture.completedFuture(result);
+				}
+			});
     }
 }

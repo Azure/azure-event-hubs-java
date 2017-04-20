@@ -8,6 +8,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.EventHubPartitionRuntimeInformation;
+import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 import com.microsoft.azure.servicebus.ClientConstants;
@@ -189,6 +192,28 @@ public class RequestResponseTest  extends ApiTestBase {
         });
         
         closeFuture.get();
+    }
+    
+    @Test
+    public void testGetRuntimeInfo() throws Exception {
+    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(connectionString.toString());
+    	EventHubRuntimeInformation info = ehc.GetRuntimeInformation().get();
+    	System.out.println("Event hub name: " + info.getPath());
+    	System.out.println("Created at: " + info.getCreatedAt().toString());
+    	System.out.println("Partition count: " + info.getPartitionCount());
+    	for (int i = 0; i < info.getPartitionCount(); i++)
+    	{
+    		System.out.println("Partition id[" + i + "]: " + info.getPartitionIds()[i]);
+    	}
+    }
+    
+    @Test
+    public void testGetPartitionRuntimeInfo() throws Exception {
+    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(connectionString.toString());
+    	EventHubPartitionRuntimeInformation info = ehc.GetPartitionRuntimeInformation("0").get();
+    	System.out.println("Event hub name: " + info.getEventHubPath());
+    	System.out.println("Partition id: " + info.getPartitionId());
+    	// finish this
     }
     
     @AfterClass()
