@@ -11,6 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubPartitionRuntimeInformation;
 import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
+import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 import com.microsoft.azure.servicebus.ClientConstants;
@@ -24,6 +25,8 @@ import com.microsoft.azure.servicebus.amqp.IOperation;
 import com.microsoft.azure.servicebus.amqp.IOperationResult;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
 import com.microsoft.azure.servicebus.amqp.RequestResponseChannel;
+
+import junit.framework.Assert;
 import junit.framework.AssertionFailedError;
 
 import org.apache.qpid.proton.Proton;
@@ -195,25 +198,50 @@ public class RequestResponseTest  extends ApiTestBase {
     }
     
     @Test
-    public void testGetRuntimeInfo() throws Exception {
+    public void testGetRuntimes() throws Exception {
     	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(connectionString.toString());
-    	EventHubRuntimeInformation info = ehc.GetRuntimeInformation().get();
-    	System.out.println("Event hub name: " + info.getPath());
-    	System.out.println("Created at: " + info.getCreatedAt().toString());
-    	System.out.println("Partition count: " + info.getPartitionCount());
-    	for (int i = 0; i < info.getPartitionCount(); i++)
-    	{
-    		System.out.println("Partition id[" + i + "]: " + info.getPartitionIds()[i]);
+    	EventHubRuntimeInformation ehInfo = ehc.GetRuntimeInformation().get();
+
+    	Assert.assertNotNull(ehInfo);
+    	Assert.assertTrue(connectionString.getEntityPath().equalsIgnoreCase(ehInfo.getPath()));
+    	Assert.assertNotNull(ehInfo.getCreatedAt()); // creation time could be almost anything, can't really check value
+    	Assert.assertTrue(ehInfo.getPartitionCount() > 2); // max legal partition count is variable but 2 is hard minimum
+    	Assert.assertEquals(ehInfo.getPartitionIds().length, ehInfo.getPartitionCount());
+    	/*
+    	System.out.println("Event hub name: " + ehInfo.getPath());
+    	System.out.println("Created at: " + ehInfo.getCreatedAt().toString());
+    	System.out.println("Partition count: " + ehInfo.getPartitionCount());
+    	*/
+    	for (int i = 0; i < ehInfo.getPartitionCount(); i++) {
+    		String id = ehInfo.getPartitionIds()[i];
+    		Assert.assertNotNull(id);
+    		Assert.assertFalse(id.isEmpty());
+    		//System.out.println("Partition id[" + i + "]: " + ehInfo.getPartitionIds()[i]);
     	}
-    }
-    
-    @Test
-    public void testGetPartitionRuntimeInfo() throws Exception {
-    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(connectionString.toString());
-    	EventHubPartitionRuntimeInformation info = ehc.GetPartitionRuntimeInformation("0").get();
-    	System.out.println("Event hub name: " + info.getEventHubPath());
-    	System.out.println("Partition id: " + info.getPartitionId());
-    	// finish this
+    	
+    	for (String id : ehInfo.getPartitionIds()) {
+	    	EventHubPartitionRuntimeInformation partInfo = ehc.GetPartitionRuntimeInformation(id).get();
+	    	
+	    	Assert.assertNotNull(partInfo);
+	    	Assert.assertTrue(connectionString.getEntityPath().equalsIgnoreCase(partInfo.getEventHubPath()));
+	    	Assert.assertTrue(id.equalsIgnoreCase(partInfo.getPartitionId()));
+	    	Assert.assertTrue(partInfo.getBeginSequenceNumber() >= -1);
+	    	Assert.assertTrue(partInfo.getLastEnqueuedSequenceNumber() >= -1);
+	    	Assert.assertTrue(partInfo.getLastEnqueuedSequenceNumber() >= partInfo.getBeginSequenceNumber());
+	    	Assert.assertNotNull(partInfo.getLastEnqueuedOffset());
+	    	Assert.assertFalse(partInfo.getLastEnqueuedOffset().isEmpty());
+	    	Assert.assertNotNull(partInfo.getLastEnqueuedTimeUtc());  // last enqueued time could be almost anything, can't really check value
+	    	/*
+	    	System.out.println("Event hub name: " + partInfo.getEventHubPath());
+	    	System.out.println("Partition id: " + partInfo.getPartitionId());
+	    	System.out.println("Begin seq: " + partInfo.getBeginSequenceNumber());
+	    	System.out.println("Last seq: " + partInfo.getLastEnqueuedSequenceNumber());
+	    	System.out.println("Last offset: " + partInfo.getLastEnqueuedOffset());
+	    	System.out.println("Last time: " + partInfo.getLastEnqueuedTimeUtc().toString());
+	    	*/
+    	}
+    	
+    	ehc.closeSync();
     }
     
     @AfterClass()
