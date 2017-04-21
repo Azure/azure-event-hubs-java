@@ -24,18 +24,18 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.MessageReceiver;
+import com.microsoft.azure.eventhubs.MessageSender;
+import com.microsoft.azure.eventhubs.MessagingFactory;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.PartitionSender;
+import com.microsoft.azure.eventhubs.EventHubsException;
+import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.MessageReceiver;
-import com.microsoft.azure.servicebus.MessageSender;
-import com.microsoft.azure.servicebus.MessagingFactory;
-import com.microsoft.azure.servicebus.ServiceBusException;
-import com.microsoft.azure.servicebus.amqp.AmqpConstants;
 
 public class InteropAmqpPropertiesTest extends ApiTestBase
 {
@@ -99,7 +99,7 @@ public class InteropAmqpPropertiesTest extends ApiTestBase
 		}};
 		
 	@BeforeClass
-	public static void initialize() throws ServiceBusException, IOException, InterruptedException, ExecutionException
+	public static void initialize() throws EventHubsException, IOException, InterruptedException, ExecutionException
 	{
 		final ConnectionStringBuilder connStrBuilder = TestContext.getConnectionString();
 		final String connectionString = connStrBuilder.toString();
@@ -192,7 +192,7 @@ public class InteropAmqpPropertiesTest extends ApiTestBase
 	}
 	
 	@AfterClass
-	public static void cleanup() throws ServiceBusException
+	public static void cleanup() throws EventHubsException
 	{
 		if (msgReceiver != null)
 			msgReceiver.closeSync();

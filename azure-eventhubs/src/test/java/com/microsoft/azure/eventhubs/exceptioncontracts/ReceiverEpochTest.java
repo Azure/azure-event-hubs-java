@@ -16,14 +16,14 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.ReceiverDisconnectedException;
+import com.microsoft.azure.eventhubs.EventHubsException;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
-import com.microsoft.azure.servicebus.ServiceBusException;
 
 public class ReceiverEpochTest extends ApiTestBase
 {
@@ -35,14 +35,14 @@ public class ReceiverEpochTest extends ApiTestBase
 	PartitionReceiver receiver;
 	
 	@BeforeClass
-	public static void initializeEventHub() throws ServiceBusException, IOException
+	public static void initializeEventHub() throws EventHubsException, IOException
 	{
 		final ConnectionStringBuilder connectionString = TestContext.getConnectionString();
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString());
 	}
 	
 	@Test (expected = ReceiverDisconnectedException.class)
-	public void testEpochReceiverWins() throws ServiceBusException, InterruptedException, ExecutionException
+	public void testEpochReceiverWins() throws EventHubsException, InterruptedException, ExecutionException
 	{
 		int sendEventCount = 5;
 		
@@ -58,7 +58,7 @@ public class ReceiverEpochTest extends ApiTestBase
 	}
 
 	@Test (expected = ReceiverDisconnectedException.class)
-	public void testOldHighestEpochWins() throws ServiceBusException, InterruptedException, ExecutionException
+	public void testOldHighestEpochWins() throws EventHubsException, InterruptedException, ExecutionException
 	{
 		Instant testStartTime = Instant.now();
 		long epoch = Math.abs(new Random().nextLong());
@@ -75,7 +75,7 @@ public class ReceiverEpochTest extends ApiTestBase
 	}
 	
 	@Test (expected = ReceiverDisconnectedException.class)
-	public void testNewHighestEpochWins() throws ServiceBusException, InterruptedException, ExecutionException
+	public void testNewHighestEpochWins() throws EventHubsException, InterruptedException, ExecutionException
 	{
 		int sendEventCount = 5;
 		long epoch = new Random().nextInt(Integer.MAX_VALUE);
@@ -92,7 +92,7 @@ public class ReceiverEpochTest extends ApiTestBase
 	}
 	
 	@After
-	public void testCleanup() throws ServiceBusException
+	public void testCleanup() throws EventHubsException
 	{
 		if (receiver != null)
 		{
@@ -101,7 +101,7 @@ public class ReceiverEpochTest extends ApiTestBase
 	}
 	
 	@AfterClass
-	public static void cleanup() throws ServiceBusException
+	public static void cleanup() throws EventHubsException
 	{
 		ehClient.closeSync();
 	}

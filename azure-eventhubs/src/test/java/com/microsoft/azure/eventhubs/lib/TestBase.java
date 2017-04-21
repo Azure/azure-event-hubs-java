@@ -11,7 +11,7 @@ import java.util.logging.Logger;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionSender;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubsException;
 
 /**
  * all tests derive from this base - provides common functionality 
@@ -20,10 +20,10 @@ import com.microsoft.azure.servicebus.ServiceBusException;
  */
 public abstract class TestBase 
 {
-	public static final Logger TEST_LOGGER = Logger.getLogger("servicebus.test.trace");
+	public static final Logger TEST_LOGGER = Logger.getLogger("eventhubs.test.trace");
 	
 	public static CompletableFuture<Void> pushEventsToPartition(final EventHubClient ehClient, final String partitionId, final int noOfEvents) 
-			throws ServiceBusException
+			throws EventHubsException
 	{
 		return ehClient.createPartitionSender(partitionId)
 				.thenComposeAsync(new Function<PartitionSender, CompletableFuture<Void>>()

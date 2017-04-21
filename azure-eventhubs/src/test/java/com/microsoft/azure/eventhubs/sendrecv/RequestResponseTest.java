@@ -8,19 +8,20 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import com.microsoft.azure.eventhubs.ClientConstants;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.FaultTolerantObject;
+import com.microsoft.azure.eventhubs.MessagingFactory;
+import com.microsoft.azure.eventhubs.EventHubsException;
+import com.microsoft.azure.eventhubs.amqp.AmqpException;
+import com.microsoft.azure.eventhubs.amqp.AmqpResponseCode;
+import com.microsoft.azure.eventhubs.amqp.IOperation;
+import com.microsoft.azure.eventhubs.amqp.IOperationResult;
+import com.microsoft.azure.eventhubs.amqp.ReactorDispatcher;
+import com.microsoft.azure.eventhubs.amqp.RequestResponseChannel;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.ClientConstants;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.FaultTolerantObject;
-import com.microsoft.azure.servicebus.MessagingFactory;
-import com.microsoft.azure.servicebus.ServiceBusException;
-import com.microsoft.azure.servicebus.amqp.AmqpException;
-import com.microsoft.azure.servicebus.amqp.AmqpResponseCode;
-import com.microsoft.azure.servicebus.amqp.IOperation;
-import com.microsoft.azure.servicebus.amqp.IOperationResult;
-import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
-import com.microsoft.azure.servicebus.amqp.RequestResponseChannel;
+
 import junit.framework.AssertionFailedError;
 
 import org.apache.qpid.proton.Proton;
@@ -192,7 +193,7 @@ public class RequestResponseTest  extends ApiTestBase {
     }
     
     @AfterClass()
-    public static void cleanup() throws ServiceBusException {
+    public static void cleanup() throws EventHubsException {
 
         if (factory != null)
             factory.closeSync();

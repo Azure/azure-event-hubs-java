@@ -10,10 +10,10 @@ import java.util.logging.Level;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.AuthorizationFailedException;
+import com.microsoft.azure.eventhubs.RetryPolicy;
+import com.microsoft.azure.eventhubs.ServerBusyException;
 import com.microsoft.azure.eventhubs.lib.TestBase;
-import com.microsoft.azure.servicebus.AuthorizationFailedException;
-import com.microsoft.azure.servicebus.RetryPolicy;
-import com.microsoft.azure.servicebus.ServerBusyException;
 
 public class RetryPolicyTest extends TestBase
 {

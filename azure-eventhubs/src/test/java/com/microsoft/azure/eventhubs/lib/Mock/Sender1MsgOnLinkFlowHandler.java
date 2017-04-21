@@ -14,7 +14,7 @@ import org.apache.qpid.proton.engine.*;
 import org.apache.qpid.proton.message.*;
 import org.apache.qpid.proton.reactor.Handshaker;
 
-import com.microsoft.azure.servicebus.amqp.AmqpConstants;
+import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
 
 /**
  * Sends 1 Msg on the first onLinkFlow event

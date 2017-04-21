@@ -5,7 +5,7 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.storage.StorageException;
 
 import java.net.URISyntaxException;

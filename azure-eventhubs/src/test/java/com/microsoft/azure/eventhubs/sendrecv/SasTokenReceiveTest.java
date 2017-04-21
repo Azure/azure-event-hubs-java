@@ -10,9 +10,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.EventHubsException;
 import com.microsoft.azure.eventhubs.lib.SasTokenTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.ServiceBusException;
 
 public class SasTokenReceiveTest extends SasTokenTestBase {
     
@@ -30,19 +30,19 @@ public class SasTokenReceiveTest extends SasTokenTestBase {
     }
     
     @Test()
-    public void testReceiverStartOfStreamFilters() throws ServiceBusException {
+    public void testReceiverStartOfStreamFilters() throws EventHubsException {
         
         receiveTest.testReceiverStartOfStreamFilters();
     }
     
     @After
-    public void testCleanup() throws ServiceBusException {
+    public void testCleanup() throws EventHubsException {
         
         receiveTest.testCleanup();
     }
     
     @AfterClass()
-    public static void cleanup() throws ServiceBusException {
+    public static void cleanup() throws EventHubsException {
         
         ReceiveTest.cleanup();
     }

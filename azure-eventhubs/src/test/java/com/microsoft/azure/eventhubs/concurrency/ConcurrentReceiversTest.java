@@ -18,15 +18,15 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.EventHubsException;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
 
 public class ConcurrentReceiversTest extends ApiTestBase
 {
@@ -40,7 +40,7 @@ public class ConcurrentReceiversTest extends ApiTestBase
 	int eventSentPerPartition = 1;
 	
 	@BeforeClass
-	public static void initialize() throws InterruptedException, ExecutionException, ServiceBusException, IOException
+	public static void initialize() throws InterruptedException, ExecutionException, EventHubsException, IOException
 	{
 		partitionCount = TestContext.getPartitionCount();
 		connStr = TestContext.getConnectionString();
@@ -51,7 +51,7 @@ public class ConcurrentReceiversTest extends ApiTestBase
 	}
 
 	@Test()
-	public void testParallelCreationOfReceivers() throws ServiceBusException, IOException, InterruptedException, ExecutionException, TimeoutException
+	public void testParallelCreationOfReceivers() throws EventHubsException, IOException, InterruptedException, ExecutionException, TimeoutException
 	{
 		ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString());
 		ReceiveAtleastOneEventValidator[] counter = new ReceiveAtleastOneEventValidator[partitionCount];

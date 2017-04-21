@@ -16,9 +16,9 @@ import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.ReceiverDisconnectedException;
 import com.microsoft.azure.eventhubs.ReceiverOptions;
-import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
-import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.eventhubs.EventHubsException;
 
 class EventHubPartitionPump extends PartitionPump
 {
@@ -90,7 +90,7 @@ class EventHubPartitionPump extends PartitionPump
         }
     }
     
-    private void openClients() throws ServiceBusException, IOException, InterruptedException, ExecutionException
+    private void openClients() throws EventHubsException, IOException, InterruptedException, ExecutionException
     {
     	// Create new client
     	this.host.logWithHostAndPartition(Level.FINER, this.partitionContext, "Opening EH client");

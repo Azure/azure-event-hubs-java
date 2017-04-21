@@ -9,9 +9,9 @@ import java.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
-import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.EventHubsException;
+import com.microsoft.azure.eventhubs.SharedAccessSignatureTokenProvider;
 
 public class SasTokenTestBase extends ApiTestBase {
     
@@ -34,7 +34,7 @@ public class SasTokenTestBase extends ApiTestBase {
     }
     
     @AfterClass
-    public static void undoReplace() throws ServiceBusException {
+    public static void undoReplace() throws EventHubsException {
         
         TestContext.setConnectionString(originalConnectionString.toString());
     }

@@ -39,10 +39,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.IllegalEntityException;
-import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
-import com.microsoft.azure.servicebus.StringUtil;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.IllegalEntityException;
+import com.microsoft.azure.eventhubs.SharedAccessSignatureTokenProvider;
+import com.microsoft.azure.eventhubs.StringUtil;
 
 class PartitionManager
 {

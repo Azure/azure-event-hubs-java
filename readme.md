@@ -57,7 +57,7 @@ Using an Event Hub connection string, which holds all required connection inform
 you then create an *EventHubClient* instance, which manages a secure AMQP 1.0 connection to the Event Hub.   
    
 ```Java
-    final String namespaceName = "----ServiceBusNamespaceName-----";
+    final String namespaceName = "----EventHubsNamespaceName-----";
     final String eventHubName = "----EventHubName-----";
     final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
     final String sasKey = "---SharedAccessSignatureKey----";
@@ -98,7 +98,7 @@ to a tape drive that you can wind back to a particular mark and then play back t
 Just like the sender, the receiver code imports the package and creates an *EventHubClient* from a given connecting string
       
 ```Java
-    final String namespaceName = "----ServiceBusNamespaceName-----";
+    final String namespaceName = "----EventHubsNamespaceName-----";
     final String eventHubName = "----EventHubName-----";
     final String sasKeyName = "-----SharedAccessSignatureKeyName-----";
     final String sasKey = "---SharedAccessSignatureKey----";
