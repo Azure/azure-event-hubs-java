@@ -171,7 +171,7 @@ the required version of Apache Qpid Proton-J, and the crytography library BCPKIX
   * EPHTESTSTORAGE
 
 ## Samples
-Additional samples are provided here: [azure/azure-event-hubs](https://github.com/Azure/azure-event-hubs/tree/master/samples/Java)
+Additional samples are provided here: [azure/azure-event-hubs](https://github.com/Azure/azure-event-hubs/tree/master/samples)
 
 ## How to provide feedback
 
