@@ -18,6 +18,7 @@ import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
 import com.microsoft.azure.servicebus.IllegalEntityException;
 import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.servicebus.TimeoutException;
 
 class PartitionManager
 {
@@ -37,34 +38,32 @@ class PartitionManager
     
     String[] getPartitionIds() throws IllegalEntityException
     {
-        int retry = 0;
-        Exception saved = null;
+        Throwable saved = null;
 
-        while ((this.partitionIds == null) && (retry < 5))
+        if (this.partitionIds == null)
         {
 			try
 			{
 				EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(this.host.getEventHubConnectionString());
-				EventHubRuntimeInformation ehInfo = ehClient.GetRuntimeInformation().get();
-				this.partitionIds = ehInfo.getPartitionIds();
-
-				this.host.logWithHost(Level.FINE, "Eventhub " + this.host.getEventHubPath() + " count of partitions: " + ehInfo.getPartitionCount());
-				for (String id : this.partitionIds)
+				EventHubRuntimeInformation ehInfo = ehClient.getRuntimeInformation().get();
+				if (ehInfo != null)
 				{
-					this.host.logWithHost(Level.FINER, "Found partition with id: " + id);
+					this.partitionIds = ehInfo.getPartitionIds();
+	
+					this.host.logWithHost(Level.FINE, "Eventhub " + this.host.getEventHubPath() + " count of partitions: " + ehInfo.getPartitionCount());
+					for (String id : this.partitionIds)
+					{
+						this.host.logWithHost(Level.FINER, "Found partition with id: " + id);
+					}
+				}
+				else
+				{
+					saved = new TimeoutException("getRuntimeInformation returned null");
 				}
 			}
 			catch (ServiceBusException | IOException | InterruptedException | ExecutionException e)
 			{
 				saved = e;
-				retry++;
-				try
-				{
-					Thread.sleep(10000); // sleep for up to ten seconds before retrying, if the sleep gets interrupted we don't care
-				}
-				catch (InterruptedException e1)
-				{
-				}
 			}
         }
         if (this.partitionIds == null)

@@ -200,7 +200,7 @@ public class RequestResponseTest  extends ApiTestBase {
     @Test
     public void testGetRuntimes() throws Exception {
     	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(connectionString.toString());
-    	EventHubRuntimeInformation ehInfo = ehc.GetRuntimeInformation().get();
+    	EventHubRuntimeInformation ehInfo = ehc.getRuntimeInformation().get();
 
     	Assert.assertNotNull(ehInfo);
     	Assert.assertTrue(connectionString.getEntityPath().equalsIgnoreCase(ehInfo.getPath()));
@@ -220,7 +220,7 @@ public class RequestResponseTest  extends ApiTestBase {
     	}
     	
     	for (String id : ehInfo.getPartitionIds()) {
-	    	EventHubPartitionRuntimeInformation partInfo = ehc.GetPartitionRuntimeInformation(id).get();
+	    	EventHubPartitionRuntimeInformation partInfo = ehc.getPartitionRuntimeInformation(id).get();
 	    	
 	    	Assert.assertNotNull(partInfo);
 	    	Assert.assertTrue(connectionString.getEntityPath().equalsIgnoreCase(partInfo.getEventHubPath()));

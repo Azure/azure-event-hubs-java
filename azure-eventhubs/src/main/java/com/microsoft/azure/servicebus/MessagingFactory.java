@@ -157,6 +157,27 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     	
     	return this.mgmtChannel;
     }
+    
+    public void closeManagementChannel() {
+    	synchronized (this.mgmtChannelCreateLock) {
+    		if (this.mgmtChannel != null) {
+    			this.mgmtChannel.close(getReactorScheduler(), new IOperationResult<Void, Exception>() {
+					@Override
+					public void onComplete(Void result) {
+						// Nothing to do on success
+					}
+
+					@Override
+					public void onError(Exception error) {
+		                TRACE_LOGGER.log(Level.FINER, ExceptionUtil.toStackTraceString(error, "Closing old management channel failed"));
+					}
+    			});
+    		}
+    		// Calling this method means we don't want to use the old channel ever again.
+    		// Whether close succeeds or fails, toss the reference. 
+    		this.mgmtChannel = null;
+    	}
+    }
 
     @Override
     public Session getSession(final String path, final Consumer<Session> onRemoteSessionOpen, final BiConsumer<ErrorCondition, Exception> onRemoteSessionOpenError) {

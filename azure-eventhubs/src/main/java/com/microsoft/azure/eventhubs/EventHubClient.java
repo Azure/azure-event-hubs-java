@@ -7,7 +7,6 @@ package com.microsoft.azure.eventhubs;
 import java.io.IOException;
 import java.nio.channels.UnresolvedAddressException;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -1261,48 +1260,118 @@ public class EventHubClient extends ClientEntity {
         return this.createSender;
     }
     
-    public CompletableFuture<EventHubRuntimeInformation> GetRuntimeInformation() {
+    /**
+     * Retrieves general information about an event hub (see {@link EventHubRuntimeInformation} for details).
+     * Retries until it reaches the operation timeout, then either rethrows the last error if available or
+     * returns null to indicate timeout.
+     * 
+     * @return CompletableFuture which returns an EventHubRuntimeInformation on success, or null on timeout.  
+     * @throws Exception On failures other than timeout.
+     */
+    public CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation() {
     	Map<String, String> request = new HashMap<String, String>();
         request.put(ClientConstants.MANAGEMENT_ENTITY_TYPE_KEY, ClientConstants.MANAGEMENT_EVENTHUB_ENTITY_TYPE);
         request.put(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY, this.eventHubName);
         request.put(ClientConstants.MANAGEMENT_OPERATION_KEY, ClientConstants.READ_OPERATION_VALUE);
-    	
-        ManagementChannel mgmt = this.underlyingFactory.getManagementChannel();
-        return mgmt.doManagementRequestResponse(this.underlyingFactory.getReactorScheduler(), request).
-        	thenComposeAsync(new Function<Map<String, Object>, CompletableFuture<EventHubRuntimeInformation>>() {
-	        	@Override
-	        	public CompletableFuture<EventHubRuntimeInformation> apply(Map<String, Object> rawdata)	{
-	        		EventHubRuntimeInformation result = new EventHubRuntimeInformation(
-	        				(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
-	        				((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_CREATED_AT)).toInstant(),
-	        				(int)rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_COUNT),
-	        				(String[])rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_IDS));
-	            	return CompletableFuture.completedFuture(result);
-	        	}
-	        });
+
+        // The current implementation is secretly synchronous. Retain the async method signature for parity with
+        // dotnet and because a more sophisticated reimplementation may really be async.
+        CompletableFuture<EventHubRuntimeInformation> retval = new CompletableFuture<EventHubRuntimeInformation>();
+        
+        try
+        {
+        	Map<String, Object> rawdata = managementWithRetry(request);
+			retval.complete(new EventHubRuntimeInformation(
+				(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
+				((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_CREATED_AT)).toInstant(),
+				(int)rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_COUNT),
+				(String[])rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_IDS)));
+        }
+        catch (Throwable t)
+        {
+        	retval.completeExceptionally(t);
+        }
+        
+        return retval;
     }
-    
-    public CompletableFuture<EventHubPartitionRuntimeInformation> GetPartitionRuntimeInformation(String partitionId) {
+
+    /**
+     * Retrieves dynamic information about a partition of an event hub (see {@link EventHubPartitionRuntimeInformation} for
+     * details. Retries until it reaches the operation timeout, then either rethrows the last error if available or
+     * returns null to indicate timeout.
+     * 
+     * @param partitionId  Partition to get information about. Must be one of the partition ids returned by getRuntimeInformation.
+     * @return CompletableFuture which returns an EventHubPartitionRuntimeInformation on success, or null on timeout.  
+     * @throws Exception On failures other than timeout.
+     */
+    public CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId) {
     	Map<String, String> request = new HashMap<String, String>();
         request.put(ClientConstants.MANAGEMENT_ENTITY_TYPE_KEY, ClientConstants.MANAGEMENT_PARTITION_ENTITY_TYPE);
         request.put(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY, this.eventHubName);
         request.put(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY, partitionId);
         request.put(ClientConstants.MANAGEMENT_OPERATION_KEY, ClientConstants.READ_OPERATION_VALUE);
+
+        // The current implementation is secretly synchronous. Retain the async method signature for parity with
+        // dotnet and because a more sophisticated reimplementation may really be async.
+        CompletableFuture<EventHubPartitionRuntimeInformation> retval = new CompletableFuture<EventHubPartitionRuntimeInformation>();
         
-        ManagementChannel mgmt = this.underlyingFactory.getManagementChannel();
-		return mgmt.doManagementRequestResponse(this.underlyingFactory.getReactorScheduler(), request).
-			thenComposeAsync(new Function<Map<String, Object>, CompletableFuture<EventHubPartitionRuntimeInformation>>() {
-				@Override
-				public CompletableFuture<EventHubPartitionRuntimeInformation> apply(Map<String, Object> rawdata) {
-					EventHubPartitionRuntimeInformation result = new EventHubPartitionRuntimeInformation(
-							(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
-							(String)rawdata.get(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY),
-							(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER),
-							(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER),
-							(String)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET),
-							((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC)).toInstant());
-					return CompletableFuture.completedFuture(result);
+        try
+        {
+        	Map<String, Object> rawdata = managementWithRetry(request);
+    		retval.complete(new EventHubPartitionRuntimeInformation(
+				(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
+				(String)rawdata.get(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY),
+				(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER),
+				(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER),
+				(String)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET),
+				((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC)).toInstant()));
+        }
+        catch (Throwable t)
+        {
+        	retval.completeExceptionally(t);
+        }
+		
+		return retval;
+    }
+    
+    private Map<String, Object> managementWithRetry(Map<String, String> request) throws Throwable
+    {
+        Map<String, Object> rawdata = null;
+        Instant endTime = Instant.now().plus(this.underlyingFactory.getOperationTimeout());
+        Throwable lastException = null;
+        
+        while ((rawdata == null) && Instant.now().isBefore(endTime)) {
+	        ManagementChannel mgmt = this.underlyingFactory.getManagementChannel();
+	        try {
+				rawdata = mgmt.doManagementRequestResponse(this.underlyingFactory.getReactorScheduler(), request).get();
+			}
+	        catch (InterruptedException | ExecutionException e) {
+	        	// RequestResponse channel does not have any retry built into it, it always shuts down
+	        	// on any kind of error. So call close just to be tidy, then do a wait and try again.
+	        	
+	        	if (e instanceof ExecutionException) {
+	        		if (e.getCause() != null) {
+	        			lastException = e.getCause();
+	        		}
+	        	}
+
+	        	this.underlyingFactory.closeManagementChannel();
+	        	rawdata = null;
+
+	        	// TODO: find a way to schedule, not sleep
+	        	try {
+					Thread.sleep(ClientConstants.SERVER_BUSY_BASE_SLEEP_TIME_IN_SECS * 1000);
 				}
-			});
+	        	catch (InterruptedException e1) {
+					// If the sleep is interrupted, that's OK.
+				}
+			}
+        }
+        
+        if ((rawdata == null) && (lastException != null)) {
+        	throw lastException;
+        }
+        
+        return rawdata;
     }
 }
