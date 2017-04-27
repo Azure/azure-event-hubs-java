@@ -6,6 +6,7 @@ package com.microsoft.azure.eventhubs.sendrecv;
 
 import java.time.Instant;
 import java.util.Iterator;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
 import org.junit.After;
@@ -14,16 +15,16 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.EventHubsException;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.PartitionSender;
-import com.microsoft.azure.eventhubs.EventHubsException;
-import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
 
 public class ReceiveTest extends ApiTestBase
 {
@@ -69,6 +70,18 @@ public class ReceiveTest extends ApiTestBase
 		}
 	}
 	
+	@Test()
+	public void testReceiverLatestFilter() throws EventHubsException, ExecutionException, InterruptedException
+	{
+		offsetReceiver = ehClient.createReceiverSync(cgName, partitionId, PartitionReceiver.END_OF_STREAM, false);
+		Iterable<EventData> events = offsetReceiver.receiveSync(100);
+		Assert.assertTrue(events == null);
+
+		TestBase.pushEventsToPartition(ehClient, partitionId, 10).get();
+		events = offsetReceiver.receiveSync(100);
+		Assert.assertTrue(events != null && events.iterator().hasNext());
+	}
+
 	@Test()
 	public void testReceiverOffsetInclusiveFilter() throws EventHubsException
 	{
