@@ -6,6 +6,8 @@ package com.microsoft.azure.eventhubs;
 
 import java.io.IOException;
 import java.nio.channels.UnresolvedAddressException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -15,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -23,6 +26,7 @@ import com.microsoft.azure.servicebus.ClientEntity;
 import com.microsoft.azure.servicebus.ConnectionStringBuilder;
 import com.microsoft.azure.servicebus.IllegalEntityException;
 import com.microsoft.azure.servicebus.IteratorUtil;
+import com.microsoft.azure.servicebus.ManagementChannel;
 import com.microsoft.azure.servicebus.MessageSender;
 import com.microsoft.azure.servicebus.MessagingFactory;
 import com.microsoft.azure.servicebus.RetryPolicy;
@@ -30,7 +34,6 @@ import com.microsoft.azure.servicebus.PayloadSizeExceededException;
 import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
 import com.microsoft.azure.servicebus.ServiceBusException;
 import com.microsoft.azure.servicebus.StringUtil;
-import com.microsoft.azure.servicebus.TimeoutException;
 import com.microsoft.azure.servicebus.Timer;
 import com.microsoft.azure.servicebus.TimerType;
 
@@ -1273,23 +1276,30 @@ public class EventHubClient extends ClientEntity {
      * @throws Exception On failures other than timeout.
      */
     public CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation() {
+    	CompletableFuture<EventHubRuntimeInformation> future1 = null;
+    	
     	Map<String, String> request = new HashMap<String, String>();
         request.put(ClientConstants.MANAGEMENT_ENTITY_TYPE_KEY, ClientConstants.MANAGEMENT_EVENTHUB_ENTITY_TYPE);
         request.put(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY, this.eventHubName);
         request.put(ClientConstants.MANAGEMENT_OPERATION_KEY, ClientConstants.READ_OPERATION_VALUE);
+        future1 = this.<EventHubRuntimeInformation>addManagementToken(request);
 
-        return managementWithRetry(request).thenCompose(new Function<Map<String, Object>, CompletableFuture<EventHubRuntimeInformation>>() {
-			@Override
-			public CompletableFuture<EventHubRuntimeInformation> apply(Map<String, Object> rawdata) {
-		        CompletableFuture<EventHubRuntimeInformation> retval = new CompletableFuture<EventHubRuntimeInformation>();
-				retval.complete(new EventHubRuntimeInformation(
-						(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
-						((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_CREATED_AT)).toInstant(),
-						(int)rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_COUNT),
-						(String[])rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_IDS)));
-		        return retval;
-			}
-        });
+        if (future1 == null) {
+	        future1 = managementWithRetry(request).thenCompose(new Function<Map<String, Object>, CompletableFuture<EventHubRuntimeInformation>>() {
+				@Override
+				public CompletableFuture<EventHubRuntimeInformation> apply(Map<String, Object> rawdata) {
+			        CompletableFuture<EventHubRuntimeInformation> future2 = new CompletableFuture<EventHubRuntimeInformation>();
+					future2.complete(new EventHubRuntimeInformation(
+							(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
+							((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_CREATED_AT)).toInstant(),
+							(int)rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_COUNT),
+							(String[])rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_IDS)));
+			        return future2;
+				}
+	        });
+        }
+        
+        return future1;
     }
 
     /**
@@ -1302,26 +1312,48 @@ public class EventHubClient extends ClientEntity {
      * @throws Exception On failures other than timeout.
      */
     public CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId) {
+    	CompletableFuture<EventHubPartitionRuntimeInformation> future1 = null;
+    	
     	Map<String, String> request = new HashMap<String, String>();
         request.put(ClientConstants.MANAGEMENT_ENTITY_TYPE_KEY, ClientConstants.MANAGEMENT_PARTITION_ENTITY_TYPE);
         request.put(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY, this.eventHubName);
         request.put(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY, partitionId);
         request.put(ClientConstants.MANAGEMENT_OPERATION_KEY, ClientConstants.READ_OPERATION_VALUE);
+        future1 = this.<EventHubPartitionRuntimeInformation>addManagementToken(request);
 
-        return managementWithRetry(request).thenCompose(new Function<Map<String, Object>, CompletableFuture<EventHubPartitionRuntimeInformation>>() {
-			@Override
-			public CompletableFuture<EventHubPartitionRuntimeInformation> apply(Map<String, Object> rawdata) {
-				CompletableFuture<EventHubPartitionRuntimeInformation> retval = new CompletableFuture<EventHubPartitionRuntimeInformation>();
-				retval.complete(new EventHubPartitionRuntimeInformation(
-						(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
-						(String)rawdata.get(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY),
-						(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER),
-						(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER),
-						(String)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET),
-						((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC)).toInstant()));
-				return retval;
-			}
-        });
+        if (future1 == null) {
+	        future1 = managementWithRetry(request).thenCompose(new Function<Map<String, Object>, CompletableFuture<EventHubPartitionRuntimeInformation>>() {
+				@Override
+				public CompletableFuture<EventHubPartitionRuntimeInformation> apply(Map<String, Object> rawdata) {
+					CompletableFuture<EventHubPartitionRuntimeInformation> future2 = new CompletableFuture<EventHubPartitionRuntimeInformation>();
+					future2.complete(new EventHubPartitionRuntimeInformation(
+							(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
+							(String)rawdata.get(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY),
+							(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER),
+							(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER),
+							(String)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET),
+							((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC)).toInstant()));
+					return future2;
+				}
+	        });
+        }
+        
+        return future1;
+    }
+    
+    private <T> CompletableFuture<T> addManagementToken(Map<String, String> request)
+    {
+    	CompletableFuture<T> retval = null;
+        try {
+        	String audience = String.format("amqp://%s/%s", this.underlyingFactory.getHostName(), this.eventHubName);
+        	String token = this.underlyingFactory.getTokenProvider().getToken(audience, ClientConstants.TOKEN_REFRESH_INTERVAL); 
+			request.put(ClientConstants.MANAGEMENT_SECURITY_TOKEN_KEY, token);
+		} 
+        catch (InvalidKeyException | NoSuchAlgorithmException | IOException e) {
+        	retval = new CompletableFuture<T>();
+        	retval.completeExceptionally(e);
+		}
+    	return retval;
     }
     
     private CompletableFuture<Map<String, Object>> managementWithRetry(Map<String, String> request) {
@@ -1359,42 +1391,40 @@ public class EventHubClient extends ClientEntity {
     	
 		@Override
 		public void run() {
-			try {
-				CompletableFuture<Map<String, Object>> intermediateFuture = this.mf.getManagementChannel().request(this.mf.getReactorScheduler(), request);
-				// Have to block here to determine whether retry is needed.
-				Map<String, Object> result = intermediateFuture.get();
-				if (result != null) {
-					this.finalFuture.complete(result);
-				}
-				else {
-					throw new TimeoutException("management channel timed out");
-				}
-			}
-			catch (InterruptedException | ExecutionException | TimeoutException e) {
-				int waitSeconds = (this.retryCount + 1) * (this.retryCount + 1);
-				if (Instant.now().plusSeconds(waitSeconds).isAfter(this.endTime)) {
-					// Not enough time for another retry, so give up and report error according to type.
-					if ((e instanceof ExecutionException) && (e.getCause() != null)) {
-						this.finalFuture.completeExceptionally(e.getCause());
-					}
-					else if (e instanceof TimeoutException) {
-						this.finalFuture.complete(null);
+			CompletableFuture<Map<String, Object>> intermediateFuture = this.mf.getManagementChannel().request(this.mf.getReactorScheduler(), request);
+			intermediateFuture.whenComplete(new BiConsumer<Map<String, Object>, Throwable>() {
+				@Override
+				public void accept(Map<String, Object> result, Throwable error) {
+					if ((result != null) && (error == null)) {
+						ManagementRetry.this.finalFuture.complete(result);
 					}
 					else {
-						this.finalFuture.completeExceptionally(e);
+						int waitSeconds = (ManagementRetry.this.retryCount + 1) * (ManagementRetry.this.retryCount + 1);
+						if (Instant.now().plusSeconds(waitSeconds).isAfter(ManagementRetry.this.endTime)) {
+							// Not enough time for another retry, so give up and report error according to type.
+							if (error == null) {
+								// Can only get here if result is also null, meaning timeout, so complete with null
+								ManagementRetry.this.finalFuture.complete(null);
+							}
+							else if ((error instanceof ExecutionException) && (error.getCause() != null)) {
+								ManagementRetry.this.finalFuture.completeExceptionally(error.getCause());
+							}
+							else {
+								ManagementRetry.this.finalFuture.completeExceptionally(error);
+							}
+						}
+						else {
+							// close old channel, ignore errors, 
+							ManagementChannel bad = ManagementRetry.this.mf.setManagementChannelToNull();
+							bad.closeAndIgnoreErrors(ManagementRetry.this.mf.getReactorScheduler());
+							// schedule new attempt
+							ManagementRetry retrier = new ManagementRetry(ManagementRetry.this.finalFuture, ManagementRetry.this.endTime, 
+									ManagementRetry.this.mf, ManagementRetry.this.request, ManagementRetry.this.retryCount + 1, ManagementRetry.this.clientId);
+							Timer.schedule(retrier, Duration.ofSeconds(waitSeconds), TimerType.OneTimeRun);
+						}
 					}
 				}
-				else {
-					// close old channel, ignore errors
-					try {
-						this.mf.closeManagementChannel().get();
-					} catch (InterruptedException | ExecutionException e1) {
-					}
-					// schedule new attempt
-					ManagementRetry retrier = new ManagementRetry(this.finalFuture, this.endTime, this.mf, this.request, this.retryCount + 1, this.clientId);
-					Timer.schedule(retrier, Duration.ofSeconds(waitSeconds), TimerType.OneTimeRun);
-				}
-			}
+			});
 		}
     }
 }

@@ -94,7 +94,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         });
     }
 
-    String getHostName() {
+    public String getHostName() {
         return this.hostName;
     }
 
@@ -159,30 +159,15 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     	return this.mgmtChannel;
     }
     
-    public CompletableFuture<Void> closeManagementChannel() {
-    	CompletableFuture<Void> future = new CompletableFuture<Void>();
+    public ManagementChannel setManagementChannelToNull() {
+    	ManagementChannel captured = null;
     	synchronized (this.mgmtChannelCreateLock) {
-    		if (this.mgmtChannel != null) {
-    			this.mgmtChannel.close(getReactorScheduler(), new IOperationResult<Void, Exception>() {
-					@Override
-					public void onComplete(Void result) {
-						future.complete(null);
-					}
-
-					@Override
-					public void onError(Exception error) {
-		                TRACE_LOGGER.log(Level.FINER, ExceptionUtil.toStackTraceString(error, "Closing old management channel failed"));
-		                future.completeExceptionally(error);
-					}
-    			});
-    		}
-    		// Calling this method means we don't want to use the old channel ever again.
-    		// Whether close succeeds or fails, toss the reference. 
+    		captured = this.mgmtChannel;
     		this.mgmtChannel = null;
     	}
-    	return future;
+    	return captured;
     }
-
+    
     @Override
     public Session getSession(final String path, final Consumer<Session> onRemoteSessionOpen, final BiConsumer<ErrorCondition, Exception> onRemoteSessionOpenError) {
         if (this.getIsClosingOrClosed()) {

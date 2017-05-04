@@ -6,6 +6,8 @@ package com.microsoft.azure.servicebus;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.microsoft.azure.servicebus.ClientConstants;
 import com.microsoft.azure.servicebus.FaultTolerantObject;
@@ -24,6 +26,8 @@ import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.message.Message;
 
 public class ManagementChannel {
+    private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
+    
     final FaultTolerantObject<RequestResponseChannel> innerChannel;
     final ISessionProvider sessionProvider;
     final IAmqpConnection connectionEventDispatcher;
@@ -84,6 +88,19 @@ public class ManagementChannel {
                 });
         
 		return resultFuture;
+	}
+	
+	public void closeAndIgnoreErrors(final ReactorDispatcher reactorDispatcher) {
+		close(reactorDispatcher, new IOperationResult<Void, Exception>() {
+			@Override
+			public void onComplete(Void result) {
+			}
+
+			@Override
+			public void onError(Exception error) {
+                TRACE_LOGGER.log(Level.FINER, ExceptionUtil.toStackTraceString(error, "Closing old management channel failed"));
+			}
+		});
 	}
 	
     public void close(final ReactorDispatcher reactorDispatcher, final IOperationResult<Void, Exception> closeCallback) {
