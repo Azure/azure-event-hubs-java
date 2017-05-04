@@ -33,6 +33,7 @@ import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
 import com.microsoft.azure.servicebus.amqp.IOperationResult;
+import com.microsoft.azure.servicebus.amqp.ISessionProvider;
 import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
@@ -158,18 +159,20 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     	return this.mgmtChannel;
     }
     
-    public void closeManagementChannel() {
+    public CompletableFuture<Void> closeManagementChannel() {
+    	CompletableFuture<Void> future = new CompletableFuture<Void>();
     	synchronized (this.mgmtChannelCreateLock) {
     		if (this.mgmtChannel != null) {
     			this.mgmtChannel.close(getReactorScheduler(), new IOperationResult<Void, Exception>() {
 					@Override
 					public void onComplete(Void result) {
-						// Nothing to do on success
+						future.complete(null);
 					}
 
 					@Override
 					public void onError(Exception error) {
 		                TRACE_LOGGER.log(Level.FINER, ExceptionUtil.toStackTraceString(error, "Closing old management channel failed"));
+		                future.completeExceptionally(error);
 					}
     			});
     		}
@@ -177,6 +180,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     		// Whether close succeeds or fails, toss the reference. 
     		this.mgmtChannel = null;
     	}
+    	return future;
     }
 
     @Override

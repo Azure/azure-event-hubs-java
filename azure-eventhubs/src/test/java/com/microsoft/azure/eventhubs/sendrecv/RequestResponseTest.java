@@ -207,16 +207,16 @@ public class RequestResponseTest  extends ApiTestBase {
     	Assert.assertNotNull(ehInfo.getCreatedAt()); // creation time could be almost anything, can't really check value
     	Assert.assertTrue(ehInfo.getPartitionCount() > 2); // max legal partition count is variable but 2 is hard minimum
     	Assert.assertEquals(ehInfo.getPartitionIds().length, ehInfo.getPartitionCount());
-    	/*
+    	
     	System.out.println("Event hub name: " + ehInfo.getPath());
     	System.out.println("Created at: " + ehInfo.getCreatedAt().toString());
     	System.out.println("Partition count: " + ehInfo.getPartitionCount());
-    	*/
+    	
     	for (int i = 0; i < ehInfo.getPartitionCount(); i++) {
     		String id = ehInfo.getPartitionIds()[i];
     		Assert.assertNotNull(id);
     		Assert.assertFalse(id.isEmpty());
-    		//System.out.println("Partition id[" + i + "]: " + ehInfo.getPartitionIds()[i]);
+    		System.out.println("Partition id[" + i + "]: " + ehInfo.getPartitionIds()[i]);
     	}
     	
     	for (String id : ehInfo.getPartitionIds()) {
@@ -231,14 +231,14 @@ public class RequestResponseTest  extends ApiTestBase {
 	    	Assert.assertNotNull(partInfo.getLastEnqueuedOffset());
 	    	Assert.assertFalse(partInfo.getLastEnqueuedOffset().isEmpty());
 	    	Assert.assertNotNull(partInfo.getLastEnqueuedTimeUtc());  // last enqueued time could be almost anything, can't really check value
-	    	/*
+	    	
 	    	System.out.println("Event hub name: " + partInfo.getEventHubPath());
 	    	System.out.println("Partition id: " + partInfo.getPartitionId());
 	    	System.out.println("Begin seq: " + partInfo.getBeginSequenceNumber());
 	    	System.out.println("Last seq: " + partInfo.getLastEnqueuedSequenceNumber());
 	    	System.out.println("Last offset: " + partInfo.getLastEnqueuedOffset());
 	    	System.out.println("Last time: " + partInfo.getLastEnqueuedTimeUtc().toString());
-	    	*/
+	    	
     	}
     	
     	ehc.closeSync();
