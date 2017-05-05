@@ -159,15 +159,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     	return this.mgmtChannel;
     }
     
-    public ManagementChannel setManagementChannelToNull() {
-    	ManagementChannel captured = null;
-    	synchronized (this.mgmtChannelCreateLock) {
-    		captured = this.mgmtChannel;
-    		this.mgmtChannel = null;
-    	}
-    	return captured;
-    }
-    
     @Override
     public Session getSession(final String path, final Consumer<Session> onRemoteSessionOpen, final BiConsumer<ErrorCondition, Exception> onRemoteSessionOpenError) {
         if (this.getIsClosingOrClosed()) {

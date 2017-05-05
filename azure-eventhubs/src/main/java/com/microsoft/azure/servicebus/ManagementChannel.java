@@ -90,19 +90,6 @@ public class ManagementChannel {
 		return resultFuture;
 	}
 	
-	public void closeAndIgnoreErrors(final ReactorDispatcher reactorDispatcher) {
-		close(reactorDispatcher, new IOperationResult<Void, Exception>() {
-			@Override
-			public void onComplete(Void result) {
-			}
-
-			@Override
-			public void onError(Exception error) {
-                TRACE_LOGGER.log(Level.FINER, ExceptionUtil.toStackTraceString(error, "Closing old management channel failed"));
-			}
-		});
-	}
-	
     public void close(final ReactorDispatcher reactorDispatcher, final IOperationResult<Void, Exception> closeCallback) {
         this.innerChannel.close(reactorDispatcher, closeCallback);
     }

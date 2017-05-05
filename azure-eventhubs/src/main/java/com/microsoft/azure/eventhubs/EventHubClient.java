@@ -34,6 +34,7 @@ import com.microsoft.azure.servicebus.PayloadSizeExceededException;
 import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
 import com.microsoft.azure.servicebus.ServiceBusException;
 import com.microsoft.azure.servicebus.StringUtil;
+import com.microsoft.azure.servicebus.TimeoutException;
 import com.microsoft.azure.servicebus.Timer;
 import com.microsoft.azure.servicebus.TimerType;
 
@@ -1399,28 +1400,42 @@ public class EventHubClient extends ClientEntity {
 						ManagementRetry.this.finalFuture.complete(result);
 					}
 					else {
-						int waitSeconds = (ManagementRetry.this.retryCount + 1) * (ManagementRetry.this.retryCount + 1);
-						if (Instant.now().plusSeconds(waitSeconds).isAfter(ManagementRetry.this.endTime)) {
-							// Not enough time for another retry, so give up and report error according to type.
-							if (error == null) {
-								// Can only get here if result is also null, meaning timeout, so complete with null
-								ManagementRetry.this.finalFuture.complete(null);
-							}
-							else if ((error instanceof ExecutionException) && (error.getCause() != null)) {
-								ManagementRetry.this.finalFuture.completeExceptionally(error.getCause());
+						Duration remainingTime = Duration.between(Instant.now(), ManagementRetry.this.endTime);
+						Exception lastException = null;
+						Throwable completeWith = error;
+						if (error == null) {
+							// Timeout, so fake one up to keep getNextRetryInternal happy
+							lastException = new TimeoutException("timed out");
+						}
+						else if (error instanceof Exception) {
+							if ((error instanceof ExecutionException) && (error.getCause() != null) && (error.getCause() instanceof Exception)) {
+								lastException = (Exception)error.getCause();
+								completeWith = error.getCause();
 							}
 							else {
-								ManagementRetry.this.finalFuture.completeExceptionally(error);
+								lastException = (Exception)error;
 							}
 						}
 						else {
-							// close old channel, ignore errors, 
-							ManagementChannel bad = ManagementRetry.this.mf.setManagementChannelToNull();
-							bad.closeAndIgnoreErrors(ManagementRetry.this.mf.getReactorScheduler());
-							// schedule new attempt
+							lastException = new Exception("got a throwable");
+						}
+						Duration waitTime = ManagementRetry.this.mf.getRetryPolicy().getNextRetryInterval(ManagementRetry.this.clientId, lastException, remainingTime);
+						if (waitTime == null) {
+							// Do not retry again, give up and report error.
+							if (completeWith == null) {
+								ManagementRetry.this.finalFuture.complete(null);
+							}
+							else {
+								ManagementRetry.this.finalFuture.completeExceptionally(completeWith);
+							}
+						}
+						else {
+							// The only thing needed here is to schedule a new attempt. Even if the RequestResponseChannel has croaked,
+							// ManagementChannel uses FaultTolerantObject, so the underlying RequestResponseChannel will be recreated
+							// the next time it is needed.
 							ManagementRetry retrier = new ManagementRetry(ManagementRetry.this.finalFuture, ManagementRetry.this.endTime, 
 									ManagementRetry.this.mf, ManagementRetry.this.request, ManagementRetry.this.retryCount + 1, ManagementRetry.this.clientId);
-							Timer.schedule(retrier, Duration.ofSeconds(waitSeconds), TimerType.OneTimeRun);
+							Timer.schedule(retrier, waitTime, TimerType.OneTimeRun);
 						}
 					}
 				}
