@@ -1361,7 +1361,7 @@ public class EventHubClient extends ClientEntity {
         Instant endTime = Instant.now().plus(this.underlyingFactory.getOperationTimeout());
         CompletableFuture<Map<String, Object>> rawdataFuture = new CompletableFuture<Map<String, Object>>();
         
-        ManagementRetry retrier = new ManagementRetry(rawdataFuture, endTime, this.underlyingFactory, request, 0, null);
+        ManagementRetry retrier = new ManagementRetry(rawdataFuture, endTime, this.underlyingFactory, request);
         Timer.schedule(retrier, Duration.ZERO, TimerType.OneTimeRun);
         
         return rawdataFuture;
@@ -1372,22 +1372,13 @@ public class EventHubClient extends ClientEntity {
     	private final Instant endTime;
     	private final MessagingFactory mf;
     	private final Map<String, String> request;
-    	private final int retryCount;
-    	private final String clientId;
     	
     	public ManagementRetry(CompletableFuture<Map<String, Object>> future, Instant endTime, MessagingFactory mf,
-    			Map<String, String> request, int retryCount, String clientId) {
+    			Map<String, String> request) {
     		this.finalFuture = future;
     		this.endTime = endTime;
     		this.mf = mf;
     		this.request = request;
-    		this.retryCount = retryCount;
-    		if (clientId != null) {
-    			this.clientId = clientId;
-    		}
-    		else {
-    			this.clientId = UUID.randomUUID().toString();
-    		}
     	}
     	
 		@Override
@@ -1397,6 +1388,7 @@ public class EventHubClient extends ClientEntity {
 				@Override
 				public void accept(Map<String, Object> result, Throwable error) {
 					if ((result != null) && (error == null)) {
+						// Success!
 						ManagementRetry.this.finalFuture.complete(result);
 					}
 					else {
@@ -1404,8 +1396,10 @@ public class EventHubClient extends ClientEntity {
 						Exception lastException = null;
 						Throwable completeWith = error;
 						if (error == null) {
-							// Timeout, so fake one up to keep getNextRetryInternal happy
-							lastException = new TimeoutException("timed out");
+							// Timeout, so fake up an exception to keep getNextRetryInternal happy.
+							// It has to be a ServiceBusException that is set to retryable or getNextRetryInterval will halt the retries.
+							lastException = new ServiceBusException(true, "timed out");
+							completeWith = null;
 						}
 						else if (error instanceof Exception) {
 							if ((error instanceof ExecutionException) && (error.getCause() != null) && (error.getCause() instanceof Exception)) {
@@ -1417,9 +1411,9 @@ public class EventHubClient extends ClientEntity {
 							}
 						}
 						else {
-							lastException = new Exception("got a throwable");
+							lastException = new Exception("got a throwable: " + error.toString());
 						}
-						Duration waitTime = ManagementRetry.this.mf.getRetryPolicy().getNextRetryInterval(ManagementRetry.this.clientId, lastException, remainingTime);
+						Duration waitTime = ManagementRetry.this.mf.getRetryPolicy().getNextRetryInterval(ManagementRetry.this.mf.getClientId(), lastException, remainingTime);
 						if (waitTime == null) {
 							// Do not retry again, give up and report error.
 							if (completeWith == null) {
@@ -1434,7 +1428,7 @@ public class EventHubClient extends ClientEntity {
 							// ManagementChannel uses FaultTolerantObject, so the underlying RequestResponseChannel will be recreated
 							// the next time it is needed.
 							ManagementRetry retrier = new ManagementRetry(ManagementRetry.this.finalFuture, ManagementRetry.this.endTime, 
-									ManagementRetry.this.mf, ManagementRetry.this.request, ManagementRetry.this.retryCount + 1, ManagementRetry.this.clientId);
+									ManagementRetry.this.mf, ManagementRetry.this.request);
 							Timer.schedule(retrier, waitTime, TimerType.OneTimeRun);
 						}
 					}
