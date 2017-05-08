@@ -5,95 +5,91 @@
 package com.microsoft.azure.eventhubs;
 
 import java.util.Map;
-import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Logger;
 
-import org.apache.qpid.proton.Proton;
-import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
-import org.apache.qpid.proton.amqp.messaging.AmqpValue;
-import org.apache.qpid.proton.message.Message;
-
+import com.microsoft.azure.eventhubs.ClientConstants;
+import com.microsoft.azure.eventhubs.FaultTolerantObject;
 import com.microsoft.azure.eventhubs.amqp.AmqpResponseCode;
 import com.microsoft.azure.eventhubs.amqp.IAmqpConnection;
 import com.microsoft.azure.eventhubs.amqp.IOperationResult;
+import com.microsoft.azure.eventhubs.amqp.ISessionProvider;
 import com.microsoft.azure.eventhubs.amqp.ReactorDispatcher;
 import com.microsoft.azure.eventhubs.amqp.RequestResponseChannel;
-import com.microsoft.azure.eventhubs.amqp.ISessionProvider;
 import com.microsoft.azure.eventhubs.amqp.RequestResponseCloser;
 import com.microsoft.azure.eventhubs.amqp.RequestResponseOpener;
 
-public class CBSChannel {
+import org.apache.qpid.proton.Proton;
+import org.apache.qpid.proton.amqp.messaging.AmqpValue;
+import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
+import org.apache.qpid.proton.message.Message;
 
+public class ManagementChannel {
+    private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.EVENTHUBS_CLIENT_TRACE);
+    
     final FaultTolerantObject<RequestResponseChannel> innerChannel;
     final ISessionProvider sessionProvider;
     final IAmqpConnection connectionEventDispatcher;
 
-    public CBSChannel(
-            final ISessionProvider sessionProvider,
-            final IAmqpConnection connection,
+    public ManagementChannel(final ISessionProvider sessionProvider, final IAmqpConnection connection,
             final String linkName) {
-
         this.sessionProvider = sessionProvider;
         this.connectionEventDispatcher = connection;
 
         RequestResponseCloser closer = new RequestResponseCloser();
         this.innerChannel = new FaultTolerantObject<>(
-        		new RequestResponseOpener(sessionProvider, "cbs-session", "cbs", ClientConstants.CBS_ADDRESS, connection),
+        		new RequestResponseOpener(sessionProvider, "path", "mgmt", ClientConstants.MANAGEMENT_ADDRESS, connection),
                 closer);
         closer.setInnerChannel(this.innerChannel);
     }
-
-    public void sendToken(
-            final ReactorDispatcher dispatcher,
-            final String token,
-            final String tokenAudience,
-            final IOperationResult<Void, Exception> sendTokenCallback) {
-
-        final Message request = Proton.message();
-        final Map<String, Object> properties = new HashMap<>();
-        properties.put(ClientConstants.PUT_TOKEN_OPERATION, ClientConstants.PUT_TOKEN_OPERATION_VALUE);
-        properties.put(ClientConstants.PUT_TOKEN_TYPE, ClientConstants.SAS_TOKEN_TYPE);
-        properties.put(ClientConstants.PUT_TOKEN_AUDIENCE, tokenAudience);
-        final ApplicationProperties applicationProperties = new ApplicationProperties(properties);
-        request.setApplicationProperties(applicationProperties);
-        request.setBody(new AmqpValue(token));
-
+	
+	public CompletableFuture<Map<String, Object>> request(final ReactorDispatcher dispatcher, final Map<String, String> request)
+	{
+		final Message requestMessage = Proton.message();
+        final ApplicationProperties applicationProperties = new ApplicationProperties(request);
+        requestMessage.setApplicationProperties(applicationProperties);
+        // no body required
+        
+        CompletableFuture<Map<String, Object>> resultFuture = new CompletableFuture<Map<String, Object>>();
+        
         this.innerChannel.runOnOpenedObject(dispatcher,
                 new IOperationResult<RequestResponseChannel, Exception>() {
                     @Override
                     public void onComplete(final RequestResponseChannel result) {
-                        result.request(dispatcher, request,
+                        result.request(dispatcher, requestMessage,
                                 new IOperationResult<Message, Exception>() {
                                     @Override
                                     public void onComplete(final Message response) {
-
-                                        final int statusCode = (int) response.getApplicationProperties().getValue().get(ClientConstants.PUT_TOKEN_STATUS_CODE);
-                                        final String statusDescription = (String) response.getApplicationProperties().getValue().get(ClientConstants.PUT_TOKEN_STATUS_DESCRIPTION);
+                                        final int statusCode = (int)response.getApplicationProperties().getValue().get(ClientConstants.PUT_TOKEN_STATUS_CODE);
+                                        final String statusDescription = (String)response.getApplicationProperties().getValue().get(ClientConstants.PUT_TOKEN_STATUS_DESCRIPTION);
 
                                         if (statusCode == AmqpResponseCode.ACCEPTED.getValue() || statusCode == AmqpResponseCode.OK.getValue()) {
-                                            sendTokenCallback.onComplete(null);
-                                        } else {
+                                            if (response.getBody() != null) {
+                                                resultFuture.complete((Map<String, Object>)((AmqpValue)response.getBody()).getValue());
+                                            }
+                                        } 
+                                        else {
                                             this.onError(ExceptionUtil.amqpResponseCodeToException(statusCode, statusDescription));
                                         }
                                     }
 
                                     @Override
                                     public void onError(final Exception error) {
-                                        sendTokenCallback.onError(error);
+                                    	resultFuture.completeExceptionally(error);
                                     }
                                 });
                     }
 
                     @Override
                     public void onError(Exception error) {
-                        sendTokenCallback.onError(error);
+                        resultFuture.completeExceptionally(error);
                     }
                 });
-    }
-
-    public void close(
-            final ReactorDispatcher reactorDispatcher,
-            final IOperationResult<Void, Exception> closeCallback) {
-
+        
+		return resultFuture;
+	}
+	
+    public void close(final ReactorDispatcher reactorDispatcher, final IOperationResult<Void, Exception> closeCallback) {
         this.innerChannel.close(reactorDispatcher, closeCallback);
     }
 }
