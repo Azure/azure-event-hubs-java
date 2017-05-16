@@ -13,15 +13,15 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionSender;
+import com.microsoft.azure.eventhubs.PayloadSizeExceededException;
+import com.microsoft.azure.eventhubs.EventHubsException;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.PayloadSizeExceededException;
-import com.microsoft.azure.servicebus.ServiceBusException;
 
 public class SendLargeMessageTest extends ApiTestBase
 {
@@ -47,13 +47,13 @@ public class SendLargeMessageTest extends ApiTestBase
 	}
 	
 	@Test()
-	public void sendMsgLargerThan64k() throws ServiceBusException, InterruptedException, ExecutionException, IOException
+	public void sendMsgLargerThan64k() throws EventHubsException, InterruptedException, ExecutionException, IOException
 	{
 		this.sendLargeMessageTest(100 * 1024);			
 	}
 	
 	@Test(expected = PayloadSizeExceededException.class)
-	public void sendMsgLargerThan256K() throws ServiceBusException, InterruptedException, ExecutionException, IOException
+	public void sendMsgLargerThan256K() throws EventHubsException, InterruptedException, ExecutionException, IOException
 	{
 		int msgSize = 256 * 1024;
 		byte[] body = new byte[msgSize];
@@ -67,12 +67,12 @@ public class SendLargeMessageTest extends ApiTestBase
 	}
 	
 	@Test()
-	public void sendMsgLargerThan128k() throws ServiceBusException, InterruptedException, ExecutionException, IOException
+	public void sendMsgLargerThan128k() throws EventHubsException, InterruptedException, ExecutionException, IOException
 	{
 		this.sendLargeMessageTest(129 * 1024);
 	}
 	
-	public void sendLargeMessageTest(int msgSize) throws InterruptedException, ExecutionException, ServiceBusException
+	public void sendLargeMessageTest(int msgSize) throws InterruptedException, ExecutionException, EventHubsException
 	{
 		byte[] body = new byte[msgSize];
 		for(int i=0; i< msgSize; i++)
@@ -94,7 +94,7 @@ public class SendLargeMessageTest extends ApiTestBase
 	}
 	
 	@AfterClass()
-	public static void cleanup() throws ServiceBusException
+	public static void cleanup() throws EventHubsException
 	{
 		if (receiverHub != null)
 		{

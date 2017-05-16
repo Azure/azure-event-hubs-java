@@ -13,15 +13,15 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.ReceiverOptions;
+import com.microsoft.azure.eventhubs.EventHubsException;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.ServiceBusException;
 
 public class ReceiverRuntimeMetricsTest  extends ApiTestBase {
     
@@ -56,7 +56,7 @@ public class ReceiverRuntimeMetricsTest  extends ApiTestBase {
     }
 
     @Test()
-    public void testRuntimeMetricsReturnedWhenEnabled() throws ServiceBusException {
+    public void testRuntimeMetricsReturnedWhenEnabled() throws EventHubsException {
 
         LinkedList<EventData> receivedEventsWithOptions = new LinkedList<>();
         while (receivedEventsWithOptions.size() < sentEvents)
@@ -74,21 +74,21 @@ public class ReceiverRuntimeMetricsTest  extends ApiTestBase {
     }
 
     @Test()
-    public void testRuntimeMetricsWhenDisabled() throws ServiceBusException {
+    public void testRuntimeMetricsWhenDisabled() throws EventHubsException {
 
         receiverWithOptionsDisabled.receiveSync(10);
         Assert.assertTrue(receiverWithOptionsDisabled.getRuntimeInformation() == null);
     }
     
     @Test()
-    public void testRuntimeMetricsDefaultDisabled() throws ServiceBusException {
+    public void testRuntimeMetricsDefaultDisabled() throws EventHubsException {
 
         receiverWithoutOptions.receiveSync(10);
         Assert.assertTrue(receiverWithoutOptions.getRuntimeInformation() == null);
     }
     
     @AfterClass()
-    public static void cleanup() throws ServiceBusException {
+    public static void cleanup() throws EventHubsException {
         
         if (receiverWithOptions != null)
             receiverWithOptions.closeSync();

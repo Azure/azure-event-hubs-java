@@ -31,13 +31,13 @@ import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.IllegalEntityException;
 import com.microsoft.azure.eventhubs.PartitionSender;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.IllegalEntityException;
-import com.microsoft.azure.servicebus.ServiceBusException;
-import com.microsoft.azure.servicebus.SharedAccessSignatureTokenProvider;
+import com.microsoft.azure.eventhubs.EventHubsException;
+import com.microsoft.azure.eventhubs.SharedAccessSignatureTokenProvider;
 
 class RealEventHubUtilities
 {
@@ -54,7 +54,7 @@ class RealEventHubUtilities
 	{
 	}
 	
-	ArrayList<String> setup(int fakePartitions) throws ServiceBusException, IOException
+	ArrayList<String> setup(int fakePartitions) throws EventHubsException, IOException
 	{
 		ArrayList<String> partitionIds = setupWithoutSenders(fakePartitions);
 		
@@ -64,7 +64,7 @@ class RealEventHubUtilities
 		return partitionIds;
 	}
 	
-	ArrayList<String> setupWithoutSenders(int fakePartitions) throws ServiceBusException, IOException
+	ArrayList<String> setupWithoutSenders(int fakePartitions) throws EventHubsException, IOException
 	{
 		// Get the connection string from the environment
 		ehCacheCheck();
@@ -94,7 +94,7 @@ class RealEventHubUtilities
 		return partitionIds;
 	}
 	
-	void shutdown() throws ServiceBusException
+	void shutdown() throws EventHubsException
 	{
 		for (PartitionSender sender : this.partitionSenders.values())
 		{
@@ -132,7 +132,7 @@ class RealEventHubUtilities
 		return this.consumerGroup;
 	}
 	
-	void sendToAny(String body, int count) throws ServiceBusException
+	void sendToAny(String body, int count) throws EventHubsException
 	{
 		for (int i = 0; i < count; i++)
 		{
@@ -140,13 +140,13 @@ class RealEventHubUtilities
 		}
 	}
 	
-	void sendToAny(String body) throws ServiceBusException
+	void sendToAny(String body) throws EventHubsException
 	{
 		EventData event = new EventData(body.getBytes());
 		this.client.sendSync(event);
 	}
 	
-	void sendToPartition(String partitionId, String body) throws IllegalArgumentException, ServiceBusException
+	void sendToPartition(String partitionId, String body) throws IllegalArgumentException, EventHubsException
 	{
 		EventData event = new EventData(body.getBytes());
 		PartitionSender sender = null;

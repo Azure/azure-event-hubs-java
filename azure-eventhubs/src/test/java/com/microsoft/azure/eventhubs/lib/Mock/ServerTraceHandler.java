@@ -19,7 +19,7 @@ import org.apache.qpid.proton.reactor.Handshaker;
 public class ServerTraceHandler extends BaseHandler
 {
 
-	private static final Logger TRACE_LOGGER = Logger.getLogger("servicebus.test.trace");
+	private static final Logger TRACE_LOGGER = Logger.getLogger("eventhubs.test.trace");
 
 	public ServerTraceHandler(BaseHandler... handlers)
 	{

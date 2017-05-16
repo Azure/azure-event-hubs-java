@@ -19,17 +19,17 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.IteratorUtil;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.PartitionSender;
+import com.microsoft.azure.eventhubs.EventHubsException;
+import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.amqp.AmqpConstants;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.IteratorUtil;
-import com.microsoft.azure.servicebus.ServiceBusException;
 
 public class ReceiveParallelManualTest extends ApiTestBase
 {
@@ -42,7 +42,7 @@ public class ReceiveParallelManualTest extends ApiTestBase
 	public static void initializeEventHub()  throws Exception
 	{
 		FileHandler fhc = new FileHandler("c:\\proton-sb-sendbatch-1100.log", false);
-		Logger lc1 = Logger.getLogger("servicebus.trace");
+		Logger lc1 = Logger.getLogger("eventhubs.trace");
 		fhc.setFormatter(new SimpleFormatter());
 		lc1.addHandler(fhc);
 		lc1.setLevel(Level.FINE);
@@ -67,14 +67,14 @@ public class ReceiveParallelManualTest extends ApiTestBase
                 e.printStackTrace();
             } catch (ExecutionException e) {
                 e.printStackTrace();
-            } catch (ServiceBusException e) {
+            } catch (EventHubsException e) {
                 e.printStackTrace();
             }
 
             PartitionReceiver offsetReceiver1 = null;
             try {
                 offsetReceiver1 = ehClient.createReceiverSync(cgName, sPartitionId, PartitionReceiver.START_OF_STREAM, false);
-            } catch (ServiceBusException e) {
+            } catch (EventHubsException e) {
                 e.printStackTrace();
             }
 
@@ -124,7 +124,7 @@ public class ReceiveParallelManualTest extends ApiTestBase
 	}
 	
 	@AfterClass()
-	public static void cleanup() throws ServiceBusException
+	public static void cleanup() throws EventHubsException
 	{
 		if (ehClient != null)
 		{

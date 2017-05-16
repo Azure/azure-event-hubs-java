@@ -3,9 +3,10 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
-import static org.junit.Assert.*;
 
-import com.microsoft.azure.servicebus.IllegalEntityException;
+import com.microsoft.azure.eventhubs.IllegalEntityException;
+
+import static org.junit.Assert.*;
 
 public class SadPathTests extends TestBase
 {
