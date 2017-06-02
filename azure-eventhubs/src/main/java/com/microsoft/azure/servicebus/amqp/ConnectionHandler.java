@@ -98,6 +98,14 @@ public final class ConnectionHandler extends BaseHandler {
     }
 
     @Override
+    public void onConnectionLocalClose(Event event) {
+        final Connection connection = event.getConnection();
+        if (connection != null) {
+            connection.free();
+        }
+    }
+
+    @Override
     public void onConnectionRemoteClose(Event event) {
         final Connection connection = event.getConnection();
         final ErrorCondition error = connection.getRemoteCondition();
@@ -109,11 +117,19 @@ public final class ConnectionHandler extends BaseHandler {
                             : "]"));
         }
 
-        if (connection.getRemoteState() != EndpointState.CLOSED) {
-            connection.close();
-        }
-
         this.messagingFactory.onConnectionError(error);
+    }
+
+    @Override
+    public void onConnectionFinal(Event event) {
+        final Connection connection = event.getConnection();
+        if (connection != null) {
+            Transport transport = connection.getTransport();
+            if (transport != null) {
+                transport.unbind();
+                transport.free();
+            }
+        }
     }
 
     private static SslDomain makeDomain(SslDomain.Mode mode) {

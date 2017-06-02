@@ -226,6 +226,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
     @Override
     public void onConnectionError(ErrorCondition error) {
+
         if (!this.open.isDone()) {
             this.onOpenComplete(ExceptionUtil.toException(error));
         } else {
@@ -239,7 +240,10 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
             // if proton-j detects transport error - onConnectionError is invoked, but, the connection state is not set to closed
             // in connection recreation we depend on currentConnection state to evaluate need for recreation
-            if (currentConnection.getLocalState() != EndpointState.CLOSED && currentConnection.getRemoteState() != EndpointState.CLOSED) {
+            if (currentConnection.getLocalState() != EndpointState.CLOSED) {
+                // this should ideally be done in Connectionhandler
+                // - but, since proton doesn't automatically emit close events
+                // for all child objects (links & sessions) we are doing it manually here
                 currentConnection.close();
             }
 
