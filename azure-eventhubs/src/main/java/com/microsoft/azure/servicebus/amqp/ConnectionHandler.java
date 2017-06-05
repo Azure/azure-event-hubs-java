@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
+
 import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Connection;
 import org.apache.qpid.proton.engine.EndpointState;
@@ -56,9 +57,9 @@ public final class ConnectionHandler extends BaseHandler {
 
     @Override
     public void onConnectionBound(Event event) {
-        Transport transport = event.getTransport();
+        final Transport transport = event.getTransport();
 
-        SslDomain domain = makeDomain(SslDomain.Mode.CLIENT);
+        final SslDomain domain = makeDomain(SslDomain.Mode.CLIENT);
         transport.ssl(domain);
 
         Sasl sasl = transport.sasl();
@@ -74,18 +75,23 @@ public final class ConnectionHandler extends BaseHandler {
 
     @Override
     public void onTransportError(Event event) {
-        ErrorCondition condition = event.getTransport().getCondition();
+        final ErrorCondition condition = event.getTransport().getCondition();
+        final Connection connection = event.getConnection();
         if (condition != null) {
             if (TRACE_LOGGER.isLoggable(Level.WARNING)) {
-                TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + event.getConnection().getHostname() + "], error[" + condition.getDescription() + "]");
+                TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + connection.getHostname() + "], error[" + condition.getDescription() + "]");
             }
         } else {
             if (TRACE_LOGGER.isLoggable(Level.WARNING)) {
-                TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + event.getConnection().getHostname() + "], error[no description returned]");
+                TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + connection != null ? connection.getHostname() : "n/a" + "], error[no description returned]");
             }
         }
 
         this.messagingFactory.onConnectionError(condition);
+
+        if (connection != null) {
+            connection.free();
+        }
     }
 
     @Override
@@ -99,10 +105,7 @@ public final class ConnectionHandler extends BaseHandler {
 
     @Override
     public void onConnectionLocalClose(Event event) {
-        final Connection connection = event.getConnection();
-        if (connection != null) {
-            connection.free();
-        }
+        this.freeOnCloseResponse(event.getConnection());
     }
 
     @Override
@@ -118,22 +121,28 @@ public final class ConnectionHandler extends BaseHandler {
         }
 
         this.messagingFactory.onConnectionError(error);
+        this.freeOnCloseResponse(connection);
     }
 
     @Override
     public void onConnectionFinal(Event event) {
-        final Connection connection = event.getConnection();
-        if (connection != null) {
-            Transport transport = connection.getTransport();
-            if (transport != null) {
-                transport.unbind();
-                transport.free();
-            }
+        final Transport transport = event.getTransport();
+        if (transport != null) {
+            transport.unbind();
+            transport.free();
+        }
+    }
+
+    private void freeOnCloseResponse(final Connection connection) {
+        if (connection != null &&
+                connection.getLocalState() == EndpointState.CLOSED &&
+                (connection.getRemoteState() == EndpointState.CLOSED)) {
+            connection.free();
         }
     }
 
     private static SslDomain makeDomain(SslDomain.Mode mode) {
-        SslDomain domain = Proton.sslDomain();
+        final SslDomain domain = Proton.sslDomain();
         domain.init(mode);
 
         // TODO: VERIFY_PEER_NAME support

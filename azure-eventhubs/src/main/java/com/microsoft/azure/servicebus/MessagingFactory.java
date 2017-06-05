@@ -232,9 +232,11 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         } else {
             final Connection currentConnection = this.connection;
             final List<Link> registeredLinksCopy = new LinkedList<>(this.registeredLinks);
+            final List<Link> closedLinks = new LinkedList<>();
             for (Link link : registeredLinksCopy) {
                 if (link.getLocalState() != EndpointState.CLOSED && link.getRemoteState() != EndpointState.CLOSED) {
                     link.close();
+                    closedLinks.add(link);
                 }
             }
 
@@ -247,7 +249,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                 currentConnection.close();
             }
 
-            for (Link link : registeredLinksCopy) {
+            for (Link link : closedLinks) {
                 final Handler handler = BaseHandler.getHandler(link);
                 if (handler != null && handler instanceof BaseLinkHandler) {
                     final BaseLinkHandler linkHandler = (BaseLinkHandler) handler;
