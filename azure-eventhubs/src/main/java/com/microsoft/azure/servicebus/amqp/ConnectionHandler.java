@@ -88,10 +88,6 @@ public final class ConnectionHandler extends BaseHandler {
         }
 
         this.messagingFactory.onConnectionError(condition);
-
-        if (connection != null) {
-            connection.free();
-        }
     }
 
     @Override
@@ -124,20 +120,20 @@ public final class ConnectionHandler extends BaseHandler {
         this.freeOnCloseResponse(connection);
     }
 
-    @Override
-    public void onConnectionFinal(Event event) {
-        final Transport transport = event.getTransport();
-        if (transport != null) {
-            transport.unbind();
-            transport.free();
-        }
-    }
-
     private void freeOnCloseResponse(final Connection connection) {
-        if (connection != null &&
-                connection.getLocalState() == EndpointState.CLOSED &&
-                (connection.getRemoteState() == EndpointState.CLOSED)) {
-            connection.free();
+        if (connection != null) {
+            final Transport transport = connection.getTransport();
+
+            // if both localState and RemoteState are Closed
+            // or if localState is CLOSED and transport is broken (as a result - we cannot determine the remote state)
+            if (connection.getLocalState() == EndpointState.CLOSED &&
+                    (connection.getRemoteState() == EndpointState.CLOSED || transport == null || transport.getLocalState() != EndpointState.ACTIVE)) {
+                if (transport != null) {
+                    transport.unbind();
+                }
+
+                connection.free();
+            }
         }
     }
 
