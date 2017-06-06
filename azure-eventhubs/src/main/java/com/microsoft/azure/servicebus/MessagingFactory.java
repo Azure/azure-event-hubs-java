@@ -245,7 +245,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             if (currentConnection.getLocalState() != EndpointState.CLOSED) {
                 // this should ideally be done in Connectionhandler
                 // - but, since proton doesn't automatically emit close events
-                // for all child objects (links & sessions) we are doing it manually here
+                // for all child objects (links & sessions) we are doing it here
                 currentConnection.close();
             }
 

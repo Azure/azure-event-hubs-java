@@ -68,8 +68,9 @@ public final class ConnectionHandler extends BaseHandler {
 
     @Override
     public void onConnectionUnbound(Event event) {
-        if (TRACE_LOGGER.isLoggable(Level.FINE)) {
-            TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionUnbound: hostname[" + event.getConnection().getHostname() + "]");
+        final Connection connection = event.getConnection();
+        if (connection != null && TRACE_LOGGER.isLoggable(Level.FINE)) {
+            TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionUnbound: hostname[" + connection.getHostname() + "]");
         }
     }
 
@@ -88,6 +89,10 @@ public final class ConnectionHandler extends BaseHandler {
         }
 
         this.messagingFactory.onConnectionError(condition);
+        final Transport transport = connection.getTransport();
+        if (transport != null) {
+            transport.unbind();
+        }
     }
 
     @Override
@@ -101,7 +106,16 @@ public final class ConnectionHandler extends BaseHandler {
 
     @Override
     public void onConnectionLocalClose(Event event) {
-        this.freeOnCloseResponse(event.getConnection());
+        final Connection connection = event.getConnection();
+        if (connection != null) {
+            if (connection.getRemoteState() == EndpointState.CLOSED) {
+                // This means that the CLOSE origin is Service
+                final Transport transport = connection.getTransport();
+                if (transport != null) {
+                    transport.unbind();
+                }
+            }
+        }
     }
 
     @Override
@@ -117,24 +131,6 @@ public final class ConnectionHandler extends BaseHandler {
         }
 
         this.messagingFactory.onConnectionError(error);
-        this.freeOnCloseResponse(connection);
-    }
-
-    private void freeOnCloseResponse(final Connection connection) {
-        if (connection != null) {
-            final Transport transport = connection.getTransport();
-
-            // if both localState and RemoteState are Closed
-            // or if localState is CLOSED and transport is broken (as a result - we cannot determine the remote state)
-            if (connection.getLocalState() == EndpointState.CLOSED &&
-                    (connection.getRemoteState() == EndpointState.CLOSED || transport == null || transport.getLocalState() != EndpointState.ACTIVE)) {
-                if (transport != null) {
-                    transport.unbind();
-                }
-
-                connection.free();
-            }
-        }
     }
 
     private static SslDomain makeDomain(SslDomain.Mode mode) {
