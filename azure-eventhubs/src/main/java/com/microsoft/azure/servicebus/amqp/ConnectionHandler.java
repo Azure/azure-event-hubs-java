@@ -69,8 +69,12 @@ public final class ConnectionHandler extends BaseHandler {
     @Override
     public void onConnectionUnbound(Event event) {
         final Connection connection = event.getConnection();
-        if (connection != null && TRACE_LOGGER.isLoggable(Level.FINE)) {
-            TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionUnbound: hostname[" + connection.getHostname() + "]");
+        if (connection != null) {
+            if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+                TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionUnbound: hostname[" + connection.getHostname() + "]");
+            }
+
+            connection.free();
         }
     }
 
