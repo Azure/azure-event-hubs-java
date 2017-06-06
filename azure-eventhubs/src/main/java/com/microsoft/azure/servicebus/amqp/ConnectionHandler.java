@@ -34,12 +34,14 @@ public final class ConnectionHandler extends BaseHandler {
     private final IAmqpConnection messagingFactory;
 
     public ConnectionHandler(final IAmqpConnection messagingFactory) {
+
         add(new Handshaker());
         this.messagingFactory = messagingFactory;
     }
 
     @Override
     public void onConnectionInit(Event event) {
+
         final Connection connection = event.getConnection();
         final String hostName = event.getReactor().getConnectionAddress(connection);
 
@@ -57,6 +59,7 @@ public final class ConnectionHandler extends BaseHandler {
 
     @Override
     public void onConnectionBound(Event event) {
+
         final Transport transport = event.getTransport();
 
         final SslDomain domain = makeDomain(SslDomain.Mode.CLIENT);
@@ -68,20 +71,22 @@ public final class ConnectionHandler extends BaseHandler {
 
     @Override
     public void onConnectionUnbound(Event event) {
-        final Connection connection = event.getConnection();
-        if (connection != null) {
-            if (TRACE_LOGGER.isLoggable(Level.FINE)) {
-                TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionUnbound: hostname[" + connection.getHostname() + "]");
-            }
 
-            connection.free();
+        final Connection connection = event.getConnection();
+        if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+            TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionUnbound: hostname[" + connection.getHostname() + "]");
         }
+
+        connection.free();
     }
 
     @Override
     public void onTransportError(Event event) {
-        final ErrorCondition condition = event.getTransport().getCondition();
+
         final Connection connection = event.getConnection();
+        final Transport transport = event.getTransport();
+        final ErrorCondition condition = transport.getCondition();
+
         if (condition != null) {
             if (TRACE_LOGGER.isLoggable(Level.WARNING)) {
                 TRACE_LOGGER.log(Level.WARNING, "Connection.onTransportError: hostname[" + connection.getHostname() + "], error[" + condition.getDescription() + "]");
@@ -93,14 +98,12 @@ public final class ConnectionHandler extends BaseHandler {
         }
 
         this.messagingFactory.onConnectionError(condition);
-        final Transport transport = connection.getTransport();
-        if (transport != null) {
-            transport.unbind();
-        }
+        transport.unbind();
     }
 
     @Override
     public void onConnectionRemoteOpen(Event event) {
+
         if (TRACE_LOGGER.isLoggable(Level.FINE)) {
             TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionRemoteOpen: hostname[" + event.getConnection().getHostname() + ", " + event.getConnection().getRemoteContainer() + "]");
         }
@@ -110,20 +113,29 @@ public final class ConnectionHandler extends BaseHandler {
 
     @Override
     public void onConnectionLocalClose(Event event) {
+
         final Connection connection = event.getConnection();
-        if (connection != null) {
-            if (connection.getRemoteState() == EndpointState.CLOSED) {
-                // This means that the CLOSE origin is Service
-                final Transport transport = connection.getTransport();
-                if (transport != null) {
-                    transport.unbind();
-                }
+
+        final ErrorCondition error = connection.getCondition();
+        if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+            TRACE_LOGGER.log(Level.FINE, "hostname[" + connection.getHostname() +
+                    (error != null
+                            ? "], errorCondition[" + error.getCondition() + ", " + error.getDescription() + "]"
+                            : "]"));
+        }
+
+        if (connection.getRemoteState() == EndpointState.CLOSED) {
+            // This means that the CLOSE origin is Service
+            final Transport transport = connection.getTransport();
+            if (transport != null) {
+                transport.unbind();
             }
         }
     }
 
     @Override
     public void onConnectionRemoteClose(Event event) {
+
         final Connection connection = event.getConnection();
         final ErrorCondition error = connection.getRemoteCondition();
 
@@ -138,6 +150,7 @@ public final class ConnectionHandler extends BaseHandler {
     }
 
     private static SslDomain makeDomain(SslDomain.Mode mode) {
+
         final SslDomain domain = Proton.sslDomain();
         domain.init(mode);
 
