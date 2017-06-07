@@ -1,3 +1,7 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.eventhubs;
 
 import com.microsoft.azure.servicebus.ServiceBusException;
@@ -5,11 +9,6 @@ import com.microsoft.azure.servicebus.ServiceBusException;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Interface for Event Hub Client
- *
- * Created by dcibo on 6/6/2017.
- */
 public interface IEventHubClient {
     void sendSync(EventData data)
             throws ServiceBusException;

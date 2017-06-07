@@ -4,8 +4,6 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import com.microsoft.azure.servicebus.*;
-
 import java.io.IOException;
 import java.nio.channels.UnresolvedAddressException;
 import java.security.InvalidKeyException;
@@ -21,6 +19,21 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import com.microsoft.azure.servicebus.ClientConstants;
+import com.microsoft.azure.servicebus.ClientEntity;
+import com.microsoft.azure.servicebus.ConnectionStringBuilder;
+import com.microsoft.azure.servicebus.IllegalEntityException;
+import com.microsoft.azure.servicebus.IteratorUtil;
+import com.microsoft.azure.servicebus.MessageSender;
+import com.microsoft.azure.servicebus.MessagingFactory;
+import com.microsoft.azure.servicebus.RetryPolicy;
+import com.microsoft.azure.servicebus.PayloadSizeExceededException;
+import com.microsoft.azure.servicebus.ReceiverDisconnectedException;
+import com.microsoft.azure.servicebus.ServiceBusException;
+import com.microsoft.azure.servicebus.StringUtil;
+import com.microsoft.azure.servicebus.Timer;
+import com.microsoft.azure.servicebus.TimerType;
 
 /**
  * Anchor class - all EventHub client operations STARTS here.
