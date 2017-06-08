@@ -74,10 +74,13 @@ public final class ConnectionHandler extends BaseHandler {
 
         final Connection connection = event.getConnection();
         if (TRACE_LOGGER.isLoggable(Level.FINE)) {
-            TRACE_LOGGER.log(Level.FINE, "Connection.onConnectionUnbound: hostname[" + connection.getHostname() + "]");
+            TRACE_LOGGER.log(Level.FINE,
+                    "Connection.onConnectionUnbound: hostname[" + connection.getHostname() + "], state[" + connection.getLocalState() + "], remoteState[" + connection.getRemoteState() + "]");
         }
 
-        connection.free();
+        // if failure happened while establishing transport - nothing to free up.
+        if (connection.getRemoteState() != EndpointState.UNINITIALIZED)
+            connection.free();
     }
 
     @Override
