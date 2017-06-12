@@ -19,6 +19,7 @@ import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
 import com.microsoft.azure.servicebus.IllegalEntityException;
 import com.microsoft.azure.servicebus.ServiceBusException;
 import com.microsoft.azure.servicebus.TimeoutException;
+import com.microsoft.azure.storage.StorageException;
 
 class PartitionManager
 {
@@ -325,7 +326,11 @@ class PartitionManager
                     	leasesOwnedByOthers.add(possibleLease);
                     }
             	}
-            	catch (ExecutionException e)
+        		// Most exceptions will arrive packaged as ExecutionException because they occur during a short-lived thread
+        		// down in AzureStorageCheckpointLeastManager. However, AzureBlobLease.isExpired calls Storage directly and
+        		// therefore can throw a plain StorageException. Handling is the same for all: log, notify, and move on to the
+            	// next partition.
+            	catch (ExecutionException|StorageException e)
             	{
             		this.host.logWithHost(Level.WARNING, "Failure getting/acquiring/renewing lease, skipping", e);
             		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.CHECKING_LEASES,
