@@ -333,7 +333,12 @@ class PartitionManager
             	catch (ExecutionException|StorageException e)
             	{
             		this.host.logWithHost(Level.WARNING, "Failure getting/acquiring/renewing lease, skipping", e);
-            		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.CHECKING_LEASES,
+            		Exception notifyWith = e;
+            		if ((e instanceof ExecutionException) && (e.getCause() != null) && (e.getCause() instanceof Exception))
+            		{
+            			notifyWith = (Exception)e.getCause();
+            		}
+            		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith, EventProcessorHostActionStrings.CHECKING_LEASES,
             				((possibleLease != null) ? possibleLease.getPartitionId() : ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION));
             	}
             }
