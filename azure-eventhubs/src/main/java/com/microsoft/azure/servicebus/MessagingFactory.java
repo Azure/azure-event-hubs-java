@@ -33,6 +33,7 @@ import com.microsoft.azure.servicebus.amqp.ConnectionHandler;
 import com.microsoft.azure.servicebus.amqp.DispatchHandler;
 import com.microsoft.azure.servicebus.amqp.IAmqpConnection;
 import com.microsoft.azure.servicebus.amqp.IOperationResult;
+import com.microsoft.azure.servicebus.amqp.ISessionProvider;
 import com.microsoft.azure.servicebus.amqp.ProtonUtil;
 import com.microsoft.azure.servicebus.amqp.ReactorHandler;
 import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
@@ -52,12 +53,14 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     private final LinkedList<Link> registeredLinks;
     private final Object reactorLock;
     private final Object cbsChannelCreateLock;
+    private final Object mgmtChannelCreateLock;
     private final SharedAccessSignatureTokenProvider tokenProvider;
 
     private Reactor reactor;
     private ReactorDispatcher reactorScheduler;
     private Connection connection;
     private CBSChannel cbsChannel;
+    private ManagementChannel mgmtChannel;
 
     private Duration operationTimeout;
     private RetryPolicy retryPolicy;
@@ -77,6 +80,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         this.reactorLock = new Object();
         this.connectionHandler = new ConnectionHandler(this);
         this.cbsChannelCreateLock = new Object();
+        this.mgmtChannelCreateLock = new Object();
         this.tokenProvider = builder.getSharedAccessSignature() == null
                 ? new SharedAccessSignatureTokenProvider(builder.getSasKeyName(), builder.getSasKey())
                 : new SharedAccessSignatureTokenProvider(builder.getSharedAccessSignature());
@@ -90,7 +94,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         });
     }
 
-    String getHostName() {
+    public String getHostName() {
         return this.hostName;
     }
 
@@ -144,7 +148,17 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
         return this.cbsChannel;
     }
-
+    
+    public ManagementChannel getManagementChannel() {
+    	synchronized (this.mgmtChannelCreateLock) {
+    		if (this.mgmtChannel == null) {
+    			this.mgmtChannel = new ManagementChannel(this, this, "mgmt-link");
+    		}
+    	}
+    	
+    	return this.mgmtChannel;
+    }
+    
     @Override
     public Session getSession(final String path, final Consumer<Session> onRemoteSessionOpen, final BiConsumer<ErrorCondition, Exception> onRemoteSessionOpenError) {
         if (this.getIsClosingOrClosed()) {
@@ -212,24 +226,30 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
     @Override
     public void onConnectionError(ErrorCondition error) {
+
         if (!this.open.isDone()) {
             this.onOpenComplete(ExceptionUtil.toException(error));
         } else {
             final Connection currentConnection = this.connection;
             final List<Link> registeredLinksCopy = new LinkedList<>(this.registeredLinks);
+            final List<Link> closedLinks = new LinkedList<>();
             for (Link link : registeredLinksCopy) {
                 if (link.getLocalState() != EndpointState.CLOSED && link.getRemoteState() != EndpointState.CLOSED) {
                     link.close();
+                    closedLinks.add(link);
                 }
             }
 
             // if proton-j detects transport error - onConnectionError is invoked, but, the connection state is not set to closed
             // in connection recreation we depend on currentConnection state to evaluate need for recreation
-            if (currentConnection.getLocalState() != EndpointState.CLOSED && currentConnection.getRemoteState() != EndpointState.CLOSED) {
+            if (currentConnection.getLocalState() != EndpointState.CLOSED) {
+                // this should ideally be done in Connectionhandler
+                // - but, since proton doesn't automatically emit close events
+                // for all child objects (links & sessions) we are doing it here
                 currentConnection.close();
             }
 
-            for (Link link : registeredLinksCopy) {
+            for (Link link : closedLinks) {
                 final Handler handler = BaseHandler.getHandler(link);
                 if (handler != null && handler instanceof BaseLinkHandler) {
                     final BaseLinkHandler linkHandler = (BaseLinkHandler) handler;

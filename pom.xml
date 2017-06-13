@@ -6,15 +6,14 @@
 	
 	<groupId>com.microsoft.azure</groupId>
 	<artifactId>azure-eventhubs-clients</artifactId>
-	<version>${client-current-version}</version>
+	<version>0.14.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	
 	<url>https://github.com/Azure/azure-event-hubs</url>
 	
 	<properties>
-		<proton-j-version>0.18.0</proton-j-version>
+		<proton-j-version>0.19.0</proton-j-version>
 	  	<junit-version>4.12</junit-version>
-		<client-current-version>0.13.1</client-current-version>
 	</properties>
 	
 	<build>
@@ -52,7 +51,6 @@
 	    <module>azure-eventhubs</module>
 	    <module>azure-eventhubs-eph</module>
 	    <module>azure-eventhubs-extensions</module>
-	    <module>azure-eventhubs-samples</module>
 	 </modules>
 
 </project>
