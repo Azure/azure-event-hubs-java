@@ -18,6 +18,12 @@ class AzureBlobLease extends Lease
 	
 	private transient AzureStorageCheckpointLeaseManager leaseManager; // do not serialize!
 	
+	// not intended to be used; built for GSon
+	private AzureBlobLease()
+	{
+		super();
+	}
+
 	AzureBlobLease(String partitionId, CloudBlockBlob blob)
 	{
 		super(partitionId);
