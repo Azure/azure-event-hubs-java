@@ -16,8 +16,6 @@ class AzureBlobLease extends Lease
 	private String offset = null; // null means checkpoint is uninitialized
 	private long sequenceNumber = 0;
 	
-	private transient AzureStorageCheckpointLeaseManager leaseManager; // do not serialize!
-	
 	// not intended to be used; built for GSon
 	private AzureBlobLease()
 	{
@@ -52,8 +50,6 @@ class AzureBlobLease extends Lease
 		this.blob = blob;
 	}
 	
-	void setLeaseManager(AzureStorageCheckpointLeaseManager lm) { this.leaseManager = lm; }
-	
 	CloudBlockBlob getBlob() { return this.blob; }
 	
 	void setOffset(String offset) { this.offset = offset; }
@@ -72,28 +68,7 @@ class AzureBlobLease extends Lease
 	@Override
 	public boolean isExpired() throws Exception
 	{
-		boolean downloadedOK = false;
-		int retrycount = 0;
-		
-		while (!downloadedOK)
-		{
-			try
-			{
-				this.blob.downloadAttributes(); // Get the latest metadata
-				downloadedOK = true;
-			}
-			catch (StorageException se)
-			{
-				downloadedOK = false;
-				if (++retrycount > 5)
-				{
-					// Give up retrying
-					throw se;
-				}
-				Thread.sleep(5000);
-				this.blob = this.leaseManager.reinitAndReplaceBlob(se, getPartitionId());
-			}
-		}
+		this.blob.downloadAttributes(); // Get the latest metadata
 		LeaseState currentState = this.blob.getProperties().getLeaseState();
 		return (currentState != LeaseState.LEASED); 
 	}

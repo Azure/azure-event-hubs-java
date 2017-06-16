@@ -36,55 +36,12 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private String storageContainerName;
     private String storageBlobPrefix;
     
-    private class ProtectedStorageClient
-    {
-	    private CloudBlobClient storageClient;
-	    private CloudBlobContainer eventHubContainer;
-	    private CloudBlobDirectory consumerGroupDirectory;
-	    
-	    private Object synchronizer = new Object();
-
-    	public void initialize(String storageConnectionString, String storageContainerName, String storageBlobPrefix, String consumerGroupName)
-    			throws InvalidKeyException, URISyntaxException, StorageException
-    	{
-    		synchronized (this.synchronizer)
-    		{
-	            this.storageClient = CloudStorageAccount.parse(storageConnectionString).createCloudBlobClient();
-	            BlobRequestOptions options = new BlobRequestOptions();
-	            options.setMaximumExecutionTimeInMs(AzureStorageCheckpointLeaseManager.storageMaximumExecutionTimeInMs);
-	            this.storageClient.setDefaultRequestOptions(options);
-	            
-	            this.eventHubContainer = this.storageClient.getContainerReference(storageContainerName);
-	            
-	            // storageBlobPrefix is either empty or a real user-supplied string. Either way we can just
-	            // stick it on the front and get the desired result. 
-	            this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(storageBlobPrefix + consumerGroupName);
-    		}
-    	}
-    	
-    	public CloudBlobContainer getEventHubContainer()
-    	{
-    		synchronized (this.synchronizer)
-    		{
-    			return this.eventHubContainer;
-    		}
-    	}
-    	
-    	public CloudBlobDirectory getConsumerGroupDirectory()
-    	{
-    		synchronized (this.synchronizer)
-    		{
-    			return this.consumerGroupDirectory;
-    		}
-    	}
-    }
-    private ProtectedStorageClient storageClient = new ProtectedStorageClient();
+    private CloudBlobClient storageClient;
+    private CloudBlobContainer eventHubContainer;
+    private CloudBlobDirectory consumerGroupDirectory;
     
     private Gson gson;
     
-    private final static int storageMaximumExecutionTimeInMs = 2 * 60 * 1000; // two minutes
-    private final static int leaseDurationInSeconds = 30;
-    private final static int leaseRenewIntervalInMilliseconds = 10 * 1000; // ten seconds
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
     
     private enum UploadActivity { Create, Acquire, Release, Update };
@@ -132,7 +89,22 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
         	this.storageContainerName = this.host.getEventHubPath();
         }
         
-        this.storageClient.initialize(this.storageConnectionString, this.storageContainerName, this.storageBlobPrefix, this.host.getConsumerGroupName());
+        this.storageClient = CloudStorageAccount.parse(this.storageConnectionString).createCloudBlobClient();
+        BlobRequestOptions options = new BlobRequestOptions();
+        int maxExecutionTimeInSeconds = AzureStorageCheckpointAndLeaseManagerOptions.DefaultStorageMaximumExecutionTimeInSeconds;
+        CheckpointAndLeaseManagerOptions opts = this.host.getCheckpointAndLeaseManagerOptions();
+        if (opts instanceof AzureStorageCheckpointAndLeaseManagerOptions)
+        {
+        	maxExecutionTimeInSeconds = ((AzureStorageCheckpointAndLeaseManagerOptions)opts).getStorageMaximumExecutionTimeInSeconds();
+        }
+        options.setMaximumExecutionTimeInMs(maxExecutionTimeInSeconds * 1000);
+        this.storageClient.setDefaultRequestOptions(options);
+        
+        this.eventHubContainer = this.storageClient.getContainerReference(this.storageContainerName);
+        
+        // storageBlobPrefix is either empty or a real user-supplied string. Either way we can just
+        // stick it on the front and get the desired result. 
+        this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.storageBlobPrefix + this.host.getConsumerGroupName());
         
         this.gson = new Gson();
 
@@ -140,14 +112,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
         // So right now renewRequestOptions is completely default, but keep it around in case we need to change something later.
     }
     
-    
-    CloudBlockBlob reinitAndReplaceBlob(StorageException se, String partitionId) throws InvalidKeyException, URISyntaxException, StorageException
-    {
-    	this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), se, "Reinitializing Storage client in response to this exception", partitionId);
-        this.storageClient.initialize(this.storageConnectionString, this.storageContainerName, this.storageBlobPrefix, this.host.getConsumerGroupName());
-        return this.storageClient.getConsumerGroupDirectory().getBlockBlobReference(partitionId);
-    }
-
     
     //
     // In this implementation, checkpoints are data that's actually in the lease blob, so checkpoint operations
@@ -228,7 +192,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private Void updateCheckpointSync(Lease lease, Checkpoint checkpoint) throws Exception
     {
     	AzureBlobLease updatedLease = new AzureBlobLease((AzureBlobLease) lease);
-    	updatedLease.setLeaseManager(this);
     	this.host.logWithHostAndPartition(Level.FINER, checkpoint.getPartitionId(), "Checkpointing at " + checkpoint.getOffset() + " // " + checkpoint.getSequenceNumber());
     	updatedLease.setOffset(checkpoint.getOffset());
     	updatedLease.setSequenceNumber(checkpoint.getSequenceNumber());
@@ -261,25 +224,25 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     @Override
     public int getLeaseRenewIntervalInMilliseconds()
     {
-    	return AzureStorageCheckpointLeaseManager.leaseRenewIntervalInMilliseconds;
+    	return this.host.getCheckpointAndLeaseManagerOptions().getLeaseRenewIntervalInSeconds() * 1000;
     }
     
     @Override
     public int getLeaseDurationInMilliseconds()
     {
-    	return AzureStorageCheckpointLeaseManager.leaseDurationInSeconds * 1000;
+    	return this.host.getCheckpointAndLeaseManagerOptions().getLeaseDurationInSeconds() * 1000;
     }
     
     @Override
     public Future<Boolean> leaseStoreExists()
     {
-        return EventProcessorHost.getExecutorService().submit(() -> this.storageClient.getEventHubContainer().exists());
+        return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.exists());
     }
 
     @Override
     public Future<Boolean> createLeaseStoreIfNotExists()
     {
-        return EventProcessorHost.getExecutorService().submit(() -> this.storageClient.getEventHubContainer().createIfNotExists());
+        return EventProcessorHost.getExecutorService().submit(() -> this.eventHubContainer.createIfNotExists());
     }
 
     @Override
@@ -292,7 +255,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     {
     	boolean retval = true;
     	
-    	for (ListBlobItem blob : this.storageClient.getEventHubContainer().listBlobs())
+    	for (ListBlobItem blob : this.eventHubContainer.listBlobs())
     	{
     		if (blob instanceof CloudBlobDirectory)
     		{
@@ -325,7 +288,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	
     	try
     	{
-			this.storageClient.getEventHubContainer().deleteIfExists();
+			this.eventHubContainer.deleteIfExists();
 		}
     	catch (StorageException e)
     	{
@@ -346,7 +309,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     {
     	AzureBlobLease retval = null;
     	
-		CloudBlockBlob leaseBlob = this.storageClient.getConsumerGroupDirectory().getBlockBlobReference(partitionId);
+		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
 		if (leaseBlob.exists())
 		{
 			retval = downloadLease(leaseBlob);
@@ -378,9 +341,8 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	AzureBlobLease returnLease = null;
     	try
     	{
-    		CloudBlockBlob leaseBlob = this.storageClient.getConsumerGroupDirectory().getBlockBlobReference(partitionId);
+    		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId);
     		returnLease = new AzureBlobLease(partitionId, leaseBlob);
-    		returnLease.setLeaseManager(this);
     		this.host.logWithHostAndPartition(Level.FINE, partitionId,
     				"CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
     				"storageBlobPrefix: " + this.storageBlobPrefix);
@@ -466,7 +428,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 	    	else
 	    	{
 	    		this.host.logWithHostAndPartition(Level.FINER, lease.getPartitionId(), "acquireLease");
-	    		newToken = leaseBlob.acquireLease(AzureStorageCheckpointLeaseManager.leaseDurationInSeconds, newLeaseId);
+	    		newToken = leaseBlob.acquireLease(this.host.getCheckpointAndLeaseManagerOptions().getLeaseDurationInSeconds(), newLeaseId);
 	    	}
 	    	if (succeeded)
 	    	{
@@ -539,7 +501,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	{
     		String leaseId = lease.getToken();
     		AzureBlobLease releasedCopy = new AzureBlobLease(lease);
-    		releasedCopy.setLeaseManager(this);
     		releasedCopy.setToken("");
     		releasedCopy.setOwner("");
     		uploadLease(releasedCopy, leaseBlob, AccessCondition.generateLeaseCondition(leaseId), UploadActivity.Release);
@@ -613,7 +574,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	this.host.logWithHost(Level.FINEST, "Raw JSON downloaded: " + jsonLease);
     	AzureBlobLease rehydrated = this.gson.fromJson(jsonLease, AzureBlobLease.class);
     	AzureBlobLease blobLease = new AzureBlobLease(rehydrated, blob);
-    	blobLease.setLeaseManager(this);
     	
     	if (blobLease.getOffset() != null)
     	{
