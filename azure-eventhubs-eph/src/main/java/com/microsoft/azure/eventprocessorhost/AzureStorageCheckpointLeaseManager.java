@@ -104,13 +104,13 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
         
         this.gson = new Gson();
 
-        this.leaseOperationOptions.setMaximumExecutionTimeInMs(host.getCheckpointAndLeaseManagerOptions().getLeaseDurationInSeconds() * 1000);
+        this.leaseOperationOptions.setMaximumExecutionTimeInMs(host.getPartitionManagerOptions().getLeaseDurationInSeconds() * 1000);
         this.storageClient.setDefaultRequestOptions(this.leaseOperationOptions);
-        this.checkpointOperationOptions.setMaximumExecutionTimeInMs(host.getCheckpointAndLeaseManagerOptions().getCheckpointTimeoutInSeconds() * 1000);
+        this.checkpointOperationOptions.setMaximumExecutionTimeInMs(host.getPartitionManagerOptions().getCheckpointTimeoutInSeconds() * 1000);
         // The only option that .NET sets on renewRequestOptions is ServerTimeout, which doesn't exist in Java equivalent.
         // Keep it separate in case we need to change something later.
         // Only used for leases, not checkpoints, so set max execution time to lease value
-        this.renewRequestOptions.setMaximumExecutionTimeInMs(host.getCheckpointAndLeaseManagerOptions().getLeaseDurationInSeconds() * 1000);
+        this.renewRequestOptions.setMaximumExecutionTimeInMs(host.getPartitionManagerOptions().getLeaseDurationInSeconds() * 1000);
     }
 
     
@@ -225,13 +225,13 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     @Override
     public int getLeaseRenewIntervalInMilliseconds()
     {
-    	return AzureStorageCheckpointLeaseManager.leaseRenewIntervalInMilliseconds;
+    	return this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds() * 1000;
     }
     
     @Override
     public int getLeaseDurationInMilliseconds()
     {
-    	return AzureStorageCheckpointLeaseManager.leaseDurationInSeconds * 1000;
+    	return this.host.getPartitionManagerOptions().getLeaseDurationInSeconds() * 1000;
     }
     
     @Override
@@ -444,7 +444,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 	    	else
 	    	{
 	    		this.host.logWithHostAndPartition(Level.FINER, lease.getPartitionId(), "acquireLease");
-	    		newToken = leaseBlob.acquireLease(AzureStorageCheckpointLeaseManager.leaseDurationInSeconds, newLeaseId);
+	    		newToken = leaseBlob.acquireLease(this.host.getPartitionManagerOptions().getLeaseDurationInSeconds(), newLeaseId);
 	    	}
 	    	if (succeeded)
 	    	{
