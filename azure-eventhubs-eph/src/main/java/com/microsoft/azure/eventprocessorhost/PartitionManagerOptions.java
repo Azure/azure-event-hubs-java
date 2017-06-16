@@ -5,17 +5,17 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-public class CheckpointAndLeaseManagerOptions
+public class PartitionManagerOptions
 {
 	public final static int DefaultLeaseDurationInSeconds = 30;
 	public final static int DefaultLeaseRenewIntervalInSeconds = 10;
 	public final static int DefaultCheckpointTimeoutInSeconds = 120;
 	
-	protected int leaseDurationInSeconds = CheckpointAndLeaseManagerOptions.DefaultLeaseDurationInSeconds;
-	protected int leaseRenewIntervalInSeconds = CheckpointAndLeaseManagerOptions.DefaultLeaseRenewIntervalInSeconds;
-	protected int checkpointTimeoutInSeconds = CheckpointAndLeaseManagerOptions.DefaultCheckpointTimeoutInSeconds;
+	protected int leaseDurationInSeconds = PartitionManagerOptions.DefaultLeaseDurationInSeconds;
+	protected int leaseRenewIntervalInSeconds = PartitionManagerOptions.DefaultLeaseRenewIntervalInSeconds;
+	protected int checkpointTimeoutInSeconds = PartitionManagerOptions.DefaultCheckpointTimeoutInSeconds;
 	
-	public CheckpointAndLeaseManagerOptions()
+	public PartitionManagerOptions()
 	{
 	}
 	
