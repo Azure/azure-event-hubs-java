@@ -7,23 +7,18 @@ package com.microsoft.azure.eventprocessorhost;
 
 public class AzureStorageCheckpointAndLeaseManagerOptions extends CheckpointAndLeaseManagerOptions
 {
-	public final static int DefaultStorageMaximumExecutionTimeInSeconds = 30; // was 120
-	
-	private int storageMaximumExecutionTimeInSeconds = AzureStorageCheckpointAndLeaseManagerOptions.DefaultStorageMaximumExecutionTimeInSeconds;
-	
 	public AzureStorageCheckpointAndLeaseManagerOptions()
 	{
 	}
-	
-	public int getStorageMaximumExecutionTimeInSeconds() { return this.storageMaximumExecutionTimeInSeconds; }
-	
-	public void setStorageMaximumExecutionTimeInSeconds(int executionTime)
+
+	@Override
+	public void setLeaseDurationInSeconds(int duration)
 	{
-		if (executionTime <= 0)
+		// Max Azure Storage blob lease is 60 seconds
+		if ((duration <= 0) || (duration > 60))
 		{
-			throw new IllegalArgumentException("Maximum execution time must be greater than 0 seconds");
+			throw new IllegalArgumentException("Lease duration must be greater than 0 and not more than 60 seconds");
 		}
-		
-		this.storageMaximumExecutionTimeInSeconds = executionTime;
+		this.leaseDurationInSeconds = duration;
 	}
 }

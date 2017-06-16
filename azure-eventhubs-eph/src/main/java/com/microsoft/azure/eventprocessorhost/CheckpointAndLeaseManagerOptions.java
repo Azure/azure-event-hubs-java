@@ -7,11 +7,13 @@ package com.microsoft.azure.eventprocessorhost;
 
 public class CheckpointAndLeaseManagerOptions
 {
-	public final static int DefaultLeaseDurationInSeconds = 45; // was 30
+	public final static int DefaultLeaseDurationInSeconds = 30;
 	public final static int DefaultLeaseRenewIntervalInSeconds = 10;
+	public final static int DefaultCheckpointTimeoutInSeconds = 120;
 	
-	private int leaseDurationInSeconds = CheckpointAndLeaseManagerOptions.DefaultLeaseDurationInSeconds;
-	private int leaseRenewIntervalInSeconds = CheckpointAndLeaseManagerOptions.DefaultLeaseRenewIntervalInSeconds;
+	protected int leaseDurationInSeconds = CheckpointAndLeaseManagerOptions.DefaultLeaseDurationInSeconds;
+	protected int leaseRenewIntervalInSeconds = CheckpointAndLeaseManagerOptions.DefaultLeaseRenewIntervalInSeconds;
+	protected int checkpointTimeoutInSeconds = CheckpointAndLeaseManagerOptions.DefaultCheckpointTimeoutInSeconds;
 	
 	public CheckpointAndLeaseManagerOptions()
 	{
@@ -23,7 +25,7 @@ public class CheckpointAndLeaseManagerOptions
 	{
 		if (duration <= 0)
 		{
-			throw new IllegalArgumentException("Lease duration must be greater than 0 seconds");
+			throw new IllegalArgumentException("Lease duration must be greater than 0");
 		}
 		this.leaseDurationInSeconds = duration;
 	}
@@ -32,10 +34,21 @@ public class CheckpointAndLeaseManagerOptions
 	
 	public void setLeaseRenewIntervalInSeconds(int interval)
 	{
-		if (interval <= 0)
+		if ((interval <= 0) || (interval > this.leaseDurationInSeconds))
 		{
-			throw new IllegalArgumentException("Lease renew interval must be greater than 0 seconds");
+			throw new IllegalArgumentException("Lease renew interval must be greater than 0 and not more than lease duration");
 		}
 		this.leaseRenewIntervalInSeconds = interval;
+	}
+	
+	public int getCheckpointTimeoutInSeconds() { return this.checkpointTimeoutInSeconds; }
+	
+	public void setCheckpointTimeoutInSeconds(int timeout)
+	{
+		if (timeout <= 0)
+		{
+			throw new IllegalArgumentException("Checkpoint timeout must be greater than 0");
+		}
+		this.checkpointTimeoutInSeconds = timeout;
 	}
 }
