@@ -104,9 +104,27 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                 WorkItem<Collection<Message>> topWorkItem = null;
                 while ((topWorkItem = MessageReceiver.this.pendingReceives.peek()) != null) {
                     if (topWorkItem.getTimeoutTracker().remaining().toMillis() <= MessageReceiver.MIN_TIMEOUT_DURATION_MILLIS) {
-                        WorkItem<Collection<Message>> dequedWorkItem = MessageReceiver.this.pendingReceives.poll();
+                        final WorkItem<Collection<Message>> dequedWorkItem = MessageReceiver.this.pendingReceives.poll();
                         if (dequedWorkItem != null && dequedWorkItem.getWork() != null && !dequedWorkItem.getWork().isDone()) {
                             dequedWorkItem.getWork().complete(null);
+
+                            try {
+                                // Reactor doesn't detect or signal if it encounters Transport Error
+                                // - until we try a write-operation on the Socket
+                                // So, this workaround will attempt to "write" 1 creditFlow frame to the Transport
+                                // when there are receive timeouts (which is one symptom where we have an underlying broken socket)
+                                underlyingFactory.scheduleOnReactorThread(new DispatchHandler() {
+                                    @Override
+                                    public void onEvent() {
+                                        if (receiveLink != null &&
+                                                receiveLink.getLocalState() == EndpointState.ACTIVE &&
+                                                receiveLink.getRemoteState() == EndpointState.ACTIVE) {
+                                            tryFlushOneCredit();
+                                        }
+                                    }
+                                });
+                            } catch (IOException ignore) {
+                            }
                         } else
                             break;
                     } else {
@@ -518,10 +536,24 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
             this.receiveLink.flow(tempFlow);
             this.nextCreditToFlow = 0;
 
-            if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+            if (TRACE_LOGGER.isLoggable(Level.FINER)) {
                 TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], linkname[%s], updated-link-credit[%s], sentCredits[%s], ThreadId[%s]",
                         this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), tempFlow, Thread.currentThread().getId()));
             }
+        }
+    }
+
+    private void tryFlushOneCredit() {
+        if (this.nextCreditToFlow <= 0) {
+            return;
+        }
+
+        this.nextCreditToFlow = this.nextCreditToFlow - 1;
+        this.receiveLink.flow(1);
+
+        if (TRACE_LOGGER.isLoggable(Level.FINE)) {
+            TRACE_LOGGER.log(Level.FINE, String.format("receiverPath[%s], linkname[%s], updated-link-credit[%s], sentCredits[%s], ThreadId[%s]",
+                    this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), 1, Thread.currentThread().getId()));
         }
     }
 
