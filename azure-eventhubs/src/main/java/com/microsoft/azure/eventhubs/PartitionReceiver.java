@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -23,15 +24,7 @@ import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.UnknownDescribedType;
 import org.apache.qpid.proton.message.Message;
 
-import com.microsoft.azure.servicebus.amqp.AmqpConstants;
-import com.microsoft.azure.servicebus.ClientConstants;
-import com.microsoft.azure.servicebus.ClientEntity;
-import com.microsoft.azure.servicebus.IReceiverSettingsProvider;
-import com.microsoft.azure.servicebus.MessageReceiver;
-import com.microsoft.azure.servicebus.MessagingFactory;
-import com.microsoft.azure.servicebus.PassByRef;
-import com.microsoft.azure.servicebus.ServiceBusException;
-import com.microsoft.azure.servicebus.StringUtil;
+import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
 
 /**
  * This is a logical representation of receiving from a EventHub partition.
@@ -47,7 +40,7 @@ import com.microsoft.azure.servicebus.StringUtil;
  * @see EventHubClient#createEpochReceiver
  */
 public final class PartitionReceiver extends ClientEntity implements IReceiverSettingsProvider {
-    private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.SERVICEBUS_CLIENT_TRACE);
+    private static final Logger TRACE_LOGGER = Logger.getLogger(ClientConstants.EVENTHUB_CLIENT_TRACE);
     private static final int MINIMUM_PREFETCH_COUNT = 10;
     private static final int MAXIMUM_PREFETCH_COUNT = 999;
 
@@ -92,7 +85,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                               final Long epoch,
                               final boolean isEpochReceiver,
                               final ReceiverOptions receiverOptions)
-            throws ServiceBusException {
+            throws EventHubException {
         super(null, null);
 
         this.underlyingFactory = factory;
@@ -121,7 +114,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                                                        final long epoch,
                                                        final boolean isEpochReceiver,
                                                        final ReceiverOptions receiverOptions)
-            throws ServiceBusException {
+            throws EventHubException {
         if (epoch < NULL_EPOCH) {
             throw new IllegalArgumentException("epoch cannot be a negative value. Please specify a zero or positive long value.");
         }
@@ -138,7 +131,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
         });
     }
 
-    private CompletableFuture<Void> createInternalReceiver() throws ServiceBusException {
+    private CompletableFuture<Void> createInternalReceiver() throws EventHubException {
         return MessageReceiver.create(this.underlyingFactory,
                 StringUtil.getRandomString(),
                 String.format("%s/ConsumerGroups/%s/Partitions/%s", this.eventHubName, this.consumerGroupName, this.partitionId),
@@ -193,9 +186,9 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
      * <p>By default the value is 300
      *
      * @param prefetchCount the number of events to pre-fetch. value must be between 10 and 999. Default is 300.
-     * @throws ServiceBusException if setting prefetchCount encounters error
+     * @throws EventHubException if setting prefetchCount encounters error
      */
-    public final void setPrefetchCount(final int prefetchCount) throws ServiceBusException {
+    public final void setPrefetchCount(final int prefetchCount) throws EventHubException {
         if (prefetchCount < PartitionReceiver.MINIMUM_PREFETCH_COUNT || prefetchCount > PartitionReceiver.MAXIMUM_PREFETCH_COUNT) {
             throw new IllegalArgumentException(String.format(Locale.US,
                     "PrefetchCount has to be between %s and %s", PartitionReceiver.MINIMUM_PREFETCH_COUNT, PartitionReceiver.MAXIMUM_PREFETCH_COUNT));
@@ -232,10 +225,10 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
      *
      * @param maxEventCount maximum number of {@link EventData}'s that this call should return
      * @return Batch of {@link EventData}'s from the partition on which this receiver is created. Returns 'null' if no {@link EventData} is present.
-     * @throws ServiceBusException if ServiceBus client encountered any unrecoverable/non-transient problems during {@link #receive}
+     * @throws EventHubException if ServiceBus client encountered any unrecoverable/non-transient problems during {@link #receive}
      */
     public final Iterable<EventData> receiveSync(final int maxEventCount)
-            throws ServiceBusException {
+            throws EventHubException {
         try {
             return this.receive(maxEventCount).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -250,11 +243,11 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                     throw (RuntimeException) throwable;
                 }
 
-                if (throwable instanceof ServiceBusException) {
-                    throw (ServiceBusException) throwable;
+                if (throwable instanceof EventHubException) {
+                    throw (EventHubException) throwable;
                 }
 
-                throw new ServiceBusException(true, throwable);
+                throw new EventHubException(true, throwable);
             }
         }
 
@@ -358,7 +351,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                 this.receivePump = new ReceivePump(
                         new ReceivePump.IPartitionReceiver() {
                             @Override
-                            public Iterable<EventData> receive(int maxBatchSize) throws ServiceBusException {
+                            public Iterable<EventData> receive(int maxBatchSize) throws EventHubException {
                                 return PartitionReceiver.this.receiveSync(maxBatchSize);
                             }
 
@@ -454,7 +447,22 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
     @Override
     public Map<Symbol, Object> getProperties() {
 
-        return this.isEpochReceiver ? Collections.singletonMap(AmqpConstants.EPOCH, (Object) this.epoch) : null;
+        if (!this.isEpochReceiver &&
+                (this.receiverOptions == null || this.receiverOptions.getIdentifier() == null)) {
+            return null;
+        }
+
+        final Map<Symbol, Object> properties = new HashMap<>();
+
+        if (this.isEpochReceiver) {
+            properties.put(AmqpConstants.EPOCH, (Object) this.epoch);
+        }
+
+        if (this.receiverOptions != null && this.receiverOptions.getIdentifier() != null) {
+            properties.put(AmqpConstants.RECEIVER_IDENTIFIER_NAME, (Object) this.receiverOptions.getIdentifier());
+        }
+
+        return properties;
     }
 
     @Override
