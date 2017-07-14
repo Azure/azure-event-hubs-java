@@ -66,8 +66,20 @@ class PartitionManager
 
 				// TODO find a better way to do this
 				// Probe for the consumer group so that we can throw an exception from EventProcessorHost.register* if it doesn't exist.
-				PartitionReceiver dummy = ehClient.createReceiverSync(this.host.getConsumerGroupName(), this.partitionIds[0], Instant.now().plusSeconds(5 * 60));
-				dummy.closeSync();
+				try
+				{
+					// Receiver start point is five minutes in the future in an attempt to avoid prefetching.
+					PartitionReceiver dummy = ehClient.createReceiverSync(this.host.getConsumerGroupName(), this.partitionIds[0], Instant.now().plusSeconds(5 * 60));
+					dummy.closeSync();
+				}
+				catch (Exception e)
+				{
+					// The purpose of this exercise is to detect IllegalEntityException. Anything else is probably OK.
+					if (e instanceof IllegalEntityException)
+					{
+						throw (IllegalEntityException)e;
+					}
+				}
 
 				ehClient.closeSync();
 			}
