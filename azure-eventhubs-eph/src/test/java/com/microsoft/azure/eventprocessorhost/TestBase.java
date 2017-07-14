@@ -25,11 +25,11 @@ public class TestBase
 		settings.outUtils = new RealEventHubUtilities();
 		if (settings.inHasSenders)
 		{
-			settings.outPartitionIds = settings.outUtils.setup(settings.inEntityDoesNotExist ? 8 : RealEventHubUtilities.QUERY_ENTITY_FOR_PARTITIONS);
+			settings.outPartitionIds = settings.outUtils.setup(settings.inEventHubDoesNotExist ? 8 : RealEventHubUtilities.QUERY_ENTITY_FOR_PARTITIONS);
 		}
 		else
 		{
-			settings.outPartitionIds = settings.outUtils.setupWithoutSenders(settings.inEntityDoesNotExist ? 8 : RealEventHubUtilities.QUERY_ENTITY_FOR_PARTITIONS);
+			settings.outPartitionIds = settings.outUtils.setupWithoutSenders(settings.inEventHubDoesNotExist ? 8 : RealEventHubUtilities.QUERY_ENTITY_FOR_PARTITIONS);
 		}
 		ConnectionStringBuilder environmentCSB = settings.outUtils.getConnectionString();
 
