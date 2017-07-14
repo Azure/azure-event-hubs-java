@@ -7,6 +7,7 @@ package com.microsoft.azure.eventprocessorhost;
 
 import java.util.Map;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
@@ -17,6 +18,7 @@ import java.util.logging.Level;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
 import com.microsoft.azure.eventhubs.IllegalEntityException;
+import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.EventHubException;
 import com.microsoft.azure.eventhubs.TimeoutException;
 import com.microsoft.azure.storage.StorageException;
@@ -61,9 +63,32 @@ class PartitionManager
 				{
 					saved = new TimeoutException("getRuntimeInformation returned null");
 				}
+
+				// TODO find a better way to do this
+				// Probe for the consumer group so that we can throw an exception from EventProcessorHost.register* if it doesn't exist.
+				try
+				{
+					// Receiver start point is five minutes in the future in an attempt to avoid prefetching.
+					PartitionReceiver dummy = ehClient.createReceiverSync(this.host.getConsumerGroupName(), this.partitionIds[0], Instant.now().plusSeconds(5 * 60));
+					dummy.closeSync();
+				}
+				catch (Exception e)
+				{
+					// The purpose of this exercise is to detect IllegalEntityException. Anything else is probably OK.
+					if (e instanceof IllegalEntityException)
+					{
+						throw (IllegalEntityException)e;
+					}
+				}
+
+				ehClient.closeSync();
 			}
 			catch (EventHubException | IOException | InterruptedException | ExecutionException e)
 			{
+				if (e instanceof IllegalEntityException)
+				{
+					throw (IllegalEntityException)e;
+				}
 				saved = e;
 			}
         }
