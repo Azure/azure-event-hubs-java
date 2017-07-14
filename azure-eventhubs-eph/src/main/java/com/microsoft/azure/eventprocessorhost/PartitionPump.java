@@ -9,6 +9,7 @@ import java.util.Iterator;
 import java.util.logging.Level;
 
 import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.eventhubs.IllegalEntityException;
 
 abstract class PartitionPump
 {
@@ -37,7 +38,7 @@ abstract class PartitionPump
 	}
 	
 	// return Void so it can be called from a lambda submitted to ExecutorService
-    Void startPump()
+    Void startPump() throws IllegalEntityException
     {
     	this.pumpStatus = PartitionPumpStatus.PP_OPENING;
     	
@@ -65,9 +66,17 @@ abstract class PartitionPump
             }
         }
 
+        IllegalEntityException badEntity = null;
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENING)
         {
-        	specializedStartPump();
+            try
+            {
+                specializedStartPump();
+            }
+            catch (IllegalEntityException e)
+            {
+                badEntity = e;
+            }
         }
         
         if (this.pumpStatus != PartitionPumpStatus.PP_RUNNING)
@@ -89,10 +98,15 @@ abstract class PartitionPump
             this.pumpStatus = PartitionPumpStatus.PP_CLOSED;
         }
 
+        if (badEntity != null)
+        {
+            throw badEntity;
+        }
+
         return null;
     }
 
-    abstract void specializedStartPump();
+    abstract void specializedStartPump() throws IllegalEntityException;
 
     PartitionPumpStatus getPumpStatus()
     {

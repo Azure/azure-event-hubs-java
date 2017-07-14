@@ -56,10 +56,10 @@ class Pump
     	}
     }
     
-    private void createNewPump(String partitionId, Lease lease) throws Exception
+    private Future<?> createNewPump(String partitionId, Lease lease) throws Exception
     {
 		PartitionPump newPartitionPump = new EventHubPartitionPump(this.host, this, lease);
-		EventProcessorHost.getExecutorService().submit(new Callable<Void>()
+		return EventProcessorHost.getExecutorService().submit(new Callable<Void>()
 			{
 				@Override
 				public Void call() throws Exception

@@ -19,6 +19,7 @@ import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.ReceiverOptions;
 import com.microsoft.azure.eventhubs.ReceiverDisconnectedException;
 import com.microsoft.azure.eventhubs.EventHubException;
+import com.microsoft.azure.eventhubs.IllegalEntityException;
 
 class EventHubPartitionPump extends PartitionPump
 {
@@ -34,7 +35,7 @@ class EventHubPartitionPump extends PartitionPump
 	}
 
     @Override
-    void specializedStartPump()
+    void specializedStartPump() throws IllegalEntityException
     {
     	boolean openedOK = false;
     	int retryCount = 0;
@@ -49,13 +50,24 @@ class EventHubPartitionPump extends PartitionPump
 	        catch (Exception e)
 	        {
 	        	lastException = e;
-	        	if ((e instanceof ExecutionException) && (e.getCause() instanceof ReceiverDisconnectedException))
+	            if ((e instanceof ExecutionException) && (e.getCause() != null))
 	        	{
-	        		// TODO Assuming this is due to a receiver with a higher epoch.
-	        		// Is there a way to be sure without checking the exception text?
-	        		this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Receiver disconnected on create, bad epoch?", e);
-	        		// If it's a bad epoch, then retrying isn't going to help.
-	        		break;
+	                Throwable cause = e.getCause();
+		            if (cause instanceof ReceiverDisconnectedException)
+		            {
+		                // TODO Assuming this is due to a receiver with a higher epoch.
+		                // Is there a way to be sure without checking the exception text?
+		                this.host.logWithHostAndPartition(Level.WARNING, this.partitionContext, "Receiver disconnected on create, bad epoch?", e);
+		                // If it's a bad epoch, then retrying isn't going to help.
+		                break;
+		            }
+		            else if (cause instanceof IllegalEntityException)
+		            {
+		                // If the entity (event hub or consumer group) doesn't exist, retrying isn't going to help.
+		                // Rethrow so that startup can fail.
+		                lastException = (IllegalEntityException)cause;
+		                break;
+		            }
 	        	}
 	        	else
 	        	{
@@ -87,6 +99,11 @@ class EventHubPartitionPump extends PartitionPump
         	this.pumpStatus = PartitionPumpStatus.PP_CLOSING;
         	cleanUpClients();
         	this.pumpStatus = PartitionPumpStatus.PP_CLOSED;
+        }
+
+        if (lastException instanceof IllegalEntityException)
+        {
+            throw (IllegalEntityException)lastException;
         }
     }
     
