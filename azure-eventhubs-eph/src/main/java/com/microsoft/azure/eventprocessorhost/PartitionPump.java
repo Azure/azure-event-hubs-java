@@ -72,7 +72,7 @@ abstract class PartitionPump
         
         if (this.pumpStatus != PartitionPumpStatus.PP_RUNNING)
         {
-            // Something went wrong in specialized startup, so clean up the processor.
+            // There was an error in specialized startup, so clean up the processor.
             this.pumpStatus = PartitionPumpStatus.PP_CLOSING;
             try
             {

@@ -64,9 +64,8 @@ class Pump
 				@Override
 				public Void call() throws Exception
 				{
-					// Do this whole section as a callable so it runs on a separate thread and doesn't hold up the main loop.
-					// The problem is we have to wait for startPump to return in order to know whether to add the pump
-					// to pumpStates.
+					// Do this whole section as a callable so it runs on a separate thread and doesn't hold up the main loop
+					// while we wait for startPump to return in order to know whether to add the pump to pumpStates.
 					newPartitionPump.startPump();
 					if (newPartitionPump.getPumpStatus() == PartitionPumpStatus.PP_RUNNING)
 					{
