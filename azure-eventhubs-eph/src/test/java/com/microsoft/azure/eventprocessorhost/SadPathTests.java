@@ -126,4 +126,35 @@ public class SadPathTests extends TestBase
 			testFinish(settings, NO_CHECKS);
 		}
 	}
+
+	@Test
+	public void badEventHubNameTest() throws Exception
+	{
+        // This case requires an eventhub with a bad name (not legal as storage container name).
+        // Within EPH the validation of the name occurs after other operations that fail if the eventhub
+        // doesn't exist, so this case can't use arbitrary bad names.
+        PerTestSettings settings = new PerTestSettings("BadEventHubName");
+        try
+        {
+            settings.inoutEPHConstructorArgs.setStorageContainerName(null); // otherwise test framework creates unique storage container name
+            settings = testSetup(settings);
+            fail("No exception occurred");
+        }
+        catch (IllegalArgumentException e)
+        {
+            String message = e.getMessage();
+            if ((message != null) && message.startsWith("EventHub names must conform to the following rules"))
+            {
+                TestUtilities.log("Got expected IllegalArgumentException\n");
+            }
+            else
+            {
+                throw e;
+            }
+        }
+        finally
+        {
+            testFinish(settings, NO_CHECKS);
+        }
+    }
 }

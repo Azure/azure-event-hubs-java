@@ -89,7 +89,11 @@ public class TestBase
 			String effectiveStorageContainerName = settings.getTestName().toLowerCase() + "-" + EventProcessorHost.safeCreateUUID();
 			if (settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.STORAGE_CONTAINER_OVERRIDE))
 			{
-				effectiveStorageContainerName = settings.inoutEPHConstructorArgs.getStorageContainerName().toLowerCase();
+				effectiveStorageContainerName = settings.inoutEPHConstructorArgs.getStorageContainerName();
+				if (effectiveStorageContainerName != null)
+				{
+					effectiveStorageContainerName = effectiveStorageContainerName.toLowerCase();
+				}
 			}
 			else
 			{
