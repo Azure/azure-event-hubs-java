@@ -84,8 +84,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
     private boolean creatingLink;
     private ScheduledFuture closeTimer;
     private ScheduledFuture openTimer;
-
-    private volatile int maxMessageSize;
+    private int maxMessageSize;
 
     public static CompletableFuture<MessageSender> create(
             final MessagingFactory factory,
