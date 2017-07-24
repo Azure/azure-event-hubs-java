@@ -75,6 +75,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
     private final String tokenAudience;
     private final Object errorConditionLock;
 
+    private volatile int maxMessageSize;
+
     private Sender sendLink;
     private CompletableFuture<MessageSender> linkFirstOpen;
     private int linkCredit;
@@ -84,7 +86,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
     private boolean creatingLink;
     private ScheduledFuture closeTimer;
     private ScheduledFuture openTimer;
-    private int maxMessageSize;
 
     public static CompletableFuture<MessageSender> create(
             final MessagingFactory factory,
