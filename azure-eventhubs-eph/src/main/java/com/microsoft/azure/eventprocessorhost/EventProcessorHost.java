@@ -26,7 +26,8 @@ public final class EventProcessorHost
 
     private ICheckpointManager checkpointManager;
     private ILeaseManager leaseManager;
-    private boolean initializeLeaseManager = false; 
+    private boolean initializeLeaseManager = false;
+    private boolean unregistered = false;
     private PartitionManager partitionManager;
     private IEventProcessorFactory<?> processorFactory = null;
     private EventProcessorOptions processorOptions;
@@ -510,6 +511,10 @@ public final class EventProcessorHost
      */
     public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions) throws Exception
     {
+        if (this.unregistered)
+        {
+            throw new IllegalStateException("Register cannot be called on an EventProcessorHost after unregister. Please create a new EventProcessorHost instance.");
+        }
     	if (this.processorFactory != null)
     	{
     		throw new IllegalStateException("Register has already been called on this EventProcessorHost");
@@ -549,6 +554,7 @@ public final class EventProcessorHost
     public void unregisterEventProcessor() throws InterruptedException, ExecutionException
     {
     	logWithHost(Level.FINE, "Stopping event processing");
+        this.unregistered = true;
     	
     	if (this.partitionManager != null)
     	{
