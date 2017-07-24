@@ -74,7 +74,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
     private final ActiveClientTokenManager activeClientTokenManager;
     private final String tokenAudience;
     private final Object errorConditionLock;
-    private final Object sizeLock;
 
     private Sender sendLink;
     private CompletableFuture<MessageSender> linkFirstOpen;
@@ -85,7 +84,8 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
     private boolean creatingLink;
     private ScheduledFuture closeTimer;
     private ScheduledFuture openTimer;
-    private int maxMessageSize;
+
+    private volatile int maxMessageSize;
 
     public static CompletableFuture<MessageSender> create(
             final MessagingFactory factory,
@@ -123,7 +123,6 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
         this.maxMessageSize = ClientConstants.MAX_MESSAGE_LENGTH_BYTES;
 
         this.errorConditionLock = new Object();
-        this.sizeLock = new Object();
 
         this.pendingSendLock = new Object();
         this.pendingSendsData = new ConcurrentHashMap<>();
@@ -262,11 +261,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
         final Message batchMessage = Proton.message();
         batchMessage.setMessageAnnotations(firstMessage.getMessageAnnotations());
 
-        final int maxMessageSizeTemp;
-
-        synchronized (this.sizeLock) {
-            maxMessageSizeTemp = this.maxMessageSize;
-        }
+        final int maxMessageSizeTemp = this.maxMessageSize;
 
         final byte[] bytes = new byte[maxMessageSizeTemp];
         int encodedSize = batchMessage.encode(bytes, 0, maxMessageSizeTemp);
@@ -299,11 +294,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
     public CompletableFuture<Void> send(Message msg) {
         int payloadSize = AmqpUtil.getDataSerializedSize(msg);
 
-        final int maxMessageSizeTemp;
-        synchronized (this.sizeLock) {
-            maxMessageSizeTemp = this.maxMessageSize;
-        }
-
+        final int maxMessageSizeTemp = this.maxMessageSize;
         int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, maxMessageSizeTemp);
 
         final byte[] bytes = new byte[allocationSize];
@@ -337,10 +328,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
             }
 
             this.retryPolicy.resetRetryCount(this.getClientId());
-
-            synchronized (this.sizeLock) {
-                this.maxMessageSize = this.sendLink.getRemoteMaxMessageSize().intValue();
-            }
+            this.maxMessageSize = this.sendLink.getRemoteMaxMessageSize().intValue();
 
             if (!this.linkFirstOpen.isDone()) {
                 this.linkFirstOpen.complete(this);
