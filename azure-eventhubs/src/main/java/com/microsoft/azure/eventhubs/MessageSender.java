@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Binary;
+import org.apache.qpid.proton.amqp.UnsignedLong;
 import org.apache.qpid.proton.amqp.messaging.Accepted;
 import org.apache.qpid.proton.amqp.messaging.Data;
 import org.apache.qpid.proton.amqp.messaging.Rejected;
@@ -73,6 +74,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
     private final ActiveClientTokenManager activeClientTokenManager;
     private final String tokenAudience;
     private final Object errorConditionLock;
+    private final Object sizeLock;
 
     private Sender sendLink;
     private CompletableFuture<MessageSender> linkFirstOpen;
@@ -83,6 +85,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
     private boolean creatingLink;
     private ScheduledFuture closeTimer;
     private ScheduledFuture openTimer;
+    private int maxMessageSize;
 
     public static CompletableFuture<MessageSender> create(
             final MessagingFactory factory,
@@ -117,8 +120,10 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
         this.lastKnownErrorReportedAt = Instant.EPOCH;
 
         this.retryPolicy = factory.getRetryPolicy();
+        this.maxMessageSize = ClientConstants.MAX_MESSAGE_LENGTH_BYTES;
 
         this.errorConditionLock = new Object();
+        this.sizeLock = new Object();
 
         this.pendingSendLock = new Object();
         this.pendingSendsData = new ConcurrentHashMap<>();
@@ -257,25 +262,31 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
         final Message batchMessage = Proton.message();
         batchMessage.setMessageAnnotations(firstMessage.getMessageAnnotations());
 
-        final byte[] bytes = new byte[ClientConstants.MAX_MESSAGE_LENGTH_BYTES];
-        int encodedSize = batchMessage.encode(bytes, 0, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
+        final int maxMessageSizeTemp;
+
+        synchronized (this.sizeLock) {
+            maxMessageSizeTemp = this.maxMessageSize;
+        }
+
+        final byte[] bytes = new byte[maxMessageSizeTemp];
+        int encodedSize = batchMessage.encode(bytes, 0, maxMessageSizeTemp);
         int byteArrayOffset = encodedSize;
 
-        for (Message amqpMessage : messages) {
-            Message messageWrappedByData = Proton.message();
+        for (final Message amqpMessage : messages) {
+            final Message messageWrappedByData = Proton.message();
 
             int payloadSize = AmqpUtil.getDataSerializedSize(amqpMessage);
-            int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
+            int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, maxMessageSizeTemp);
 
             byte[] messageBytes = new byte[allocationSize];
             int messageSizeBytes = amqpMessage.encode(messageBytes, 0, allocationSize);
             messageWrappedByData.setBody(new Data(new Binary(messageBytes, 0, messageSizeBytes)));
 
             try {
-                encodedSize = messageWrappedByData.encode(bytes, byteArrayOffset, ClientConstants.MAX_MESSAGE_LENGTH_BYTES - byteArrayOffset - 1);
+                encodedSize = messageWrappedByData.encode(bytes, byteArrayOffset, maxMessageSizeTemp - byteArrayOffset - 1);
             } catch (BufferOverflowException exception) {
                 final CompletableFuture<Void> sendTask = new CompletableFuture<>();
-                sendTask.completeExceptionally(new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s kb", ClientConstants.MAX_MESSAGE_LENGTH_BYTES / 1024), exception));
+                sendTask.completeExceptionally(new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s kb", maxMessageSizeTemp / 1024), exception));
                 return sendTask;
             }
 
@@ -287,7 +298,13 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
     public CompletableFuture<Void> send(Message msg) {
         int payloadSize = AmqpUtil.getDataSerializedSize(msg);
-        int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, ClientConstants.MAX_MESSAGE_LENGTH_BYTES);
+
+        final int maxMessageSizeTemp;
+        synchronized (this.sizeLock) {
+            maxMessageSizeTemp = this.maxMessageSize;
+        }
+
+        int allocationSize = Math.min(payloadSize + ClientConstants.MAX_EVENTHUB_AMQP_HEADER_SIZE_BYTES, maxMessageSizeTemp);
 
         final byte[] bytes = new byte[allocationSize];
         int encodedSize = 0;
@@ -295,7 +312,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
             encodedSize = msg.encode(bytes, 0, allocationSize);
         } catch (BufferOverflowException exception) {
             final CompletableFuture<Void> sendTask = new CompletableFuture<Void>();
-            sendTask.completeExceptionally(new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s kb", ClientConstants.MAX_MESSAGE_LENGTH_BYTES / 1024), exception));
+            sendTask.completeExceptionally(new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s kb", maxMessageSizeTemp / 1024), exception));
             return sendTask;
         }
 
@@ -321,6 +338,10 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
 
             this.retryPolicy.resetRetryCount(this.getClientId());
 
+            synchronized (this.sizeLock) {
+                this.maxMessageSize = this.sendLink.getRemoteMaxMessageSize().intValue();
+            }
+
             if (!this.linkFirstOpen.isDone()) {
                 this.linkFirstOpen.complete(this);
                 if (this.openTimer != null)
@@ -328,13 +349,13 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
             } else {
                 synchronized (this.pendingSendLock) {
                     if (!this.pendingSendsData.isEmpty()) {
-                        List<String> unacknowledgedSends = new LinkedList<>();
+                        final List<String> unacknowledgedSends = new LinkedList<>();
                         unacknowledgedSends.addAll(this.pendingSendsData.keySet());
 
                         if (unacknowledgedSends.size() > 0) {
-                            Iterator<String> reverseReader = unacknowledgedSends.iterator();
+                            final Iterator<String> reverseReader = unacknowledgedSends.iterator();
                             while (reverseReader.hasNext()) {
-                                String unacknowledgedSend = reverseReader.next();
+                                final String unacknowledgedSend = reverseReader.next();
                                 if (this.pendingSendsData.get(unacknowledgedSend).isWaitingForAck()) {
                                     this.pendingSends.offer(new WeightedDeliveryTag(unacknowledgedSend, 1));
                                 }
