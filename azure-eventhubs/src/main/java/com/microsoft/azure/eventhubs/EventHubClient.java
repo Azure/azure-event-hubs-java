@@ -26,6 +26,7 @@ import java.util.function.Function;
  * @see EventHubClient#createFromConnectionString(String)
  */
 public class EventHubClient extends ClientEntity implements IEventHubClient {
+    private volatile boolean isSenderCreateStarted;
     public static final String DEFAULT_CONSUMER_GROUP_NAME = "$Default";
 
     private final String eventHubName;
@@ -33,7 +34,6 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
     private MessagingFactory underlyingFactory;
     private MessageSender sender;
-    private boolean isSenderCreateStarted;
     private CompletableFuture<Void> createSender;
 
     private EventHubClient(final ConnectionStringBuilder connectionString) throws IOException, IllegalEntityException {
@@ -131,6 +131,44 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
                         return eventHubClient;
                     }
                 });
+    }
+
+    /**
+     * Creates an Empty Collection of {@link EventData}.
+     *
+     * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
+     * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
+     */
+    public final EventDataBatch CreateBatch()
+            throws EventHubException, ExecutionException, InterruptedException {
+        try {
+            return this.createInternalSender().thenApply(new Function<Void, EventDataBatch>() {
+                @Override
+                public EventDataBatch apply(Void aVoid) {
+                    return new EventDataBatch(sender.getMaxMessageSize());
+                }
+            }).get();
+        } catch (InterruptedException | ExecutionException exception) {
+            if (exception instanceof InterruptedException) {
+                // Re-assert the thread's interrupted status
+                Thread.currentThread().interrupt();
+            }
+
+            final Throwable throwable = exception.getCause();
+            if (throwable != null) {
+                if (throwable instanceof RuntimeException) {
+                    throw (RuntimeException) throwable;
+                }
+
+                if (throwable instanceof EventHubException) {
+                    throw (EventHubException) throwable;
+                }
+
+                throw new EventHubException(true, throwable);
+            }
+
+            throw exception;
+        }
     }
 
     /**
