@@ -8,8 +8,10 @@ import org.apache.qpid.proton.engine.Transport;
 import org.apache.qpid.proton.reactor.impl.IOHandler;
 
 public class CustomIOHandler extends IOHandler {
+
     @Override
     public void onConnectionLocalOpen(Event event) {
+
         final Connection connection = event.getConnection();
         if (connection.getRemoteState() != EndpointState.UNINITIALIZED) {
             return;
@@ -24,6 +26,7 @@ public class CustomIOHandler extends IOHandler {
 
     @Override
     public void onTransportClosed(Event event) {
+
         final Transport transport = event.getTransport();
         final Connection connection = event.getConnection();
 
