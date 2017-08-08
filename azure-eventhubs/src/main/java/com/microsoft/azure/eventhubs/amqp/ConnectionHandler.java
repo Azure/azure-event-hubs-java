@@ -132,7 +132,7 @@ public final class ConnectionHandler extends BaseHandler {
             // This means that the CLOSE origin is Service
             final Transport transport = connection.getTransport();
             if (transport != null) {
-                transport.unbind();
+                transport.unbind(); // we proactively dispose IO even if service fails to close
             }
         }
     }
