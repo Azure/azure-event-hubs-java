@@ -12,19 +12,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
-import com.microsoft.azure.eventhubs.EventHubException;
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.eventhubs.EventDataBatch;
-import com.microsoft.azure.eventhubs.PartitionSender;
-import com.microsoft.azure.eventhubs.PartitionReceiver;
-import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.EventDataBatch;
+import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.eventhubs.EventHubException;
+import com.microsoft.azure.eventhubs.PartitionSender;
+import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
+import com.microsoft.azure.eventhubs.PayloadSizeExceededException;
 
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
@@ -46,29 +47,12 @@ public class EventDataBatchAPITest extends ApiTestBase {
     @Test
     public void sendSmallEventsFullBatchTest()
             throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
-        final CompletableFuture<Void> validator = new CompletableFuture<>();
-        final PartitionReceiver receiver = ehClient.createReceiverSync(cgName, partitionId, PartitionReceiver.END_OF_STREAM);
-        receiver.setReceiveTimeout(Duration.ofSeconds(1));
+            final EventDataBatch batchEvents = sender.createBatch();
 
-        try {
-            final EventDataBatch batchEvents = ehClient.createBatch();
-
-            int count = 0;
-            while (batchEvents.tryAdd(new EventData("a".getBytes())))
-                count++;
-
-            Assert.assertEquals(count, batchEvents.getSize());
-            receiver.setReceiveHandler(new CountValidator(validator, count));
+            while (batchEvents.tryAdd(new EventData("a".getBytes())));
 
             sender = ehClient.createPartitionSenderSync(partitionId);
             sender.sendSync(batchEvents.toIterable());
-
-            validator.get(30, TimeUnit.SECONDS);
-            receiver.setReceiveHandler(null);
-        }
-        finally {
-            receiver.closeSync();
-        }
     }
 
     @Test
@@ -76,7 +60,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
             throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
         final CompletableFuture<Void> validator = new CompletableFuture<>();
         final PartitionReceiver receiver = ehClient.createReceiverSync(cgName, partitionId, PartitionReceiver.END_OF_STREAM);
-        receiver.setReceiveTimeout(Duration.ofSeconds(1));
+        receiver.setReceiveTimeout(Duration.ofSeconds(5));
 
         try {
             final EventDataBatch batchEvents = sender.createBatch();
@@ -98,7 +82,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
 
             sender.sendSync(batchEvents.toIterable());
 
-            validator.get(30, TimeUnit.SECONDS);
+            validator.get(100, TimeUnit.SECONDS);
 
             receiver.setReceiveHandler(null);
         }finally {
@@ -107,7 +91,30 @@ public class EventDataBatchAPITest extends ApiTestBase {
     }
 
     @Test
-    public void sendEventsFullBatchWithAllSectionsTest()
+    public void sendEventsFullBatchWithPartitionKeyTest()
+            throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
+
+        final String partitionKey = UUID.randomUUID().toString();
+        final EventDataBatch batchEvents = ehClient.createBatch(partitionKey);
+
+        int count = 0;
+        while (true) {
+            final EventData eventData = new EventData(new String("a").getBytes());
+            for (int i=0;i<new Random().nextInt(20);i++)
+                eventData.getProperties().put("somekey" + i, "somevalue");
+
+            if (batchEvents.tryAdd(eventData))
+                count++;
+            else
+                break;
+        }
+
+        Assert.assertEquals(count, batchEvents.getSize());
+        ehClient.sendSync(batchEvents.toIterable(), partitionKey);
+    }
+
+    @Test(expected = PayloadSizeExceededException.class)
+    public void sendEventsFullBatchWithPartitionKeyNegativeTest()
             throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
 
         final EventDataBatch batchEvents = sender.createBatch();
@@ -126,6 +133,8 @@ public class EventDataBatchAPITest extends ApiTestBase {
 
         Assert.assertEquals(count, batchEvents.getSize());
 
+        // the CreateBatch was created without taking PartitionKey size into account
+        // so this call should fail with payload size exceeded
         ehClient.sendSync(batchEvents.toIterable(), UUID.randomUUID().toString());
     }
 
@@ -157,6 +166,11 @@ public class EventDataBatchAPITest extends ApiTestBase {
 
             if (currentCount >= netEventCount)
                 this.validateSignal.complete(null);
+
+            try {
+                Thread.sleep(100); // wait for events to accumulate in the receive pump
+            } catch (InterruptedException ignore) {
+            }
         }
 
         @Override
