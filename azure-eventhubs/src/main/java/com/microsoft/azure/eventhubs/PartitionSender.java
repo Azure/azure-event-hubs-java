@@ -58,8 +58,8 @@ public final class PartitionSender extends ClientEntity {
      * Creates an Empty Collection of {@link EventData}.
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      */
-    public final EventDataBatch CreateBatch() {
-        return new EventDataBatch(this.internalSender.getMaxMessageSize());
+    public final EventDataBatch createBatch() {
+        return new EventDataBatch(this.internalSender.getMaxMessageSize(), null);
     }
 
     /**

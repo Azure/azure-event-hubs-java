@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import org.apache.qpid.proton.message.Message;
+
 import java.util.List;
 import java.util.LinkedList;
 
@@ -12,14 +14,15 @@ import java.util.LinkedList;
  */
 public final class EventDataBatch {
 
-    private final static String MAX_PARTITION_KEY = new String(new char[ClientConstants.MAX_PARTITION_KEY_LENGTH]).replace("\0", "E");
     private final int maxMessageSize;
+    private final String partitionKey;
     private final List<EventData> events;
     private final byte[] eventBytes;
     private int currentSize = 0;
 
-    EventDataBatch(final int maxMessageSize) {
+    EventDataBatch(final int maxMessageSize, final String partitionKey) {
         this.maxMessageSize = maxMessageSize;
+        this.partitionKey = partitionKey;
         this.events = new LinkedList<>();
         this.currentSize = (maxMessageSize / 65536) * 1024; // reserve 1KB for every 64KB
         this.eventBytes = new byte[maxMessageSize];
@@ -59,10 +62,14 @@ public final class EventDataBatch {
     }
 
     private final int getSize(final EventData eventData, final boolean isFirst) {
-        int eventSize = eventData.toAmqpMessage(MAX_PARTITION_KEY).encode(this.eventBytes, 0, maxMessageSize);
+        final Message amqpMessage = this.partitionKey != null ? eventData.toAmqpMessage(this.partitionKey) : eventData.toAmqpMessage();
+        int eventSize = amqpMessage.encode(this.eventBytes, 0, maxMessageSize); // actual encoded bytes size
         eventSize += 16; // data section overhead
+
         if (isFirst) {
-            eventSize += 512; // for headers
+            amqpMessage.setBody(null);
+            amqpMessage.setApplicationProperties(null);
+            eventSize += amqpMessage.encode(this.eventBytes, 0, maxMessageSize); // common-headers size
         }
 
         return eventSize;

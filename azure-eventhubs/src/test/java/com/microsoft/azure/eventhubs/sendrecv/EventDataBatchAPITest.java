@@ -51,7 +51,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
         receiver.setReceiveTimeout(Duration.ofSeconds(1));
 
         try {
-            final EventDataBatch batchEvents = ehClient.CreateBatch();
+            final EventDataBatch batchEvents = ehClient.createBatch();
 
             int count = 0;
             while (batchEvents.tryAdd(new EventData("a".getBytes())))
@@ -79,7 +79,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
         receiver.setReceiveTimeout(Duration.ofSeconds(1));
 
         try {
-            final EventDataBatch batchEvents = sender.CreateBatch();
+            final EventDataBatch batchEvents = sender.createBatch();
 
             int count = 0;
             while (true) {
@@ -110,7 +110,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
     public void sendEventsFullBatchWithAllSectionsTest()
             throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
 
-        final EventDataBatch batchEvents = sender.CreateBatch();
+        final EventDataBatch batchEvents = sender.createBatch();
 
         int count = 0;
         while (true) {

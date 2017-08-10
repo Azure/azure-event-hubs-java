@@ -135,17 +135,19 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
     /**
      * Creates an Empty Collection of {@link EventData}.
+     * The same partitionKey must be used while sending these events using {@link EventHubClient#send(Iterable)}.
      *
+     * @param partitionKey PartitionKey used while actually sending the Events.
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
      */
-    public final EventDataBatch CreateBatch()
+    public final EventDataBatch createBatch(final String partitionKey)
             throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createInternalSender().thenApply(new Function<Void, EventDataBatch>() {
                 @Override
                 public EventDataBatch apply(Void aVoid) {
-                    return new EventDataBatch(sender.getMaxMessageSize());
+                    return new EventDataBatch(sender.getMaxMessageSize(), partitionKey);
                 }
             }).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -169,6 +171,17 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
             throw exception;
         }
+    }
+
+    /**
+     * Creates an Empty Collection of {@link EventData}.
+     *
+     * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
+     * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
+     */
+    public final EventDataBatch createBatch()
+            throws EventHubException, ExecutionException, InterruptedException {
+        return this.createBatch(null);
     }
 
     /**
