@@ -69,7 +69,10 @@ public final class EventDataBatch {
         if (isFirst) {
             amqpMessage.setBody(null);
             amqpMessage.setApplicationProperties(null);
-            eventSize += amqpMessage.encode(this.eventBytes, 0, maxMessageSize); // common-headers size
+            amqpMessage.setProperties(null);
+            amqpMessage.setDeliveryAnnotations(null);
+
+            eventSize += amqpMessage.encode(this.eventBytes, 0, maxMessageSize);
         }
 
         return eventSize;
