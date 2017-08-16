@@ -6,6 +6,7 @@ package com.microsoft.azure.eventhubs.sendrecv;
 
 import java.time.Duration;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -13,6 +14,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import junit.framework.AssertionFailedError;
 import org.junit.AfterClass;
@@ -104,15 +106,31 @@ public class EventDataBatchAPITest extends ApiTestBase {
             }
         };
 
-        final String[] partitionIds = ehClient.getRuntimeInformation().get().getPartitionIds();
-        for (int index = 0; index < partitionIds.length; index ++) {
-            final PartitionReceiver receiver = ehClient.createReceiverSync(TestContext.getConsumerGroupName(), partitionIds[index], PartitionReceiver.END_OF_STREAM);
-            receiver.setReceiveTimeout(Duration.ofSeconds(5));
-            receiver.setReceiveHandler(validator);
-        }
+        final LinkedList<PartitionReceiver> receivers = new LinkedList<>();
+        try {
+            final String[] partitionIds = ehClient.getRuntimeInformation().get().getPartitionIds();
+            for (int index = 0; index < partitionIds.length; index++) {
+                final PartitionReceiver receiver = ehClient.createReceiverSync(TestContext.getConsumerGroupName(), partitionIds[index], PartitionReceiver.END_OF_STREAM);
+                receiver.setReceiveTimeout(Duration.ofSeconds(5));
+                receiver.setReceiveHandler(validator);
+                receivers.add(receiver);
+            }
 
-        ehClient.sendSync(batchEvents);
-        testResult.get();
+            ehClient.sendSync(batchEvents);
+            testResult.get();
+        }
+        finally {
+            if (receivers.size() > 0)
+                receivers.forEach(new Consumer<PartitionReceiver>() {
+                    @Override
+                    public void accept(PartitionReceiver partitionReceiver) {
+                        try {
+                            partitionReceiver.closeSync();
+                        } catch (EventHubException ignore) {
+                        }
+                    }
+                });
+        }
     }
 
     @Test
