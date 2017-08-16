@@ -196,6 +196,10 @@ public final class PartitionSender extends ClientEntity {
             throw new IllegalArgumentException("EventData batch cannot be empty.");
         }
 
+        if (eventDatas instanceof EventDataBatch && !StringUtil.isNullOrEmpty(((EventDataBatch) eventDatas).getPartitionKey())) {
+            throw new IllegalArgumentException("EventData batch with partitionKey cannot be sent on PartitionSender.");
+        }
+
         return this.internalSender.send(EventDataUtil.toAmqpMessages(eventDatas));
     }
 

@@ -6,13 +6,14 @@ package com.microsoft.azure.eventhubs;
 
 import org.apache.qpid.proton.message.Message;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.LinkedList;
 
 /**
  * Helper class for creating a batch/collection of EventData objects to be used while Sending to EventHubs
  */
-public final class EventDataBatch {
+public final class EventDataBatch implements Iterable<EventData> {
 
     private final int maxMessageSize;
     private final String partitionKey;
@@ -21,6 +22,7 @@ public final class EventDataBatch {
     private int currentSize = 0;
 
     EventDataBatch(final int maxMessageSize, final String partitionKey) {
+
         this.maxMessageSize = maxMessageSize;
         this.partitionKey = partitionKey;
         this.events = new LinkedList<>();
@@ -32,6 +34,7 @@ public final class EventDataBatch {
      * Get the number of events present in this {@link EventDataBatch}
      */
     public final int getSize() {
+
         return events.size();
     }
 
@@ -57,11 +60,24 @@ public final class EventDataBatch {
         return true;
     }
 
-    public final Iterable<EventData> toIterable() {
+    @Override
+    public Iterator<EventData> iterator() {
+
+        return this.events.iterator();
+    }
+
+    Iterable<EventData> getInternalIterable() {
+
         return this.events;
     }
 
+    String getPartitionKey() {
+
+        return this.partitionKey;
+    }
+
     private final int getSize(final EventData eventData, final boolean isFirst) {
+
         final Message amqpMessage = this.partitionKey != null ? eventData.toAmqpMessage(this.partitionKey) : eventData.toAmqpMessage();
         int eventSize = amqpMessage.encode(this.eventBytes, 0, maxMessageSize); // actual encoded bytes size
         eventSize += 16; // data section overhead

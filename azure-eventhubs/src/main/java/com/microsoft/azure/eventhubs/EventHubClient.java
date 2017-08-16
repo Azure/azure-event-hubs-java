@@ -338,6 +338,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             throw new IllegalArgumentException("Empty batch of EventData cannot be sent.");
         }
 
+        if (eventDatas instanceof EventDataBatch) {
+            final EventDataBatch batchCreatedUsingSdkApi = (EventDataBatch) eventDatas;
+            return this.send(batchCreatedUsingSdkApi.getInternalIterable(), batchCreatedUsingSdkApi.getPartitionKey());
+        }
+
         return this.createInternalSender().thenCompose(new Function<Void, CompletableFuture<Void>>() {
             @Override
             public CompletableFuture<Void> apply(Void voidArg) {
@@ -488,6 +493,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
         if (partitionKey.length() > ClientConstants.MAX_PARTITION_KEY_LENGTH) {
             throw new IllegalArgumentException(
                     String.format(Locale.US, "PartitionKey exceeds the maximum allowed length of partitionKey: {0}", ClientConstants.MAX_PARTITION_KEY_LENGTH));
+        }
+
+        if (eventDatas instanceof EventDataBatch) {
+            throw new IllegalArgumentException("EventDataBatch is already associated with partitionKey; use send API without partitionKey parameter.");
         }
 
         return this.createInternalSender().thenCompose(new Function<Void, CompletableFuture<Void>>() {
