@@ -39,7 +39,7 @@ public class ManagementChannel {
 
         RequestResponseCloser closer = new RequestResponseCloser();
         this.innerChannel = new FaultTolerantObject<>(
-        		new RequestResponseOpener(sessionProvider, "path", "mgmt", ClientConstants.MANAGEMENT_ADDRESS, connection),
+        		new RequestResponseOpener(sessionProvider, "mgmt-session", "mgmt", ClientConstants.MANAGEMENT_ADDRESS, connection),
                 closer);
         closer.setInnerChannel(this.innerChannel);
     }
@@ -57,7 +57,7 @@ public class ManagementChannel {
                 new IOperationResult<RequestResponseChannel, Exception>() {
                     @Override
                     public void onComplete(final RequestResponseChannel result) {
-                        result.request(dispatcher, requestMessage,
+                        result.request(requestMessage,
                                 new IOperationResult<Message, Exception>() {
                                     @Override
                                     public void onComplete(final Message response) {
