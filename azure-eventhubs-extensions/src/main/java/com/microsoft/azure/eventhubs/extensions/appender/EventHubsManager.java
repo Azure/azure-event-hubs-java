@@ -6,6 +6,7 @@ package com.microsoft.azure.eventhubs.extensions.appender;
 
 import java.io.*;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.logging.log4j.core.appender.*;
 
@@ -23,7 +24,7 @@ public final class EventHubsManager extends AbstractManager
 		this.eventHubConnectionString = eventHubConnectionString;
 	}
 	
-	public void send(final byte[] msg) throws EventHubException
+	public void send(final byte[] msg) throws EventHubException, ExecutionException, InterruptedException
 	{
 		if (msg != null)
 		{
@@ -32,7 +33,7 @@ public final class EventHubsManager extends AbstractManager
 		}
 	}
 	
-	public void send(final Iterable<byte[]> messages) throws EventHubException
+	public void send(final Iterable<byte[]> messages) throws EventHubException, ExecutionException, InterruptedException
 	{
 		if (messages != null)
 		{
@@ -46,7 +47,7 @@ public final class EventHubsManager extends AbstractManager
 		}
 	}
 
-	public void startup() throws EventHubException, IOException
+	public void startup() throws EventHubException, IOException, ExecutionException, InterruptedException
 	{
 		this.eventHubSender = EventHubClient.createFromConnectionStringSync(this.eventHubConnectionString);
 	}
