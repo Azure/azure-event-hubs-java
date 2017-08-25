@@ -42,7 +42,7 @@ public class ReceiveTest extends ApiTestBase
 	}
 	
 	@Test()
-	public void testReceiverStartOfStreamFilters() throws EventHubException
+	public void testReceiverStartOfStreamFilters() throws EventHubException, ExecutionException, InterruptedException
 	{
 		offsetReceiver = ehClient.createReceiverSync(cgName, partitionId, PartitionReceiver.START_OF_STREAM, false);
 		Iterable<EventData> startingEventsUsingOffsetReceiver = offsetReceiver.receiveSync(100);
@@ -80,7 +80,7 @@ public class ReceiveTest extends ApiTestBase
 	}
 
 	@Test()
-	public void testReceiverOffsetInclusiveFilter() throws EventHubException
+	public void testReceiverOffsetInclusiveFilter() throws EventHubException, ExecutionException, InterruptedException
 	{
 		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, Instant.EPOCH);
 		Iterable<EventData> events = datetimeReceiver.receiveSync(100);
@@ -96,7 +96,7 @@ public class ReceiveTest extends ApiTestBase
 	}
 	
 	@Test()
-	public void testReceiverOffsetNonInclusiveFilter() throws EventHubException
+	public void testReceiverOffsetNonInclusiveFilter() throws EventHubException, ExecutionException, InterruptedException
 	{
 		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, Instant.EPOCH);
 		Iterable<EventData> events = datetimeReceiver.receiveSync(100);
@@ -111,7 +111,7 @@ public class ReceiveTest extends ApiTestBase
 	}
 	
 	@Test()
-	public void testReceivedBodyAndProperties() throws EventHubException
+	public void testReceivedBodyAndProperties() throws EventHubException, ExecutionException, InterruptedException
 	{
 		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, PartitionReceiver.END_OF_STREAM);
 		datetimeReceiver.setReceiveTimeout(Duration.ofSeconds(5));

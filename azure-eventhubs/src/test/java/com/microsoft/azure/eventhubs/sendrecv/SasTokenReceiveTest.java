@@ -14,6 +14,8 @@ import org.junit.Test;
 import com.microsoft.azure.eventhubs.lib.SasTokenTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 
+import java.util.concurrent.ExecutionException;
+
 public class SasTokenReceiveTest extends SasTokenTestBase {
     
     private static ReceiveTest receiveTest;
@@ -30,8 +32,7 @@ public class SasTokenReceiveTest extends SasTokenTestBase {
     }
     
     @Test()
-    public void testReceiverStartOfStreamFilters() throws EventHubException {
-        
+    public void testReceiverStartOfStreamFilters() throws EventHubException, ExecutionException, InterruptedException {
         receiveTest.testReceiverStartOfStreamFilters();
     }
     

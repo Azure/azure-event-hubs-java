@@ -33,14 +33,14 @@ public class ReceivePumpEventHubTest extends ApiTestBase
 	PartitionReceiver receiver;
 	
 	@BeforeClass
-	public static void initializeEventHub()  throws EventHubException, IOException
+	public static void initializeEventHub()  throws EventHubException, IOException, ExecutionException, InterruptedException
 	{
 		final ConnectionStringBuilder connectionString = TestContext.getConnectionString();
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString());
 	}
 	
 	@Before
-	public void initializeTest() throws EventHubException
+	public void initializeTest() throws EventHubException, ExecutionException, InterruptedException
 	{
 		receiver = ehClient.createReceiverSync(cgName, partitionId, Instant.now());
 	}
