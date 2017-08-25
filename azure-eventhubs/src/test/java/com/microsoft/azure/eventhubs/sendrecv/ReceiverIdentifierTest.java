@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 
 import com.microsoft.azure.eventhubs.QuotaExceededException;
 import org.junit.AfterClass;
@@ -44,7 +45,7 @@ public class ReceiverIdentifierTest extends ApiTestBase {
     }
 
     @Test()
-    public void testReceiverIdentierShowsUpInQuotaErrors() throws EventHubException {
+    public void testReceiverIdentierShowsUpInQuotaErrors() throws EventHubException, ExecutionException, InterruptedException {
 
         final String receiverIdentifierPrefix = UUID.randomUUID().toString();
         for (int receiverCount = 0; receiverCount < 5; receiverCount ++) {

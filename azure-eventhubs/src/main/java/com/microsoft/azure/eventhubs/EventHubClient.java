@@ -52,7 +52,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws IOException         If the underlying Proton-J layer encounter network errors.
      */
     public static EventHubClient createFromConnectionStringSync(final String connectionString)
-            throws EventHubException, IOException {
+            throws EventHubException, IOException, ExecutionException, InterruptedException {
         return createFromConnectionStringSync(connectionString, null);
     }
 
@@ -66,7 +66,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws IOException         If the underlying Proton-J layer encounter network errors.
      */
     public static EventHubClient createFromConnectionStringSync(final String connectionString, final RetryPolicy retryPolicy)
-            throws EventHubException, IOException {
+            throws EventHubException, IOException, ExecutionException, InterruptedException {
         try {
             return createFromConnectionString(connectionString, retryPolicy).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -87,9 +87,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -194,7 +194,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final void sendSync(final EventData data)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             this.send(data).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -215,6 +215,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
+
+            throw exception;
         }
     }
 
@@ -267,7 +269,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final void sendSync(final Iterable<EventData> eventDatas)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             this.send(eventDatas).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -288,6 +290,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
+
+            throw exception;
         }
     }
 
@@ -361,7 +365,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final void sendSync(final EventData eventData, final String partitionKey)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             this.send(eventData, partitionKey).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -382,6 +386,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
+
+            throw exception;
         }
     }
 
@@ -440,7 +446,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final void sendSync(final Iterable<EventData> eventDatas, final String partitionKey)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             this.send(eventDatas, partitionKey).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -461,6 +467,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
+
+            throw exception;
         }
     }
 
@@ -516,7 +524,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionSender createPartitionSenderSync(final String partitionId)
-            throws EventHubException, IllegalArgumentException {
+            throws EventHubException, IllegalArgumentException, ExecutionException, InterruptedException {
         try {
             return this.createPartitionSender(partitionId).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -537,9 +545,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -574,7 +582,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, startingOffset).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -595,9 +603,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -631,7 +639,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -652,9 +660,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -686,7 +694,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, dateTime).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -707,9 +715,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -741,7 +749,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final ReceiverOptions receiverOptions)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, startingOffset, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -762,9 +770,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -800,7 +808,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final ReceiverOptions receiverOptions)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -821,9 +829,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -857,7 +865,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final ReceiverOptions receiverOptions)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, dateTime, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -878,9 +886,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -913,7 +921,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final long epoch)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, epoch).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -934,9 +942,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -978,7 +986,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final long epoch)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, epoch).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -999,9 +1007,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -1043,7 +1051,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final long epoch)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, dateTime, epoch).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1064,9 +1072,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -1108,7 +1116,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final long epoch, final ReceiverOptions receiverOptions)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, epoch, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1129,9 +1137,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -1175,7 +1183,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final long epoch, final ReceiverOptions receiverOptions)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, epoch, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1196,9 +1204,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
@@ -1242,7 +1250,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final long epoch, final ReceiverOptions receiverOptions)
-            throws EventHubException {
+            throws EventHubException, ExecutionException, InterruptedException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, dateTime, epoch, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1263,9 +1271,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
                 throw new EventHubException(true, throwable);
             }
-        }
 
-        return null;
+            throw exception;
+        }
     }
 
     /**
