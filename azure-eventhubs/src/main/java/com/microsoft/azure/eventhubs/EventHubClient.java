@@ -50,6 +50,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @return EventHubClient which can be used to create Senders and Receivers to EventHub
      * @throws EventHubException If Service Bus service encountered problems during connection creation.
      * @throws IOException         If the underlying Proton-J layer encounter network errors.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     public static EventHubClient createFromConnectionStringSync(final String connectionString)
             throws EventHubException, IOException, ExecutionException, InterruptedException {
@@ -64,6 +66,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @return EventHubClient which can be used to create Senders and Receivers to EventHub
      * @throws EventHubException If Service Bus service encountered problems during connection creation.
      * @throws IOException         If the underlying Proton-J layer encounter network errors.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     public static EventHubClient createFromConnectionStringSync(final String connectionString, final RetryPolicy retryPolicy)
             throws EventHubException, IOException, ExecutionException, InterruptedException {
@@ -140,6 +144,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param partitionKey PartitionKey used while actually sending the Events.
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     public final EventDataBatch createBatch(final String partitionKey)
             throws EventHubException, ExecutionException, InterruptedException {
@@ -178,6 +184,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      *
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     public final EventDataBatch createBatch()
             throws EventHubException, ExecutionException, InterruptedException {
@@ -191,6 +199,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a predefined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final void sendSync(final EventData data)
@@ -266,6 +276,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final void sendSync(final Iterable<EventData> eventDatas)
@@ -362,6 +374,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param partitionKey the partitionKey will be hash'ed to determine the partitionId to send the eventData to. On the Received message this can be accessed at {@link EventData.SystemProperties#getPartitionKey()}
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final void sendSync(final EventData eventData, final String partitionKey)
@@ -443,6 +457,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final void sendSync(final Iterable<EventData> eventDatas, final String partitionKey)
@@ -521,6 +537,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param partitionId partitionId of EventHub to send the {@link EventData}'s to
      * @return PartitionSender which can be used to send events to a specific partition.
      * @throws EventHubException if Service Bus service encountered problems during connection creation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionSender createPartitionSenderSync(final String partitionId)
@@ -579,6 +597,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param startingOffset    the offset to start receiving the events from. To receive from start of the stream use: {@link PartitionReceiver#START_OF_STREAM}
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset)
@@ -636,6 +656,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param offsetInclusive   if set to true, the startingOffset is treated as an inclusive offset - meaning the first event returned is the one that has the starting offset. Normally first event returned is the event after the starting offset.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive)
@@ -691,6 +713,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param dateTime          the date time instant that receive operations will start receive events from. Events received will have {@link EventData.SystemProperties#getEnqueuedTime()} later than this Instant.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime)
@@ -746,6 +770,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final ReceiverOptions receiverOptions)
@@ -805,6 +831,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final ReceiverOptions receiverOptions)
@@ -862,6 +890,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final ReceiverOptions receiverOptions)
@@ -918,6 +948,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param epoch             an unique identifier (epoch value) that the service uses, to enforce partition/lease ownership.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final long epoch)
@@ -983,6 +1015,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param epoch             an unique identifier (epoch value) that the service uses, to enforce partition/lease ownership.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final long epoch)
@@ -1048,6 +1082,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param epoch             an unique identifier (epoch value) that the service uses, to enforce partition/lease ownership.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final long epoch)
@@ -1113,6 +1149,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final long epoch, final ReceiverOptions receiverOptions)
@@ -1180,6 +1218,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final long epoch, final ReceiverOptions receiverOptions)
@@ -1247,6 +1287,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException   if getCause() returns null.
+     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final long epoch, final ReceiverOptions receiverOptions)
