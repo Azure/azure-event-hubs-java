@@ -6,6 +6,7 @@ package com.microsoft.azure.eventhubs;
 
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public interface IEventHubClient {
     void sendSync(EventData data)
@@ -16,7 +17,12 @@ public interface IEventHubClient {
     void sendSync(Iterable<EventData> eventDatas)
             throws EventHubException;
 
+    void sendSync(EventDataBatch eventDatas)
+        throws EventHubException, ExecutionException, InterruptedException;
+
     CompletableFuture<Void> send(Iterable<EventData> eventDatas);
+
+    CompletableFuture<Void> send(EventDataBatch eventDatas);
 
     void sendSync(EventData eventData, String partitionKey)
             throws EventHubException;

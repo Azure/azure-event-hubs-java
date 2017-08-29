@@ -4,6 +4,7 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import java.awt.*;
 import java.io.IOException;
 import java.nio.channels.UnresolvedAddressException;
 import java.security.InvalidKeyException;
@@ -134,54 +135,81 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     }
 
     /**
-     * Creates an Empty Collection of {@link EventData}.
-     * The same partitionKey must be used while sending these events using {@link EventHubClient#send(Iterable)}.
+     * BatchBuilder is used to create {@link EventDataBatch}es. When creating an {@link EventDataBatch} from an
+     * {@link EventHubClient}, the user is able to set the partitionKey and maxMessageSize. The default partitionKey is null,
+     * and when a null partitionKey is used, {@link EventData} within the {@link EventDataBatch} will land in every
+     * EventHub partition via the Round-robin algorithm.
      *
-     * @param partitionKey PartitionKey used while actually sending the Events.
-     * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
-     * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
+     * <pre>
+     *     {@code
+     *     // Create EventDataBatch with default properties
+     *     EventDataBatch edb1 = ehClient.new BatchBuilder().createBatch();
+     *
+     *     // Create EventDataBatch with user-defined partitionKey and maxMessageSize
+     *     EventDataBatch edb2 = ehClient.new BatchBuilder().with( options -> {
+     *         options.partitionKey = "foo";
+     *         options.maxMessageSize = 256;
+     *     }
+     *
+     *     // Create EventDataBatch with user-defined partitionKey
+     *     EventDataBatch edb3 = ehClient.new BatchBuilder().with( options -> options.partitionKey = "foo");
+     * </pre>
      */
-    public final EventDataBatch createBatch(final String partitionKey)
-            throws EventHubException, ExecutionException, InterruptedException {
-        try {
-            return this.createInternalSender().thenApply(new Function<Void, EventDataBatch>() {
-                @Override
-                public EventDataBatch apply(Void aVoid) {
-                    return new EventDataBatch(sender.getMaxMessageSize(), partitionKey);
-                }
-            }).get();
-        } catch (InterruptedException | ExecutionException exception) {
-            if (exception instanceof InterruptedException) {
-                // Re-assert the thread's interrupted status
-                Thread.currentThread().interrupt();
-            }
+    public final class BatchBuilder {
+        public String partitionKey = null;
+        public Integer maxMessageSize = null;
 
-            final Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
-            }
-
-            throw exception;
+        /**
+         * Please see {@link BatchBuilder} for coding samples.
+         *
+         * @param builderFunction function that adds user-defined properties to BatchBuilder
+         * @return BatchBuilder that will be used to create EventDataBatch.
+         */
+        public final BatchBuilder with(Consumer<BatchBuilder> builderFunction) {
+            builderFunction.accept(this);
+            return this;
         }
-    }
 
-    /**
-     * Creates an Empty Collection of {@link EventData}.
-     *
-     * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
-     * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
-     */
-    public final EventDataBatch createBatch()
-            throws EventHubException, ExecutionException, InterruptedException {
-        return this.createBatch(null);
+        /**
+         * Creates an Empty Collection of {@link EventData}.
+         * The same partitionKey must be used while sending these events using {@link EventHubClient#send(Iterable)}.
+         *
+         * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
+         * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
+         * @throws ExecutionException if getCause() returns null.
+         * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
+         */
+        public final EventDataBatch createBatch()
+                throws EventHubException, ExecutionException, InterruptedException {
+            try {
+                if (maxMessageSize == null) {
+                    return EventHubClient.this.createInternalSender().thenApply((aVoid) ->
+                            new EventDataBatch(sender.getMaxMessageSize(), partitionKey)).get();
+                } else {
+                    return new EventDataBatch(maxMessageSize, partitionKey);
+                }
+            } catch (InterruptedException | ExecutionException exception) {
+                if (exception instanceof InterruptedException) {
+                    // Re-assert the thread's interrupted status
+                    Thread.currentThread().interrupt();
+                }
+
+                final Throwable throwable = exception.getCause();
+                if (throwable != null) {
+                    if (throwable instanceof RuntimeException) {
+                        throw (RuntimeException) throwable;
+                    }
+
+                    if (throwable instanceof EventHubException) {
+                        throw (EventHubException) throwable;
+                    }
+
+                    throw new EventHubException(true, throwable);
+                }
+
+                throw exception;
+            }
+        }
     }
 
     /**
@@ -222,9 +250,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * Send {@link EventData} to EventHub. The sent {@link EventData} will land on any arbitrarily chosen EventHubs partition.
      * <p>There are 3 ways to send to EventHubs, each exposed as a method (along with its sendBatch overload):
      * <ul>
-     * <li>	{@link #send(EventData)} or {@link #send(Iterable)}
+     * <li>	{@link #send(EventData)}, {@link #send(Iterable)}, or {@link #send(EventDataBatch)}
      * <li>	{@link #send(EventData, String)} or {@link #send(Iterable, String)}
-     * <li>	{@link PartitionSender#send(EventData)} or {@link PartitionSender#send(Iterable)}
+     * <li>	{@link PartitionSender#send(EventData)}, {@link PartitionSender#send(Iterable)}, or {@link PartitionSender#send(EventDataBatch)}
      * </ul>
      * <p>Use this method to Send, if:
      * <pre>
@@ -291,7 +319,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
         }
     }
 
-    /**
+   /**
      * Send a batch of {@link EventData} to EventHub. The sent {@link EventData} will land on any arbitrarily chosen EventHubs partition.
      * This is the most recommended way to Send to EventHubs.
      * <p>There are 3 ways to send to EventHubs, to understand this particular type of Send refer to the overload {@link #send(EventData)}, which is used to send single {@link EventData}.
@@ -338,17 +366,67 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             throw new IllegalArgumentException("Empty batch of EventData cannot be sent.");
         }
 
-        if (eventDatas instanceof EventDataBatch) {
-            final EventDataBatch batchCreatedUsingSdkApi = (EventDataBatch) eventDatas;
-            return this.send(batchCreatedUsingSdkApi.getInternalIterable(), batchCreatedUsingSdkApi.getPartitionKey());
-        }
-
         return this.createInternalSender().thenCompose(new Function<Void, CompletableFuture<Void>>() {
             @Override
             public CompletableFuture<Void> apply(Void voidArg) {
                 return EventHubClient.this.sender.send(EventDataUtil.toAmqpMessages(eventDatas));
             }
         });
+    }
+
+    /**
+     * Synchronous version of {@link #send(EventDataBatch)}.
+     *
+     * @param eventDatas EventDataBatch to send to EventHub
+     * @throws EventHubException        if Service Bus service encountered problems during the operation.
+     * @throws ExecutionException       if getCause() returns null
+     * @throws InterruptedException     if interrupt is called on the waiting thread before task is completed
+     */
+    @Override
+    public final void sendSync(final EventDataBatch eventDatas)
+            throws EventHubException, ExecutionException, InterruptedException {
+        try {
+            this.send(eventDatas).get();
+        } catch (InterruptedException | ExecutionException exception) {
+            if (exception instanceof InterruptedException) {
+                // Re-assert the thread's interrupted status
+                Thread.currentThread().interrupt();
+            }
+
+            Throwable throwable = exception.getCause();
+            if (throwable != null) {
+                if (throwable instanceof RuntimeException) {
+                    throw (RuntimeException) throwable;
+                }
+
+                if (throwable instanceof EventHubException) {
+                    throw (EventHubException) throwable;
+                }
+
+                throw new EventHubException(true, throwable);
+            }
+
+            throw exception;
+        }
+    }
+
+    /**
+     * Send {@link EventDataBatch} to EventHub. The sent {@link EventDataBatch} will land according the partition key
+     * set in the {@link EventDataBatch}. If a partition key is not set, then we will Round-robin the {@link EventData}'s
+     * to all EventHubs' partitions.
+     *
+     * @param eventDatas EventDataBatch to send to EventHub
+     * @return a CompleteableFuture that can be completed when the send operations are done
+     * @see #send(Iterable)
+     * @see EventDataBatch
+     */
+    @Override
+    public final CompletableFuture<Void> send(final EventDataBatch eventDatas) {
+        if (eventDatas == null || Integer.compare(eventDatas.getSize(), 0) == 0) {
+            throw new IllegalArgumentException("Empty batch of EventData cannot be sent.");
+        }
+
+        return this.send(eventDatas.getInternalIterable(), eventDatas.getPartitionKey());
     }
 
     /**
@@ -493,10 +571,6 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
         if (partitionKey.length() > ClientConstants.MAX_PARTITION_KEY_LENGTH) {
             throw new IllegalArgumentException(
                     String.format(Locale.US, "PartitionKey exceeds the maximum allowed length of partitionKey: {0}", ClientConstants.MAX_PARTITION_KEY_LENGTH));
-        }
-
-        if (eventDatas instanceof EventDataBatch) {
-            throw new IllegalArgumentException("EventDataBatch is already associated with partitionKey; use send API without partitionKey parameter.");
         }
 
         return this.createInternalSender().thenCompose(new Function<Void, CompletableFuture<Void>>() {
