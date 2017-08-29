@@ -58,7 +58,7 @@ public final class PartitionSender extends ClientEntity {
      * BatchBuilder is used to create {@link EventDataBatch}es.
      * See {@link com.microsoft.azure.eventhubs.EventHubClient.BatchBuilder} for more info and code samples.
      *
-     * You cannot set a partitionKey in the EventDataBatch when using a partitionSender.
+     * You cannot set a partitionKey in the EventDataBatch when using a PartitionSender.
      */
     public class BatchBuilder {
         private final String partitionKey = null;

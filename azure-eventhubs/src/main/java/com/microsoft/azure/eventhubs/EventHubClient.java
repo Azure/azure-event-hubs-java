@@ -4,7 +4,6 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import java.awt.*;
 import java.io.IOException;
 import java.nio.channels.UnresolvedAddressException;
 import java.security.InvalidKeyException;
@@ -149,10 +148,12 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      *     EventDataBatch edb2 = ehClient.new BatchBuilder().with( options -> {
      *         options.partitionKey = "foo";
      *         options.maxMessageSize = 256;
-     *     }
+     *     }).createBatch();
      *
      *     // Create EventDataBatch with user-defined partitionKey
-     *     EventDataBatch edb3 = ehClient.new BatchBuilder().with( options -> options.partitionKey = "foo");
+     *     EventDataBatch edb3 = ehClient.new BatchBuilder()
+     *          .with( options -> options.partitionKey = "foo")
+     *          .createBatch();
      * </pre>
      */
     public final class BatchBuilder {
@@ -172,7 +173,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
         /**
          * Creates an Empty Collection of {@link EventData}.
-         * The same partitionKey must be used while sending these events using {@link EventHubClient#send(Iterable)}.
+         * The same partitionKey must be used while sending these events using {@link EventHubClient#send(EventDataBatch)}.
          *
          * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
          * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
