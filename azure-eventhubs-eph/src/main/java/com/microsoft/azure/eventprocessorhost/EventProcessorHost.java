@@ -35,8 +35,8 @@ public final class EventProcessorHost
     private PartitionManagerOptions partitionManagerOptions = null;
 
     // weOwnExecutor exists to support user-supplied thread pools.
-    private ExecutorService executorService = null;
-    private boolean weOwnExecutor = true;
+    private final ExecutorService executorService;
+    private final boolean weOwnExecutor;
     
     public final static String EVENTPROCESSORHOST_TRACE = "eventprocessorhost.trace";
 	private static final Logger TRACE_LOGGER = Logger.getLogger(EventProcessorHost.EVENTPROCESSORHOST_TRACE);
