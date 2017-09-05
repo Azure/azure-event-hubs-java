@@ -60,8 +60,7 @@ class RealEventHubUtilities
 		return partitionIds;
 	}
 	
-	ArrayList<String> setupWithoutSenders(int fakePartitions)
-            throws EventHubException, IOException
+	ArrayList<String> setupWithoutSenders(int fakePartitions) throws EventHubException, IOException
 	{
 		// Get the connection string from the environment
 		ehCacheCheck();

@@ -8,7 +8,6 @@ import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 
 import com.microsoft.azure.eventhubs.QuotaExceededException;
 import org.junit.AfterClass;

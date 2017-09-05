@@ -14,8 +14,6 @@ import org.junit.Test;
 import com.microsoft.azure.eventhubs.lib.SasTokenTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 
-import java.util.concurrent.ExecutionException;
-
 public class SasTokenReceiveTest extends SasTokenTestBase {
     
     private static ReceiveTest receiveTest;

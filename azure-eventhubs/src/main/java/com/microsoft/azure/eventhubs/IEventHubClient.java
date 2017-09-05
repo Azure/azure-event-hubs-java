@@ -6,7 +6,6 @@ package com.microsoft.azure.eventhubs;
 
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 public interface IEventHubClient {
     void sendSync(EventData data)

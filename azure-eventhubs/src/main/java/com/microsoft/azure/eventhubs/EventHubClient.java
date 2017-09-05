@@ -162,8 +162,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
      */
-    public final EventDataBatch createBatch()
-            throws EventHubException {
+    public final EventDataBatch createBatch() throws EventHubException {
         return this.createBatch(null);
     }
 
