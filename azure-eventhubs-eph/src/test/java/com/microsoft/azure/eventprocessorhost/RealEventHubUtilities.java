@@ -50,7 +50,7 @@ class RealEventHubUtilities
 	{
 	}
 	
-	ArrayList<String> setup(int fakePartitions) throws EventHubException, IOException, ExecutionException, InterruptedException
+	ArrayList<String> setup(int fakePartitions) throws EventHubException, IOException
 	{
 		ArrayList<String> partitionIds = setupWithoutSenders(fakePartitions);
 		
@@ -61,7 +61,7 @@ class RealEventHubUtilities
 	}
 	
 	ArrayList<String> setupWithoutSenders(int fakePartitions)
-            throws EventHubException, IOException, ExecutionException, InterruptedException
+            throws EventHubException, IOException
 	{
 		// Get the connection string from the environment
 		ehCacheCheck();
@@ -129,7 +129,7 @@ class RealEventHubUtilities
 		return this.consumerGroup;
 	}
 	
-	void sendToAny(String body, int count) throws EventHubException, ExecutionException, InterruptedException
+	void sendToAny(String body, int count) throws EventHubException
 	{
 		for (int i = 0; i < count; i++)
 		{
@@ -137,14 +137,13 @@ class RealEventHubUtilities
 		}
 	}
 	
-	void sendToAny(String body) throws EventHubException, ExecutionException, InterruptedException
+	void sendToAny(String body) throws EventHubException
 	{
 		EventData event = new EventData(body.getBytes());
 		this.client.sendSync(event);
 	}
 	
-	void sendToPartition(String partitionId, String body)
-			throws IllegalArgumentException, EventHubException, ExecutionException, InterruptedException
+	void sendToPartition(String partitionId, String body) throws IllegalArgumentException, EventHubException
 	{
 		EventData event = new EventData(body.getBytes());
 		PartitionSender sender = null;
@@ -160,8 +159,7 @@ class RealEventHubUtilities
 		sender.sendSync(event);
 	}
 	
-    ArrayList<String> getPartitionIdsForTest()
-            throws EventHubException, IOException, ExecutionException, InterruptedException
+    ArrayList<String> getPartitionIdsForTest() throws EventHubException, IOException
     {
     	if (this.cachedPartitionIds == null)
     	{

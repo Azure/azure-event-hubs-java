@@ -50,11 +50,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @return EventHubClient which can be used to create Senders and Receivers to EventHub
      * @throws EventHubException If Service Bus service encountered problems during connection creation.
      * @throws IOException         If the underlying Proton-J layer encounter network errors.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     public static EventHubClient createFromConnectionStringSync(final String connectionString)
-            throws EventHubException, IOException, ExecutionException, InterruptedException {
+            throws EventHubException, IOException {
         return createFromConnectionStringSync(connectionString, null);
     }
 
@@ -66,11 +64,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @return EventHubClient which can be used to create Senders and Receivers to EventHub
      * @throws EventHubException If Service Bus service encountered problems during connection creation.
      * @throws IOException         If the underlying Proton-J layer encounter network errors.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     public static EventHubClient createFromConnectionStringSync(final String connectionString, final RetryPolicy retryPolicy)
-            throws EventHubException, IOException, ExecutionException, InterruptedException {
+            throws EventHubException, IOException {
         try {
             return createFromConnectionString(connectionString, retryPolicy).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -80,19 +76,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -144,11 +132,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param partitionKey PartitionKey used while actually sending the Events.
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
-    public final EventDataBatch createBatch(final String partitionKey)
-            throws EventHubException, ExecutionException, InterruptedException {
+    public final EventDataBatch createBatch(final String partitionKey) throws EventHubException {
         try {
             return this.createInternalSender().thenApply(new Function<Void, EventDataBatch>() {
                 @Override
@@ -163,19 +148,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             final Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -184,11 +161,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      *
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     public final EventDataBatch createBatch()
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         return this.createBatch(null);
     }
 
@@ -199,12 +174,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a predefined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
-    public final void sendSync(final EventData data)
-            throws EventHubException, ExecutionException, InterruptedException {
+    public final void sendSync(final EventData data) throws EventHubException {
         try {
             this.send(data).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -214,19 +186,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -276,12 +240,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
-    public final void sendSync(final Iterable<EventData> eventDatas)
-            throws EventHubException, ExecutionException, InterruptedException {
+    public final void sendSync(final Iterable<EventData> eventDatas) throws EventHubException {
         try {
             this.send(eventDatas).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -291,19 +252,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -374,12 +327,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param partitionKey the partitionKey will be hash'ed to determine the partitionId to send the eventData to. On the Received message this can be accessed at {@link EventData.SystemProperties#getPartitionKey()}
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
-    public final void sendSync(final EventData eventData, final String partitionKey)
-            throws EventHubException, ExecutionException, InterruptedException {
+    public final void sendSync(final EventData eventData, final String partitionKey) throws EventHubException {
         try {
             this.send(eventData, partitionKey).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -389,19 +339,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -457,12 +399,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final void sendSync(final Iterable<EventData> eventDatas, final String partitionKey)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             this.send(eventDatas, partitionKey).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -472,19 +412,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -537,12 +469,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param partitionId partitionId of EventHub to send the {@link EventData}'s to
      * @return PartitionSender which can be used to send events to a specific partition.
      * @throws EventHubException if Service Bus service encountered problems during connection creation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionSender createPartitionSenderSync(final String partitionId)
-            throws EventHubException, IllegalArgumentException, ExecutionException, InterruptedException {
+            throws EventHubException, IllegalArgumentException {
         try {
             return this.createPartitionSender(partitionId).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -552,19 +482,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -597,12 +519,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param startingOffset    the offset to start receiving the events from. To receive from start of the stream use: {@link PartitionReceiver#START_OF_STREAM}
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, startingOffset).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -612,19 +532,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(throwable);
         }
     }
 
@@ -656,12 +568,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param offsetInclusive   if set to true, the startingOffset is treated as an inclusive offset - meaning the first event returned is the one that has the starting offset. Normally first event returned is the event after the starting offset.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -671,19 +581,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -713,12 +615,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param dateTime          the date time instant that receive operations will start receive events from. Events received will have {@link EventData.SystemProperties#getEnqueuedTime()} later than this Instant.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, dateTime).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -728,19 +628,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -770,12 +662,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final ReceiverOptions receiverOptions)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, startingOffset, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -785,19 +675,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -831,12 +713,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final ReceiverOptions receiverOptions)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -846,19 +726,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -890,12 +762,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final ReceiverOptions receiverOptions)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createReceiver(consumerGroupName, partitionId, dateTime, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -905,19 +775,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -948,12 +810,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param epoch             an unique identifier (epoch value) that the service uses, to enforce partition/lease ownership.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final long epoch)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, epoch).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -963,19 +823,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -1015,12 +867,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param epoch             an unique identifier (epoch value) that the service uses, to enforce partition/lease ownership.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final long epoch)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, epoch).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1030,19 +880,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -1082,12 +924,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param epoch             an unique identifier (epoch value) that the service uses, to enforce partition/lease ownership.
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final long epoch)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, dateTime, epoch).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1097,19 +937,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -1149,12 +981,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, final long epoch, final ReceiverOptions receiverOptions)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, epoch, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1164,19 +994,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -1218,12 +1040,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final String startingOffset, boolean offsetInclusive, final long epoch, final ReceiverOptions receiverOptions)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, startingOffset, offsetInclusive, epoch, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1233,19 +1053,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
@@ -1287,12 +1099,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @param receiverOptions   the set of options to enable on the event hubs receiver
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
      */
     @Override
     public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final Instant dateTime, final long epoch, final ReceiverOptions receiverOptions)
-            throws EventHubException, ExecutionException, InterruptedException {
+            throws EventHubException {
         try {
             return this.createEpochReceiver(consumerGroupName, partitionId, dateTime, epoch, receiverOptions).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -1302,19 +1112,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 

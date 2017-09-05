@@ -35,7 +35,7 @@ public class ReceiverEpochTest extends ApiTestBase
 	PartitionReceiver receiver;
 	
 	@BeforeClass
-	public static void initializeEventHub() throws EventHubException, IOException, ExecutionException, InterruptedException
+	public static void initializeEventHub() throws EventHubException, IOException
 	{
 		final ConnectionStringBuilder connectionString = TestContext.getConnectionString();
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString());

@@ -24,7 +24,7 @@ public final class EventHubsManager extends AbstractManager
 		this.eventHubConnectionString = eventHubConnectionString;
 	}
 	
-	public void send(final byte[] msg) throws EventHubException, ExecutionException, InterruptedException
+	public void send(final byte[] msg) throws EventHubException
 	{
 		if (msg != null)
 		{
@@ -33,7 +33,7 @@ public final class EventHubsManager extends AbstractManager
 		}
 	}
 	
-	public void send(final Iterable<byte[]> messages) throws EventHubException, ExecutionException, InterruptedException
+	public void send(final Iterable<byte[]> messages) throws EventHubException
 	{
 		if (messages != null)
 		{

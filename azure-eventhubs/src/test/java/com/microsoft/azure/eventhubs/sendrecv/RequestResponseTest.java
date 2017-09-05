@@ -240,7 +240,7 @@ public class RequestResponseTest  extends ApiTestBase {
     }
     
     @Test
-    public void testGetRuntimesBadHub() throws EventHubException, IOException, ExecutionException, InterruptedException {
+    public void testGetRuntimesBadHub() throws EventHubException, IOException {
     	ConnectionStringBuilder bogusConnectionString = new ConnectionStringBuilder(connectionString.getEndpoint(), "NOHUBZZZZZ",
     			connectionString.getSasKeyName(), connectionString.getSasKey());
     	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.toString());
@@ -291,7 +291,7 @@ public class RequestResponseTest  extends ApiTestBase {
     }
     
     @Test
-    public void testGetRuntimesBadKeyname() throws EventHubException, IOException, ExecutionException, InterruptedException {
+    public void testGetRuntimesBadKeyname() throws EventHubException, IOException {
     	ConnectionStringBuilder bogusConnectionString = new ConnectionStringBuilder(connectionString.getEndpoint(), connectionString.getEntityPath(),
     			"xxxnokeyxxx", connectionString.getSasKey());
     	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.toString());

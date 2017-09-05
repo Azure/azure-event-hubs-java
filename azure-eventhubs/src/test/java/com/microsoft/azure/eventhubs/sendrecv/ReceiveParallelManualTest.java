@@ -62,7 +62,7 @@ public class ReceiveParallelManualTest extends ApiTestBase
             PartitionReceiver offsetReceiver1 = null;
             try {
                 offsetReceiver1 = ehClient.createReceiverSync(cgName, sPartitionId, PartitionReceiver.START_OF_STREAM, false);
-            } catch (EventHubException | ExecutionException | InterruptedException e) {
+            } catch (EventHubException e) {
                 e.printStackTrace();
             }
 
