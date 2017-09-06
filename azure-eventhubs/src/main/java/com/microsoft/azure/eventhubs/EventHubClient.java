@@ -134,82 +134,36 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     }
 
     /**
-     * BatchBuilder is used to create {@link EventDataBatch}es. When creating an {@link EventDataBatch} from an
-     * {@link EventHubClient}, the user is able to set the partitionKey and maxMessageSize. The default partitionKey is null,
-     * and when a null partitionKey is used, {@link EventData} within the {@link EventDataBatch} will land in every
-     * EventHub partition via the Round-robin algorithm.
+     * Creates an Empty Collection of {@link EventData}.
+     * The same partitionKey must be used while sending these events using {@link EventHubClient#send(EventDataBatch)}.
      *
-     * <pre>
-     *     {@code
-     *     // Create EventDataBatch with default properties
-     *     EventDataBatch edb1 = ehClient.new BatchBuilder().createBatch();
-     *
-     *     // Create EventDataBatch with user-defined partitionKey and maxMessageSize
-     *     EventDataBatch edb2 = ehClient.new BatchBuilder().with( options -> {
-     *         options.partitionKey = "foo";
-     *         options.maxMessageSize = 256;
-     *     }).createBatch();
-     *
-     *     // Create EventDataBatch with user-defined partitionKey
-     *     EventDataBatch edb3 = ehClient.new BatchBuilder()
-     *          .with( options -> options.partitionKey = "foo")
-     *          .createBatch();
-     * </pre>
+     * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
+     * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
      */
-    public final class BatchBuilder {
-        public String partitionKey = null;
-        public Integer maxMessageSize = null;
-
-        /**
-         * Please see {@link BatchBuilder} for coding samples.
-         *
-         * @param builderFunction function that adds user-defined properties to BatchBuilder
-         * @return BatchBuilder that will be used to create EventDataBatch.
-         */
-        public final BatchBuilder with(Consumer<BatchBuilder> builderFunction) {
-            builderFunction.accept(this);
-            return this;
-        }
-
-        /**
-         * Creates an Empty Collection of {@link EventData}.
-         * The same partitionKey must be used while sending these events using {@link EventHubClient#send(EventDataBatch)}.
-         *
-         * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
-         * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
-         * @throws ExecutionException if getCause() returns null.
-         * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
-         */
-        public final EventDataBatch createBatch()
-                throws EventHubException, ExecutionException, InterruptedException {
-            try {
-                if (maxMessageSize == null) {
-                    return EventHubClient.this.createInternalSender().thenApply((aVoid) ->
-                            new EventDataBatch(sender.getMaxMessageSize(), partitionKey)).get();
-                } else {
-                    return new EventDataBatch(maxMessageSize, partitionKey);
-                }
-            } catch (InterruptedException | ExecutionException exception) {
-                if (exception instanceof InterruptedException) {
-                    // Re-assert the thread's interrupted status
-                    Thread.currentThread().interrupt();
-                }
-
-                final Throwable throwable = exception.getCause();
-                if (throwable != null) {
-                    if (throwable instanceof RuntimeException) {
-                        throw (RuntimeException) throwable;
-                    }
-
-                    if (throwable instanceof EventHubException) {
-                        throw (EventHubException) throwable;
-                    }
-
-                    throw new EventHubException(true, throwable);
-                }
-
-                throw exception;
+    public final EventDataBatch createBatch(BatchOptions options) throws EventHubException {
+        try {
+            int maxSize = this.createInternalSender().thenApply((aVoid) -> this.sender.getMaxMessageSize()).get();
+            if (options.maxMessageSize == null) {
+                return new EventDataBatch(maxSize, options.partitionKey);
             }
+
+            if (options.maxMessageSize > maxSize) {
+                throw new IllegalArgumentException("The maxMessageSize set in BatchOptions is too large.");
+            }
+
+            return new EventDataBatch(options.maxMessageSize, options.partitionKey);
+        } catch (InterruptedException | ExecutionException exception) {
+            if (exception instanceof InterruptedException) {
+                // Re-assert thread's interrupted status
+                Thread.currentThread().interrupt();
+            }
+
+            Throwable throwable = exception.getCause();
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            }
+
+            throw new RuntimeException(exception);
         }
     }
 
@@ -380,12 +334,9 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      *
      * @param eventDatas EventDataBatch to send to EventHub
      * @throws EventHubException        if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException       if getCause() returns null
-     * @throws InterruptedException     if interrupt is called on the waiting thread before task is completed
      */
     @Override
-    public final void sendSync(final EventDataBatch eventDatas)
-            throws EventHubException, ExecutionException, InterruptedException {
+    public final void sendSync(final EventDataBatch eventDatas) throws EventHubException {
         try {
             this.send(eventDatas).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -395,19 +346,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 

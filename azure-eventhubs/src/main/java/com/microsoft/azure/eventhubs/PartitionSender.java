@@ -55,30 +55,26 @@ public final class PartitionSender extends ClientEntity {
     }
 
     /**
-     * BatchBuilder is used to create {@link EventDataBatch}es.
-     * See {@link com.microsoft.azure.eventhubs.EventHubClient.BatchBuilder} for more info and code samples.
-     *
-     * You cannot set a partitionKey in the EventDataBatch when using a PartitionSender.
+     * Creates an Empty Collection of {@link EventData}.
+     * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      */
-    public class BatchBuilder {
-        private final String partitionKey = null;
-        public int maxMessageSize = PartitionSender.this.internalSender.getMaxMessageSize();
-
-        /**
-         * See {@link com.microsoft.azure.eventhubs.EventHubClient.BatchBuilder#with(Consumer)}
-         */
-        public BatchBuilder with(Consumer<BatchBuilder> builderFunction) {
-            builderFunction.accept(this);
-            return this;
+    public EventDataBatch createBatch(BatchOptions options) {
+        if (!StringUtil.isNullOrEmpty(options.partitionKey)) {
+            throw new IllegalArgumentException("A partition key cannot be set when using PartitionSender. If you'd like to " +
+                    "continue using PartitionSender with EventDataBatches, then please do not set a partition key in your BatchOptions.");
         }
 
-        /**
-         * Creates an Empty Collection of {@link EventData}.
-         * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
-         */
-        public EventDataBatch createBatch() {
-            return new EventDataBatch(maxMessageSize, partitionKey);
+        int maxSize = this.internalSender.getMaxMessageSize();
+
+        if (options.maxMessageSize == null) {
+            return new EventDataBatch(maxSize, null);
         }
+
+        if (options.maxMessageSize > maxSize) {
+            throw new IllegalArgumentException("The maxMessageSize set in BatchOptions is too large.");
+        }
+
+        return new EventDataBatch(options.maxMessageSize, null);
     }
 
     /**
@@ -222,12 +218,9 @@ public final class PartitionSender extends ClientEntity {
      * Synchronous version of {@link #send(EventDataBatch)}
      *
      * @param eventDatas EventDataBatch to send to EventHub
-     * @throws EventHubException    if Service Bus service encountered problems during the operation.
-     * @throws ExecutionException   if getCause() returns null.
-     * @throws InterruptedException if interrupt is called on the waiting thread before the task is complete.
+     * @throws EventHubException if Service Bus service encountered problems during the operation.
      */
-    public final void sendSync(final EventDataBatch eventDatas)
-            throws EventHubException, ExecutionException, InterruptedException {
+    public final void sendSync(final EventDataBatch eventDatas) throws EventHubException {
         try {
             this.send(eventDatas).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -237,26 +230,17 @@ public final class PartitionSender extends ClientEntity {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
             }
 
-            throw exception;
+            throw new RuntimeException(exception);
         }
     }
 
     /**
      * Send {@link EventDataBatch} to a specific EventHub partition. The targeted partition is pre-determined when this PartitionSender was created.
-     * A partitionKey cannot be set when using the EventDataBatch and PartitionSender together. If a partitionKey is set,
-     * an IllegalArgumentException will be thrown.
+     * A partitionKey cannot be set when using EventDataBatch with a PartitionSender.
      * <p>
      * There are 3 ways to send to EventHubs, to understand this particular type of Send refer to the overload {@link #send(EventData)}, which is the same type of Send and is used to send single {@link EventData}.
      * <p>
@@ -279,8 +263,8 @@ public final class PartitionSender extends ClientEntity {
         }
 
         if (!StringUtil.isNullOrEmpty(eventDatas.getPartitionKey())) {
-            throw new IllegalArgumentException("EventDataBatch cannot be sent on PartitionSender when a partitionKey is set." +
-                    "Please don't set a partitionKey when using PartitionSender.");
+            throw new IllegalArgumentException("A partition key cannot be set when using PartitionSender. If you'd like to " +
+            "continue using PartitionSender with EventDataBatches, then please do not set a partition key in your BatchOptions");
         }
 
         return this.internalSender.send(EventDataUtil.toAmqpMessages(eventDatas.getInternalIterable()));
