@@ -43,7 +43,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
     @Test
     public void sendSmallEventsFullBatchTest()
             throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
-        BatchOptions options = new BatchOptions().withPartitionSenderDefaults();
+        BatchOptions options = new BatchOptions();
         final EventDataBatch batchEvents = sender.createBatch(options);
 
         while (batchEvents.tryAdd(new EventData("a".getBytes())));
@@ -138,7 +138,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
         receiver.setReceiveTimeout(Duration.ofSeconds(5));
 
         try {
-            final BatchOptions options = new BatchOptions().withPartitionSenderDefaults();
+            final BatchOptions options = new BatchOptions();
             final EventDataBatch batchEvents = sender.createBatch(options);
 
             int count = 0;
