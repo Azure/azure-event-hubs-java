@@ -232,9 +232,11 @@ public final class PartitionSender extends ClientEntity {
             Throwable throwable = exception.getCause();
             if (throwable instanceof EventHubException) {
                 throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
-
-            throw new RuntimeException(exception);
         }
     }
 

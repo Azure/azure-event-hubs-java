@@ -161,9 +161,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             Throwable throwable = exception.getCause();
             if (throwable instanceof EventHubException) {
                 throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
-
-            throw new RuntimeException(exception);
         }
     }
 
@@ -348,9 +350,11 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             Throwable throwable = exception.getCause();
             if (throwable instanceof EventHubException) {
                 throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
-
-            throw new RuntimeException(exception);
         }
     }
 
