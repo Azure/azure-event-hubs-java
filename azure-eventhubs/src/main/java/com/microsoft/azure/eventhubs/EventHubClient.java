@@ -148,7 +148,8 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             if (options.maxMessageSize > maxSize) {
-                throw new IllegalArgumentException("The maxMessageSize set in BatchOptions is too large.");
+                throw new IllegalArgumentException("The maxMessageSize set in BatchOptions is too large. You set a maxMessageSize of " +
+                    options.maxMessageSize + ". The maximum allowed size is " + maxSize + ".");
             }
 
             return new EventDataBatch(options.maxMessageSize, options.partitionKey);
