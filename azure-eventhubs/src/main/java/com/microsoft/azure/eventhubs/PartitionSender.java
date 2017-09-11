@@ -96,16 +96,12 @@ public final class PartitionSender extends ClientEntity {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
     }
@@ -151,16 +147,12 @@ public final class PartitionSender extends ClientEntity {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
     }

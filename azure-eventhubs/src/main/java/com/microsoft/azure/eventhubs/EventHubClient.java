@@ -76,20 +76,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -159,7 +153,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
                 Thread.currentThread().interrupt();
             }
 
-            Throwable throwable = exception.getCause();
+            final Throwable throwable = exception.getCause();
             if (throwable instanceof EventHubException) {
                 throw (EventHubException) throwable;
             } else if (throwable instanceof RuntimeException) {
@@ -171,6 +165,16 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     }
 
     /**
+     * Creates an Empty Collection of {@link EventData}.
+     *
+     * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
+     * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
+     */
+    public final EventDataBatch createBatch() throws EventHubException {
+        return this.createBatch(null);
+    }
+
+    /**
      * Synchronous version of {@link #send(EventData)}.
      *
      * @param data the {@link EventData} to be sent.
@@ -179,8 +183,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
      */
     @Override
-    public final void sendSync(final EventData data)
-            throws EventHubException {
+    public final void sendSync(final EventData data) throws EventHubException {
         try {
             this.send(data).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -190,16 +193,12 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
     }
@@ -252,8 +251,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
      */
     @Override
-    public final void sendSync(final Iterable<EventData> eventDatas)
-            throws EventHubException {
+    public final void sendSync(final Iterable<EventData> eventDatas) throws EventHubException {
         try {
             this.send(eventDatas).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -263,16 +261,12 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
     }
@@ -387,8 +381,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      */
     @Override
-    public final void sendSync(final EventData eventData, final String partitionKey)
-            throws EventHubException {
+    public final void sendSync(final EventData eventData, final String partitionKey) throws EventHubException {
         try {
             this.send(eventData, partitionKey).get();
         } catch (InterruptedException | ExecutionException exception) {
@@ -398,16 +391,12 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
     }
@@ -477,16 +466,12 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
     }
@@ -549,20 +534,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -607,20 +586,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -664,20 +637,15 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
-        }
 
-        return null;
+        }
     }
 
     /**
@@ -719,20 +687,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -774,20 +736,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -833,20 +789,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -890,20 +840,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -946,20 +890,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -1011,20 +949,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -1076,20 +1008,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -1141,20 +1067,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -1208,20 +1128,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**
@@ -1275,20 +1189,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             }
 
             Throwable throwable = exception.getCause();
-            if (throwable != null) {
-                if (throwable instanceof RuntimeException) {
-                    throw (RuntimeException) throwable;
-                }
-
-                if (throwable instanceof EventHubException) {
-                    throw (EventHubException) throwable;
-                }
-
-                throw new EventHubException(true, throwable);
+            if (throwable instanceof EventHubException) {
+                throw (EventHubException) throwable;
+            } else if (throwable instanceof RuntimeException) {
+                throw (RuntimeException) throwable;
+            } else {
+                throw new RuntimeException(exception);
             }
         }
-
-        return null;
     }
 
     /**

@@ -13,7 +13,7 @@ import java.util.LinkedList;
 /**
  * Helper class for creating a batch/collection of EventData objects to be used while Sending to EventHubs
  */
-public class EventDataBatch {
+public final class EventDataBatch {
 
     private final int maxMessageSize;
     private final String partitionKey;
