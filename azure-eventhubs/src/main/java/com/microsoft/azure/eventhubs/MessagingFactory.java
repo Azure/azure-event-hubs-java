@@ -69,7 +69,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     private ScheduledFuture openTimer;
     private ScheduledFuture closeTimer;
 
-    MessagingFactory(final ConnectionStringBuilder builder, final RetryPolicy retryPolicy) {
+    MessagingFactory(final ConnectionStringBuilder builder, final RetryPolicy retryPolicy, final ClientInfo clientInfo) {
         super("MessagingFactory".concat(StringUtil.getRandomString()), null);
 
         Timer.register(this.getClientId());
@@ -79,7 +79,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         this.retryPolicy = retryPolicy;
         this.registeredLinks = new LinkedList<>();
         this.reactorLock = new Object();
-        this.connectionHandler = new ConnectionHandler(this);
+        this.connectionHandler = new ConnectionHandler(this, clientInfo);
         this.cbsChannelCreateLock = new Object();
         this.mgmtChannelCreateLock = new Object();
         this.tokenProvider = builder.getSharedAccessSignature() == null
@@ -188,12 +188,16 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     }
 
     public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString) throws IOException {
-        return createFromConnectionString(connectionString, RetryPolicy.getDefault());
+        return createFromConnectionString(connectionString, RetryPolicy.getDefault(), ClientInfo.Default);
     }
 
     public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString, final RetryPolicy retryPolicy) throws IOException {
+        return createFromConnectionString(connectionString, retryPolicy, ClientInfo.Default);
+    }
+
+    public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString, final RetryPolicy retryPolicy, final ClientInfo clientInfo) throws IOException {
         final ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString);
-        final MessagingFactory messagingFactory = new MessagingFactory(builder, (retryPolicy != null) ? retryPolicy : RetryPolicy.getDefault());
+        final MessagingFactory messagingFactory = new MessagingFactory(builder, (retryPolicy != null) ? retryPolicy : RetryPolicy.getDefault(), clientInfo);
         messagingFactory.openTimer = Timer.schedule(new Runnable() {
                                                         @Override
                                                         public void run() {
