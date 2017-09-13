@@ -53,7 +53,21 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     public static EventHubClient createFromConnectionStringSync(final String connectionString)
             throws EventHubException, IOException {
-        return createFromConnectionStringSync(connectionString, null);
+        return createFromConnectionStringSync(connectionString, null, ClientInfo.Default);
+    }
+
+    /**
+     * Synchronous version of {@link #createFromConnectionString(String)}.
+     *
+     * @param connectionString The connection string to be used. See {@link ConnectionStringBuilder} to construct a connectionString.
+     * @param clientInfo       A custom {@link ClientInfo} to be sent to EventHub
+     * @return EventHubClient which can be used to create Senders and Receivers to EventHub
+     * @throws EventHubException If Service Bus service encountered problems during connection creation.
+     * @throws IOException         If the underlying Proton-J layer encounter network errors.
+     */
+    public static EventHubClient createFromConnectionStringSync(final String connectionString, final ClientInfo clientInfo)
+            throws EventHubException, IOException {
+        return createFromConnectionStringSync(connectionString, null, clientInfo);
     }
 
     /**
@@ -67,8 +81,23 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     public static EventHubClient createFromConnectionStringSync(final String connectionString, final RetryPolicy retryPolicy)
             throws EventHubException, IOException {
+        return createFromConnectionStringSync(connectionString, retryPolicy, ClientInfo.Default);
+    }
+
+    /**
+     * Synchronous version of {@link #createFromConnectionString(String)}.
+     *
+     * @param connectionString The connection string to be used. See {@link ConnectionStringBuilder} to construct a connectionString.
+     * @param retryPolicy      A custom {@link RetryPolicy} to be used when communicating with EventHub.
+     * @param clientInfo       A custom {@link ClientInfo} to be sent to EventHub
+     * @return EventHubClient which can be used to create Senders and Receivers to EventHub
+     * @throws EventHubException If Service Bus service encountered problems during connection creation.
+     * @throws IOException         If the underlying Proton-J layer encounter network errors.
+     */
+    public static EventHubClient createFromConnectionStringSync(final String connectionString, final RetryPolicy retryPolicy, final ClientInfo clientInfo)
+            throws EventHubException, IOException {
         try {
-            return createFromConnectionString(connectionString, retryPolicy).get();
+            return createFromConnectionString(connectionString, retryPolicy, clientInfo).get();
         } catch (InterruptedException | ExecutionException exception) {
             if (exception instanceof InterruptedException) {
                 // Re-assert the thread's interrupted status
@@ -98,7 +127,23 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString)
             throws EventHubException, IOException {
-        return createFromConnectionString(connectionString, null);
+        return createFromConnectionString(connectionString, null, ClientInfo.Default);
+    }
+
+    /**
+     * Factory method to create an instance of {@link EventHubClient} using the supplied connectionString.
+     * In a normal scenario (when re-direct is not enabled) - one EventHubClient instance maps to one Connection to the Azure ServiceBus EventHubs service.
+     * <p>The {@link EventHubClient} created from this method creates a Sender instance internally, which is used by the {@link #send(EventData)} methods.
+     *
+     * @param connectionString The connection string to be used. See {@link ConnectionStringBuilder} to construct a connectionString.
+     * @param clientInfo       A custom {@link ClientInfo} to be sent to EventHub
+     * @return EventHubClient which can be used to create Senders and Receivers to EventHub
+     * @throws EventHubException If Service Bus service encountered problems during connection creation.
+     * @throws IOException         If the underlying Proton-J layer encounter network errors.
+     */
+    public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString, final ClientInfo clientInfo)
+            throws EventHubException, IOException {
+        return createFromConnectionString(connectionString, null, clientInfo);
     }
 
     /**
@@ -114,10 +159,27 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      */
     public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString, final RetryPolicy retryPolicy)
             throws EventHubException, IOException {
+        return createFromConnectionString(connectionString, retryPolicy, ClientInfo.Default);
+    }
+
+    /**
+     * Factory method to create an instance of {@link EventHubClient} using the supplied connectionString.
+     * In a normal scenario (when re-direct is not enabled) - one EventHubClient instance maps to one Connection to the Azure ServiceBus EventHubs service.
+     * <p>The {@link EventHubClient} created from this method creates a Sender instance internally, which is used by the {@link #send(EventData)} methods.
+     *
+     * @param connectionString The connection string to be used. See {@link ConnectionStringBuilder} to construct a connectionString.
+     * @param retryPolicy      A custom {@link RetryPolicy} to be used when communicating with EventHub.
+     * @param clientInfo       A custom {@link ClientInfo} to be sent to EventHub
+     * @return EventHubClient which can be used to create Senders and Receivers to EventHub
+     * @throws EventHubException If Service Bus service encountered problems during connection creation.
+     * @throws IOException         If the underlying Proton-J layer encounter network errors.
+     */
+    public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString, final RetryPolicy retryPolicy, final ClientInfo clientInfo)
+            throws EventHubException, IOException {
         final ConnectionStringBuilder connStr = new ConnectionStringBuilder(connectionString);
         final EventHubClient eventHubClient = new EventHubClient(connStr);
 
-        return MessagingFactory.createFromConnectionString(connectionString.toString(), retryPolicy)
+        return MessagingFactory.createFromConnectionString(connectionString.toString(), retryPolicy, clientInfo)
                 .thenApply(new Function<MessagingFactory, EventHubClient>() {
                     @Override
                     public EventHubClient apply(MessagingFactory factory) {

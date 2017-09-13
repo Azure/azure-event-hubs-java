@@ -7,6 +7,7 @@ package com.microsoft.azure.eventhubs.amqp;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.microsoft.azure.eventhubs.ClientInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,10 +35,13 @@ public final class ConnectionHandler extends BaseHandler {
 
     private final IAmqpConnection messagingFactory;
 
-    public ConnectionHandler(final IAmqpConnection messagingFactory) {
+    private final ClientInfo clientInfo;
+
+    public ConnectionHandler(final IAmqpConnection messagingFactory, final ClientInfo clientInfo) {
 
         add(new Handshaker());
         this.messagingFactory = messagingFactory;
+        this.clientInfo = clientInfo;
     }
 
     @Override
@@ -49,12 +53,7 @@ public final class ConnectionHandler extends BaseHandler {
         connection.setHostname(hostName);
         connection.setContainer(StringUtil.getRandomString());
 
-        final Map<Symbol, Object> connectionProperties = new HashMap<Symbol, Object>();
-        connectionProperties.put(AmqpConstants.PRODUCT, ClientConstants.PRODUCT_NAME);
-        connectionProperties.put(AmqpConstants.VERSION, ClientConstants.CURRENT_JAVACLIENT_VERSION);
-        connectionProperties.put(AmqpConstants.PLATFORM, ClientConstants.PLATFORM_INFO);
-        connectionProperties.put(AmqpConstants.FRAMEWORK, ClientConstants.FRAMEWORK_INFO);
-        connection.setProperties(connectionProperties);
+        connection.setProperties(clientInfo.getConnectionProperties());
 
         connection.open();
     }
