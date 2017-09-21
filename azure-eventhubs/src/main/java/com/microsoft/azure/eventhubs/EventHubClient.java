@@ -1283,8 +1283,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     public CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation() throws EventHubException {
     	CompletableFuture<EventHubRuntimeInformation> future1 = null;
     	
-    	if (this.underlyingFactory.getIsClosingOrClosed())
-    	{
+    	if (this.underlyingFactory.getIsClosingOrClosed()) {
     		throw new EventHubException(false, "Cannot perform operations on closed EventHubClient");
     	}
 
@@ -1326,8 +1325,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     public CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId) throws EventHubException {
     	CompletableFuture<EventHubPartitionRuntimeInformation> future1 = null;
     	
-    	if (this.underlyingFactory.getIsClosingOrClosed())
-    	{
+    	if (this.underlyingFactory.getIsClosingOrClosed()) {
     		throw new EventHubException(false, "Cannot perform operations on closed EventHubClient");
     	}
 
