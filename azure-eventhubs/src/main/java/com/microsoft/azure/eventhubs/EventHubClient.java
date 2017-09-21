@@ -1276,8 +1276,6 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * returns null to indicate timeout.
      * 
      * @return CompletableFuture which returns an EventHubRuntimeInformation on success, or null on timeout.
-     *
-     * @throws EventHubException if the EventHubClient is closed or closing.
      */
     @Override
     public CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation() {
@@ -1316,8 +1314,6 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * 
      * @param partitionId  Partition to get information about. Must be one of the partition ids returned by getRuntimeInformation.
      * @return CompletableFuture which returns an EventHubPartitionRuntimeInformation on success, or null on timeout.  
-     *
-     * @throws EventHubException if the EventHubClient is closed or closing.
      */
     @Override
     public CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId) {
