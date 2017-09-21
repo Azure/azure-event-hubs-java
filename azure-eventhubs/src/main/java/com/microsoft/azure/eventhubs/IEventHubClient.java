@@ -113,7 +113,7 @@ public interface IEventHubClient {
 
     CompletableFuture<Void> onClose();
 
-    CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation() throws EventHubException;
+    CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation();
 
-    CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId) throws EventHubException;
+    CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId);
 }

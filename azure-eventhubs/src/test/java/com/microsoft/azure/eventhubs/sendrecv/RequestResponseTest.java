@@ -345,7 +345,7 @@ public class RequestResponseTest  extends ApiTestBase {
     	try {
     		ehc.getRuntimeInformation().get();
     	}
-    	catch (EventHubException e) {
+    	catch (IllegalStateException e) {
     		// Success
     	}
     	catch (Exception e) {
@@ -355,7 +355,7 @@ public class RequestResponseTest  extends ApiTestBase {
     	try {
     		ehc.getPartitionRuntimeInformation("0").get();
     	}
-    	catch (EventHubException e) {
+    	catch (IllegalStateException e) {
     		// Success
     	}
     	catch (Exception e) {

@@ -1280,12 +1280,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws EventHubException if the EventHubClient is closed or closing.
      */
     @Override
-    public CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation() throws EventHubException {
+    public CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation() {
     	CompletableFuture<EventHubRuntimeInformation> future1 = null;
     	
-    	if (this.underlyingFactory.getIsClosingOrClosed()) {
-    		throw new EventHubException(false, "Cannot perform operations on closed EventHubClient");
-    	}
+    	throwIfClosed();
 
     	Map<String, String> request = new HashMap<String, String>();
         request.put(ClientConstants.MANAGEMENT_ENTITY_TYPE_KEY, ClientConstants.MANAGEMENT_EVENTHUB_ENTITY_TYPE);
@@ -1322,12 +1320,10 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * @throws EventHubException if the EventHubClient is closed or closing.
      */
     @Override
-    public CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId) throws EventHubException {
+    public CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId) {
     	CompletableFuture<EventHubPartitionRuntimeInformation> future1 = null;
     	
-    	if (this.underlyingFactory.getIsClosingOrClosed()) {
-    		throw new EventHubException(false, "Cannot perform operations on closed EventHubClient");
-    	}
+    	throwIfClosed();
 
     	Map<String, String> request = new HashMap<String, String>();
         request.put(ClientConstants.MANAGEMENT_ENTITY_TYPE_KEY, ClientConstants.MANAGEMENT_PARTITION_ENTITY_TYPE);
