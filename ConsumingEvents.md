@@ -209,13 +209,8 @@ A connection string will therefore have the following form:
 ```
 
 ### Azure IoT Hub event hub compatible endpoint connection string
-If you want to read Device to Cloud (D2C) messages sent to **Azure IoT Hub**, you can use below code snippet **example** to read messages from [IoT Hub Event Hub-compatible endpoint](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-devguide-messages-read-builtin#read-from-the-built-in-endpoint)
 
-``````
-private static String connString = "Endpoint=sb://iothub.servicebus.windows.net/;EntityPath=IoTHub;SharedAccessKeyName=iothubowner;SharedAccessKey=12345678910";
-EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connString);
-
-``````
+If you want to read Device to Cloud (D2C) messages sent to **Azure IoT Hub**, [IoT Hub Event Hub-compatible endpoint](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-devguide-messages-read-builtin#read-from-the-built-in-endpoint) covers the connection string to be used in this case in detail.
 
 Consumers generally have a different relationship with the Event Hub than publishers. Usually there are relatively few consumers 
 and those consumers enjoy a high level of trust within the context of a system. The relationshiop between an event consumer
