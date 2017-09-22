@@ -344,6 +344,7 @@ public class RequestResponseTest  extends ApiTestBase {
 
     	try {
     		ehc.getRuntimeInformation().get();
+    		Assert.fail("getRuntimeInformation did not throw as expected");
     	}
     	catch (IllegalStateException e) {
     		// Success
@@ -354,6 +355,7 @@ public class RequestResponseTest  extends ApiTestBase {
 
     	try {
     		ehc.getPartitionRuntimeInformation("0").get();
+    		Assert.fail("getPartitionRuntimeInformation did not throw as expected");
     	}
     	catch (IllegalStateException e) {
     		// Success
