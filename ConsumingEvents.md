@@ -33,8 +33,6 @@ following dependency declaration inside of your Maven project file:
 For different types of build environments, the latest released JAR files can also be [explicitly obtained from the 
 Maven Central Repository]() or from [the Release distribution point on GitHub]().  
 
-## Event Hub
-
 For a simple event publisher, you'll need to import the *com.microsoft.azure.eventhubs* package for the Event Hub client classes
 and the *com.microsoft.azure.servicebus* package for utility classes like common exceptions that are shared with the  
 Azure Service Bus Messaging client. 
@@ -55,14 +53,6 @@ The receiver code creates an *EventHubClient* from a given connecting string
 		
     EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString());
 ```           
-### Azure IoT Hub
-If you are reading Device to Cloud (D2C) messages sent to **Azure IoT Hub**, you can use below code snippet **example** to read messages from [IoT Hub Event Hub-compatible endpoint](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-devguide-messages-read-builtin#read-from-the-built-in-endpoint)
-
-``````
-private static String connString = "Endpoint=sb://iothub.servicebus.windows.net/;EntityPath=IoTHub;SharedAccessKeyName=iothubowner;SharedAccessKey=12345678910";
-EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connString);
-
-``````
 
 The receiver code then creates (at least) one *PartitionReceiver* that will receive the data. The receiver is seeded with an offset, in the snippet below it's simply the start of the log.    
 		
@@ -217,6 +207,15 @@ A connection string will therefore have the following form:
 ```
   Endpoint=sb://clemensveu.servicebus.windows.net&EntityPath=myeventhub&SharedAccessSignature=....
 ```
+
+### Azure IoT Hub event hub compatible endpoint connection string
+If you want to read Device to Cloud (D2C) messages sent to **Azure IoT Hub**, you can use below code snippet **example** to read messages from [IoT Hub Event Hub-compatible endpoint](https://docs.microsoft.com/en-us/azure/iot-hub/iot-hub-devguide-messages-read-builtin#read-from-the-built-in-endpoint)
+
+``````
+private static String connString = "Endpoint=sb://iothub.servicebus.windows.net/;EntityPath=IoTHub;SharedAccessKeyName=iothubowner;SharedAccessKey=12345678910";
+EventHubClient ehClient = EventHubClient.createFromConnectionStringSync(connString);
+
+``````
 
 Consumers generally have a different relationship with the Event Hub than publishers. Usually there are relatively few consumers 
 and those consumers enjoy a high level of trust within the context of a system. The relationshiop between an event consumer
