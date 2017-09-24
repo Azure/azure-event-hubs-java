@@ -13,7 +13,7 @@ final public class EventHubRuntimeInformation {
     final int partitionCount;
     final String[] partitionIds;
 
-    EventHubRuntimeInformation(final String path, final Instant createdAt, final int partitionCount, final String[] partitionIds) {
+    public EventHubRuntimeInformation(final String path, final Instant createdAt, final int partitionCount, final String[] partitionIds) {
         this.path = path;
         this.createdAt = createdAt;
         this.partitionCount = partitionCount;

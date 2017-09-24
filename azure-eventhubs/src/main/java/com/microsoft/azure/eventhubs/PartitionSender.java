@@ -16,14 +16,14 @@ import java.util.function.Function;
  * @see EventHubClient#createPartitionSender(String)
  * @see EventHubClient#createFromConnectionString(String)
  */
-public final class PartitionSender extends ClientEntity {
+public class PartitionSender extends ClientEntity {
     private final String partitionId;
     private final String eventHubName;
     private final MessagingFactory factory;
 
     private MessageSender internalSender;
 
-    private PartitionSender(MessagingFactory factory, String eventHubName, String partitionId) {
+    protected PartitionSender(MessagingFactory factory, String eventHubName, String partitionId) {
         super(null, null);
 
         this.partitionId = partitionId;
