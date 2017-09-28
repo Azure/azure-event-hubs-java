@@ -30,7 +30,7 @@ class AzureBlobLease extends Lease
 		this.blob = blob;
 		this.options = options;
 	}
-	
+
 	AzureBlobLease(AzureBlobLease source)
 	{
 		super(source);
