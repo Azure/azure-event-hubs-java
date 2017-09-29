@@ -34,7 +34,7 @@ For different types of build environments, the latest released JAR files can als
 Maven Central Repository]() or from [the Release distribution point on GitHub]().  
 
 For a simple event publisher, you'll need to import the *com.microsoft.azure.eventhubs* package for the Event Hub client classes.
- 
+
 ```Java
     import com.microsoft.azure.eventhubs.*;
 ```
