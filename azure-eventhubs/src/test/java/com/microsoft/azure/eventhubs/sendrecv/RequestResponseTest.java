@@ -10,26 +10,18 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.EventHubPartitionRuntimeInformation;
-import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
-import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.*;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.servicebus.AuthorizationFailedException;
-import com.microsoft.azure.servicebus.ClientConstants;
-import com.microsoft.azure.servicebus.ConnectionStringBuilder;
-import com.microsoft.azure.servicebus.FaultTolerantObject;
-import com.microsoft.azure.servicebus.MessagingFactory;
-import com.microsoft.azure.servicebus.ServiceBusException;
-import com.microsoft.azure.servicebus.amqp.AmqpException;
-import com.microsoft.azure.servicebus.amqp.AmqpResponseCode;
-import com.microsoft.azure.servicebus.amqp.IOperation;
-import com.microsoft.azure.servicebus.amqp.IOperationResult;
-import com.microsoft.azure.servicebus.amqp.ReactorDispatcher;
-import com.microsoft.azure.servicebus.amqp.RequestResponseChannel;
+import com.microsoft.azure.eventhubs.EventHubException;
+import com.microsoft.azure.eventhubs.amqp.AmqpException;
+import com.microsoft.azure.eventhubs.amqp.AmqpResponseCode;
+import com.microsoft.azure.eventhubs.amqp.IOperation;
+import com.microsoft.azure.eventhubs.amqp.IOperationResult;
+import com.microsoft.azure.eventhubs.amqp.ReactorDispatcher;
+import com.microsoft.azure.eventhubs.amqp.RequestResponseChannel;
 
-import junit.framework.Assert;
+import org.junit.Assert;
 import junit.framework.AssertionFailedError;
 
 import org.apache.qpid.proton.Proton;
@@ -208,7 +200,7 @@ public class RequestResponseTest  extends ApiTestBase {
     	Assert.assertNotNull(ehInfo);
     	Assert.assertTrue(connectionString.getEntityPath().equalsIgnoreCase(ehInfo.getPath()));
     	Assert.assertNotNull(ehInfo.getCreatedAt()); // creation time could be almost anything, can't really check value
-    	Assert.assertTrue(ehInfo.getPartitionCount() > 2); // max legal partition count is variable but 2 is hard minimum
+    	Assert.assertTrue(ehInfo.getPartitionCount() >= 2); // max legal partition count is variable but 2 is hard minimum
     	Assert.assertEquals(ehInfo.getPartitionIds().length, ehInfo.getPartitionCount());
     	/*
     	System.out.println("Event hub name: " + ehInfo.getPath());
@@ -248,7 +240,7 @@ public class RequestResponseTest  extends ApiTestBase {
     }
     
     @Test
-    public void testGetRuntimesBadHub() throws ServiceBusException, IOException {
+    public void testGetRuntimesBadHub() throws EventHubException, IOException {
     	ConnectionStringBuilder bogusConnectionString = new ConnectionStringBuilder(connectionString.getEndpoint(), "NOHUBZZZZZ",
     			connectionString.getSasKeyName(), connectionString.getSasKey());
     	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.toString());
@@ -299,7 +291,7 @@ public class RequestResponseTest  extends ApiTestBase {
     }
     
     @Test
-    public void testGetRuntimesBadKeyname() throws ServiceBusException, IOException {
+    public void testGetRuntimesBadKeyname() throws EventHubException, IOException {
     	ConnectionStringBuilder bogusConnectionString = new ConnectionStringBuilder(connectionString.getEndpoint(), connectionString.getEntityPath(),
     			"xxxnokeyxxx", connectionString.getSasKey());
     	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.toString());
@@ -345,8 +337,36 @@ public class RequestResponseTest  extends ApiTestBase {
     	ehc.closeSync();
     }
     
+    @Test
+    public void testGetRuntimesClosedClient() throws EventHubException, IOException, InterruptedException, ExecutionException {
+    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(connectionString.toString());
+    	ehc.closeSync();
+
+    	try {
+    		ehc.getRuntimeInformation().get();
+    		Assert.fail("getRuntimeInformation did not throw as expected");
+    	}
+    	catch (IllegalStateException e) {
+    		// Success
+    	}
+    	catch (Exception e) {
+    		Assert.fail("Unexpected exception from getRuntimeInformation " + e.toString());
+    	}
+
+    	try {
+    		ehc.getPartitionRuntimeInformation("0").get();
+    		Assert.fail("getPartitionRuntimeInformation did not throw as expected");
+    	}
+    	catch (IllegalStateException e) {
+    		// Success
+    	}
+    	catch (Exception e) {
+    		Assert.fail("Unexpected exception from getPartitionRuntimeInformation " + e.toString());
+    	}
+    }
+
     @AfterClass()
-    public static void cleanup() throws ServiceBusException {
+    public static void cleanup() throws EventHubException {
 
         if (factory != null)
             factory.closeSync();
