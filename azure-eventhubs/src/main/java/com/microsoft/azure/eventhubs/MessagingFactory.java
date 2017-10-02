@@ -99,7 +99,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         return this.hostName;
     }
 
-    private Reactor getReactor() {
+    public Reactor getReactor() {
         synchronized (this.reactorLock) {
             return this.reactor;
         }
@@ -229,9 +229,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     public void onConnectionError(ErrorCondition error) {
 
         if (!this.open.isDone()) {
-            this.onOpenComplete(ExceptionUtil.toException(error));
-            this.getReactor().stop();
             Timer.unregister(this.getClientId());
+            this.getReactor().stop();
+            this.onOpenComplete(ExceptionUtil.toException(error));
         } else {
             final Connection currentConnection = this.connection;
             final List<Link> registeredLinksCopy = new LinkedList<>(this.registeredLinks);
