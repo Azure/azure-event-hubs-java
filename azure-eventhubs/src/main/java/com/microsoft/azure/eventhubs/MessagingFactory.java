@@ -230,8 +230,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
         if (!this.open.isDone()) {
             this.onOpenComplete(ExceptionUtil.toException(error));
+            this.getReactor().stop();
             Timer.unregister(this.getClientId());
-
         } else {
             final Connection currentConnection = this.connection;
             final List<Link> registeredLinksCopy = new LinkedList<>(this.registeredLinks);
