@@ -12,7 +12,7 @@ following dependency declaration inside of your Maven project file:
     <dependency> 
    		<groupId>com.microsoft.azure</groupId> 
    		<artifactId>azure-eventhubs</artifactId>
-   		<version>0.15.0</version>
+   		<version>0.15.1</version>
    	</dependency>
  ```
  
@@ -27,8 +27,7 @@ Azure Service Bus Messaging client.
  
 ```Java
     import com.microsoft.azure.eventhubs.*;
-    import com.microsoft.azure.servicebus.*;
-```        
+```
 
 Using an Event Hub connection string, which holds all required connection information including an authorization key or token 
 (see [Connection Strings](#connection-strings)), you then create an *EventHubClient* instance.   
