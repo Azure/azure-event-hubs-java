@@ -106,7 +106,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         return this.hostName;
     }
 
-    public Reactor getReactor() {
+    private Reactor getReactor() {
         synchronized (this.reactorLock) {
             return this.reactor;
         }
