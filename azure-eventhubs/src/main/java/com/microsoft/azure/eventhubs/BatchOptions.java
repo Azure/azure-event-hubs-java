@@ -32,8 +32,7 @@ import java.util.function.Consumer;
  *     however, you can NOT set a partition key when using PartitionSender
  *
  *     // Create EventDataBatch with defaults
- *     BatchOptions options = new BatchOptions()
- *     EventDataBatch edb1 = client.createBatch(options);
+ *     EventDataBatch edb1 = client.createBatch();
  *
  *     // Create EventDataBatch with custom partitionKey
  *     BatchOptions options = new BatchOptions().with( options -> options.partitionKey = "foo");
@@ -45,6 +44,7 @@ import java.util.function.Consumer;
  *         options.maxMessageSize = 100 * 1024;
  *     };
  *     EventDataBatch edb3 = client.createBatch(options);
+ *     }
  * </pre>
  */
 public final class BatchOptions {

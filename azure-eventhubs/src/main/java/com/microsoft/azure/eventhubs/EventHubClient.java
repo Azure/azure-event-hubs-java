@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.amqp.AmqpException;
+
 import java.io.IOException;
 import java.nio.channels.UnresolvedAddressException;
 import java.security.InvalidKeyException;
@@ -136,6 +138,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
      * Creates an Empty Collection of {@link EventData}.
      * The same partitionKey must be used while sending these events using {@link EventHubClient#send(EventDataBatch)}.
      *
+     * @param options see {@link BatchOptions} for more details
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
      */
@@ -171,12 +174,13 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
     /**
      * Creates an Empty Collection of {@link EventData}.
+     * The same partitionKey must be used while sending these events using {@link EventHubClient#send(EventDataBatch)}.
      *
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
      */
     public final EventDataBatch createBatch() throws EventHubException {
-        return this.createBatch(null);
+        return this.createBatch(new BatchOptions());
     }
 
     /**
@@ -1409,7 +1413,13 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 						}
 						else if (error instanceof Exception) {
 							if ((error instanceof ExecutionException) && (error.getCause() != null) && (error.getCause() instanceof Exception)) {
-								lastException = (Exception)error.getCause();
+							    if(error.getCause() instanceof AmqpException) {
+							        lastException = ExceptionUtil.toException(((AmqpException) error.getCause()).getError());
+                                }
+                                else {
+							        lastException = (Exception)error.getCause();
+                                }
+
 								completeWith = error.getCause();
 							}
 							else {
