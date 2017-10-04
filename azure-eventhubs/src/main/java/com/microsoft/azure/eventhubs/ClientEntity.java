@@ -64,15 +64,15 @@ public abstract class ClientEntity {
     }
 
     public final CompletableFuture<Void> close() {
-        if (TRACE_LOGGER.isInfoEnabled()) {
-            TRACE_LOGGER.info("ClientEntity.close: clientId[" + this.clientId + "]");
-        }
-
         synchronized (this.syncClose) {
             if (this.isClosed || this.isClosing)
                 return this.closeTask == null ? CompletableFuture.completedFuture(null) : this.closeTask;
 
             this.isClosing = true;
+        }
+
+        if (TRACE_LOGGER.isInfoEnabled()) {
+            TRACE_LOGGER.info("ClientEntity.close: clientId[" + this.clientId + "]");
         }
 
         this.closeTask = this.onClose().thenRunAsync(new Runnable() {
