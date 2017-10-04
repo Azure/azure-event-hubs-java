@@ -147,7 +147,7 @@ public final class ConnectionHandler extends BaseHandler {
 
         final ErrorCondition error = connection.getCondition();
         if (TRACE_LOGGER.isInfoEnabled()) {
-            TRACE_LOGGER.info("hostname[" + connection.getHostname() +
+            TRACE_LOGGER.info("Connection.onConnectionLocalClose: hostname[" + connection.getHostname() +
                     (error != null
                             ? "], errorCondition[" + error.getCondition() + ", " + error.getDescription() + "]"
                             : "]"));
@@ -169,7 +169,7 @@ public final class ConnectionHandler extends BaseHandler {
         final ErrorCondition error = connection.getRemoteCondition();
 
         if (TRACE_LOGGER.isInfoEnabled()) {
-            TRACE_LOGGER.info("hostname[" + connection.getHostname() +
+            TRACE_LOGGER.info("Connection.onConnectionRemoteClose: hostname[" + connection.getHostname() +
                     (error != null
                             ? "], errorCondition[" + error.getCondition() + ", " + error.getDescription() + "]"
                             : "]"));
