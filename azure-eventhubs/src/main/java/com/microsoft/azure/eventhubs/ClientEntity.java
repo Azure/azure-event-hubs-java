@@ -4,6 +4,9 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -14,6 +17,9 @@ import java.util.concurrent.ExecutionException;
  * Internal-class
  */
 public abstract class ClientEntity {
+
+    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ClientEntity.class);
+
     private final String clientId;
     private final Object syncClose;
     private final ClientEntity parent;
@@ -58,6 +64,7 @@ public abstract class ClientEntity {
     }
 
     public final CompletableFuture<Void> close() {
+        TRACE_LOGGER.info("ClientEntity.close: clientId[" + this.clientId + "]");
         synchronized (this.syncClose) {
             if (this.isClosed || this.isClosing)
                 return this.closeTask == null ? CompletableFuture.completedFuture(null) : this.closeTask;
