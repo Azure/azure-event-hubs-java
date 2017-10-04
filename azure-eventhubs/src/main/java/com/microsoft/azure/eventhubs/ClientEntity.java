@@ -64,7 +64,10 @@ public abstract class ClientEntity {
     }
 
     public final CompletableFuture<Void> close() {
-        TRACE_LOGGER.info("ClientEntity.close: clientId[" + this.clientId + "]");
+        if (TRACE_LOGGER.isInfoEnabled()) {
+            TRACE_LOGGER.info("ClientEntity.close: clientId[" + this.clientId + "]");
+        }
+
         synchronized (this.syncClose) {
             if (this.isClosed || this.isClosing)
                 return this.closeTask == null ? CompletableFuture.completedFuture(null) : this.closeTask;
