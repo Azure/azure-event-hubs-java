@@ -72,7 +72,7 @@ public abstract class ClientEntity {
         }
 
         if (TRACE_LOGGER.isInfoEnabled()) {
-            TRACE_LOGGER.info("ClientEntity.close: clientId[" + this.clientId + "]");
+            TRACE_LOGGER.info("close: clientId[" + this.clientId + "]");
         }
 
         this.closeTask = this.onClose().thenRunAsync(new Runnable() {
