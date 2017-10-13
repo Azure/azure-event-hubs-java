@@ -5,13 +5,14 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import java.util.Map;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
@@ -30,8 +31,7 @@ class PartitionManager
 
     private String partitionIds[] = null;
     
-    private Future<?> partitionsFuture = null;
-    private boolean keepGoing = true;
+    private ScheduledFuture<?> scanFuture = null;
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionManager.class);
 
@@ -95,10 +95,41 @@ class PartitionManager
     {
     }
     
-    Future<?> stopPartitions()
+    void stopPartitions()
     {
-    	this.keepGoing = false;
-    	return this.partitionsFuture;
+    	// Stop the lease scanner.
+    	ScheduledFuture<?> captured = this.scanFuture;
+    	if (captured != null)
+    	{
+    		captured.cancel(true);
+    	}
+
+    	// Stop any partition pumps that are running.
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "Shutting down all pumps"));
+    	Iterable<Future<?>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
+    	for (Future<?> removal : pumpRemovals)
+    	{
+    		try
+    		{
+				removal.get();
+			}
+    		catch (InterruptedException | ExecutionException e)
+    		{
+    			TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure during shutdown"), e);
+    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
+    			
+    			// By convention, bail immediately on interrupt, even though we're just cleaning
+    			// up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
+    			// free to bail without serious side effects.
+    			if (e instanceof InterruptedException)
+    			{
+    				Thread.currentThread().interrupt();
+    				throw new RuntimeException(e);
+    			}
+			}
+    	}
+
+        TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "Partition manager exiting"));
     }
     
     // Return Void so it can be called from a lambda.
@@ -124,82 +155,9 @@ class PartitionManager
     		throw e;
     	}
     	
-        this.partitionsFuture = this.host.getExecutorService().submit(() -> runAndCleanUp());
+    	this.scanFuture = this.host.getExecutorService().schedule(() -> scan(),
+    			this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(), TimeUnit.SECONDS);
     	
-    	return null;
-    }
-    
-    // Return Void so it can be called from a lambda.
-    private Void runAndCleanUp()
-	{
-    	try
-    	{
-    		runLoop();
-    		TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(),
-                    "Partition manager main loop exited normally, shutting down"));
-    	}
-    	catch (ExceptionWithAction e)
-    	{
-    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(),
-                    "Exception from partition manager main loop, shutting down"), e.getCause());
-    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, e.getAction());
-    	}
-    	catch (Exception e)
-    	{
-    		if ((e instanceof ExecutionException) && (e.getCause() instanceof OutOfMemoryError))
-    		{
-    			Exception forLogging = new Exception("Got OutOfMemoryError with " + Thread.activeCount() + " threads running");
-    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), forLogging, EventProcessorHostActionStrings.PARTITION_MANAGER_MAIN_LOOP);
-    			Map<Thread, StackTraceElement[]> stacks = Thread.getAllStackTraces();
-    			for (Map.Entry<Thread, StackTraceElement[]> entry : stacks.entrySet())
-    			{
-    				String stackString = "Thread " + entry.getKey().getId() + ":\n";
-    				for (int i = 0; i < entry.getValue().length; i++)
-    				{
-    					stackString += (entry.getValue()[i].toString() + "\n");
-    				}
-    				forLogging = new Exception(stackString);
-        			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), forLogging, EventProcessorHostActionStrings.PARTITION_MANAGER_MAIN_LOOP);
-    			}
-    		}
-    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(),
-                    "Exception from partition manager main loop, shutting down"), e);
-    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.PARTITION_MANAGER_MAIN_LOOP);
-    	}
-    	
-    	// Cleanup
-    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "Shutting down all pumps"));
-    	Iterable<Future<?>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
-    	
-    	// Wait for shutdown threads.
-    	for (Future<?> removal : pumpRemovals)
-    	{
-    		try
-    		{
-				removal.get();
-			}
-    		catch (InterruptedException | ExecutionException e)
-    		{
-    			TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure during shutdown"), e);
-    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
-    			
-    			// By convention, bail immediately on interrupt, even though we're just cleaning
-    			// up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
-    			// free to bail without serious side effects.
-    			if (e instanceof InterruptedException)
-    			{
-    				Thread.currentThread().interrupt();
-    				throw new RuntimeException(e);
-    			}
-			}
-    	}
-    	
-        // All of the shutdown threads are done, we can shut down the executor now.
-        // We can't wait for executor termination here because this thread is in the executor.
-        this.host.stopExecutor();
-
-        TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "Partition manager exiting"));
-
     	return null;
     }
     
@@ -280,17 +238,23 @@ class PartitionManager
     		throw new ExceptionWithAction(new RuntimeException(finalFailureMessage), action);
         }
     }
-    
-    private void runLoop() throws Exception, ExceptionWithAction
+
+    // Return Void so it can be called from a lambda.
+    private Void scan()
     {
-    	while (this.keepGoing)
+    	// Theoretically, if the future is cancelled then this method should never fire, but
+    	// there's no harm in being sure.
+    	if (this.scanFuture.isCancelled())
+    	{
+    		return null;
+    	}
+    	
+    	try
     	{
             ILeaseManager leaseManager = this.host.getLeaseManager();
             HashMap<String, Lease> allLeases = new HashMap<String, Lease>();
 
-            // Inspect all leases.
-            // Acquire any expired leases.
-            // Renew any leases that currently belong to us.
+            // Inspect all leases. Acquire any expired leases.
             Iterable<Future<Lease>> gettingAllLeases = leaseManager.getAllLeases();
             ArrayList<Lease> leasesOwnedByOthers = new ArrayList<Lease>();
             int ourLeasesCount = 0;
@@ -300,37 +264,26 @@ class PartitionManager
             	try
             	{
                     possibleLease = leaseFuture.get();
+            		allLeases.put(possibleLease.getPartitionId(), possibleLease);
                     if (possibleLease.isExpired())
                     {
                     	if (leaseManager.acquireLease(possibleLease).get())
                     	{
-                    		allLeases.put(possibleLease.getPartitionId(), possibleLease);
                     		ourLeasesCount++;
+                    		this.pump.addPump(possibleLease);
                     	}
                     	else
                     	{
                     		// Probably failed because another host stole it between get and acquire
-                        	allLeases.put(possibleLease.getPartitionId(), possibleLease);
                         	leasesOwnedByOthers.add(possibleLease);
                     	}
                     }
                     else if (possibleLease.getOwner().compareTo(this.host.getHostName()) == 0)
                     {
-                        if (leaseManager.renewLease(possibleLease).get())
-                        {
-                            allLeases.put(possibleLease.getPartitionId(), possibleLease);
-                            ourLeasesCount++;
-                        }
-                    	else
-                    	{
-                    		// Probably failed because another host stole it between get and renew
-                        	allLeases.put(possibleLease.getPartitionId(), possibleLease);
-                        	leasesOwnedByOthers.add(possibleLease);
-                    	}
+                    	// Skip leases already owned by us. They are renewed by their pumps.
                     }
                     else
                     {
-                    	allLeases.put(possibleLease.getPartitionId(), possibleLease);
                     	leasesOwnedByOthers.add(possibleLease);
                     }
             	}
@@ -340,12 +293,12 @@ class PartitionManager
             	// next partition.
             	catch (ExecutionException|StorageException e)
             	{
-            		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure getting/acquiring/renewing lease, skipping"), e);
             		Exception notifyWith = e;
             		if ((e instanceof ExecutionException) && (e.getCause() != null) && (e.getCause() instanceof Exception))
             		{
             			notifyWith = (Exception)e.getCause();
             		}
+            		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure getting/acquiring/renewing lease, skipping"), notifyWith);
             		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith, EventProcessorHostActionStrings.CHECKING_LEASES,
             				((possibleLease != null) ? possibleLease.getPartitionId() : ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION));
             	}
@@ -367,6 +320,7 @@ class PartitionManager
                                         "Stole lease"));
     	                		allLeases.put(stealee.getPartitionId(), stealee);
     	                		ourLeasesCount++;
+                        		this.pump.addPump(stealee);
     	                	}
     	                	else
     	                	{
@@ -385,43 +339,33 @@ class PartitionManager
 	            }
             }
 
-            // Update pump with new state of leases.
-            for (String partitionId : allLeases.keySet())
-            {
-            	Lease updatedLease = allLeases.get(partitionId);
-            	TRACE_LOGGER.debug(LoggingUtils.withHost(this.host.getHostName(),
-                        "Lease on partition " + updatedLease.getPartitionId() + " owned by " + updatedLease.getOwner())); // DEBUG
-            	if (updatedLease.getOwner().compareTo(this.host.getHostName()) == 0)
-            	{
-            		this.pump.addPump(partitionId, updatedLease);
-            	}
-            	else
-            	{
-            		Future<?> removing = this.pump.removePump(partitionId, CloseReason.LeaseLost);
-            		if (removing != null)
-            		{
-            			removing.get();
-            		}
-            	}
-            }
-            
             onPartitionCheckCompleteTestHook();
-    		
-            try
-            {
-                Thread.sleep(leaseManager.getLeaseRenewIntervalInMilliseconds());
-            }
-            catch (InterruptedException e)
-            {
-            	// Bail on the thread if we are interrupted.
-                TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Sleep was interrupted"), e);
-                this.keepGoing = false;
-				Thread.currentThread().interrupt();
-				throw new RuntimeException(e);
-            }
     	}
+    	catch (Exception e)
+    	{
+        	// Catch all exceptions so that the lease scanner can keep running. 
+    		if (e instanceof InterruptedException)
+    		{
+    			// Interrupt means it's time to shut down. Re-assert interrupted status.
+    			Thread.currentThread().interrupt();
+    		}
+    		else
+    		{
+    			TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Exception while scanning leases"), e);
+    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.CHECKING_LEASES);
+    		}
+    	}
+
+    	// Schedule the next scan unless thread has been interrupted, which means it's shutdown time.
+    	if (!Thread.currentThread().isInterrupted())
+    	{
+	    	this.scanFuture = this.host.getExecutorService().schedule(() -> scan(),
+	    			this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(), TimeUnit.SECONDS);
+    	}
+    	
+    	return null;
     }
-    
+
     private Iterable<Lease> whichLeasesToSteal(ArrayList<Lease> stealableLeases, int haveLeaseCount)
     {
     	HashMap<String, Integer> countsByOwner = countLeasesByOwner(stealableLeases);

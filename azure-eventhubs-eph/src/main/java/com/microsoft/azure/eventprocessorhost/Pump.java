@@ -30,33 +30,34 @@ class Pump
         this.pumpStates = new ConcurrentHashMap<String, PartitionPump>();
     }
     
-    public void addPump(String partitionId, Lease lease) throws Exception
+    public void addPump(Lease lease) throws Exception
     {
-    	PartitionPump capturedPump = this.pumpStates.get(partitionId);
-    	if (capturedPump != null)
+    	PartitionPump capturedPump = this.pumpStates.get(lease.getPartitionId());
+    	if (capturedPump == null)
     	{
-    		// There already is a pump. Make sure the pump is working and replace the lease.
+    		// No existing pump, create a new one.
+    		createNewPump(lease.getPartitionId(), lease);
+    	}
+    	else
+    	{
+    		// There already is a pump. Shouldn't get here but do something sane if it happens.
+    		// Make sure the pump is working and replace the lease.
     		if ((capturedPump.getPumpStatus() == PartitionPumpStatus.PP_ERRORED) || capturedPump.isClosing())
     		{
     			// The existing pump is bad. Remove it (if it exists!) and create a new one.
-    			Future<?> removing = removePump(partitionId, CloseReason.Shutdown);
+    			Future<?> removing = removePump(lease.getPartitionId(), CloseReason.Shutdown);
     			if (removing != null)
     			{
     				removing.get();
     			}
-    			createNewPump(partitionId, lease);
+    			createNewPump(lease.getPartitionId(), lease);
     		}
     		else
     		{
     			// Pump is working, just replace the lease.
-    			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId, "updating lease for pump"));
+    			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "updating lease for pump"));
     			capturedPump.setLease(lease);
     		}
-    	}
-    	else
-    	{
-    		// No existing pump, create a new one.
-    		createNewPump(partitionId, lease);
     	}
     }
     

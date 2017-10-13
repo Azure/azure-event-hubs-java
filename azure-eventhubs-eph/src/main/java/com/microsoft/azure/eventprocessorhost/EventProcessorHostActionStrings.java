@@ -13,5 +13,6 @@ public final class EventProcessorHostActionStrings
 	public final static String OPENING_EVENT_PROCESSOR = "Opening Event Processor";
 	public final static String PARTITION_MANAGER_CLEANUP = "Partition Manager Cleanup";
 	public final static String PARTITION_MANAGER_MAIN_LOOP = "Partition Manager Main Loop";
+	public final static String RENEWING_LEASE = "Renewing Lease";
 	public final static String STEALING_LEASE = "Stealing Lease";
 }

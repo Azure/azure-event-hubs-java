@@ -103,7 +103,7 @@ class EventHubPartitionPump extends PartitionPump
 		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
 		this.internalOperationFuture = null;
 		
-	// Create new receiver and set options
+	    // Create new receiver and set options
         ReceiverOptions options = new ReceiverOptions();
         options.setReceiverRuntimeMetricEnabled(this.host.getEventProcessorOptions().getReceiverRuntimeMetricEnabled());
     	Object startAt = this.partitionContext.getInitialOffset();
@@ -130,6 +130,7 @@ class EventHubPartitionPump extends PartitionPump
 		if (this.internalOperationFuture != null)
 		{
 			this.partitionReceiver = (PartitionReceiver) this.internalOperationFuture.get();
+			this.internalOperationFuture = null;
 		}
 		else
 		{
@@ -139,7 +140,6 @@ class EventHubPartitionPump extends PartitionPump
 		}
 		this.partitionReceiver.setPrefetchCount(this.host.getEventProcessorOptions().getPrefetchCount());
 		this.partitionReceiver.setReceiveTimeout(this.host.getEventProcessorOptions().getReceiveTimeOut());
-		this.internalOperationFuture = null;
 
         TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.partitionContext,
                 "EH client and receiver creation finished"));

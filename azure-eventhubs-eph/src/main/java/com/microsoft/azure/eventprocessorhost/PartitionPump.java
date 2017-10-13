@@ -6,6 +6,9 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.Iterator;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import com.microsoft.azure.eventhubs.EventData;
 import org.slf4j.Logger;
@@ -23,6 +26,8 @@ abstract class PartitionPump
     protected PartitionContext partitionContext = null;
     
     protected final Object processingSynchronizer;
+    
+    protected ScheduledFuture<?> leaseRenewerFuture = null;
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionPump.class);
     
@@ -73,7 +78,12 @@ abstract class PartitionPump
         	specializedStartPump();
         }
         
-        if (this.pumpStatus != PartitionPumpStatus.PP_RUNNING)
+        if (this.pumpStatus == PartitionPumpStatus.PP_RUNNING)
+        {
+			this.host.getExecutorService().schedule(() -> leaseRenewer(),
+					this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(), TimeUnit.SECONDS);
+        }
+        else
         {
             // There was an error in specialized startup, so clean up the processor.
             this.pumpStatus = PartitionPumpStatus.PP_CLOSING;
@@ -160,16 +170,62 @@ abstract class PartitionPump
     
     abstract void specializedShutdown(CloseReason reason);
     
+    // Returns Void so it can be used in a lambda.
+    Void leaseRenewer()
+    {
+    	boolean scheduleNext = true;
+    	
+    	try
+    	{
+        	Lease captured = this.lease;
+			if (!this.host.getLeaseManager().renewLease(captured).get())
+			{
+				// False return from renewLease means that lease was lost.
+				// Start pump shutdown process and do not schedule another call to leaseRenewer.
+				scheduleNext = false;
+				this.host.getExecutorService().submit(() -> this.pump.removePump(this.partitionContext.getPartitionId(), CloseReason.LeaseLost));
+			}
+		}
+    	catch (InterruptedException ie)
+    	{
+    		// Interrupted means we are shutting down. Do not schedule another call.
+    		Thread.currentThread().interrupt();
+    		scheduleNext = false;
+    	}
+    	catch (ExecutionException e)
+    	{
+    		// Failure renewing lease due to storage exception or whatever.
+    		// Trace error and leave scheduleNext as true to schedule another try.
+    		Exception notifyWith = e;
+    		if ((e instanceof ExecutionException) && (e.getCause() != null) && (e.getCause() instanceof Exception))
+    		{
+    			notifyWith = (Exception)e.getCause();
+    		}
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.partitionContext, "Transient failure renewing lease"), notifyWith);
+    		// Notify the general error handler rather than calling this.processor.onError so we can provide context (RENEWING_LEASE)
+    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith, EventProcessorHostActionStrings.RENEWING_LEASE,
+    				this.partitionContext.getPartitionId());
+		}
+    	
+		if (scheduleNext)
+		{
+			this.host.getExecutorService().schedule(() -> leaseRenewer(),
+					this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(), TimeUnit.SECONDS);
+		}
+		
+    	return null;
+    }
+    
     protected void onEvents(Iterable<EventData> events)
 	{
     	// Update offset and sequence number in the PartitionContext to support argument-less overload of PartitionContext.checkpoint()
 		if (events != null)
 		{
-    		Iterator<EventData> blah = events.iterator();
+    		Iterator<EventData> iter = events.iterator();
     		EventData last = null;
-    		while (blah.hasNext())
+    		while (iter.hasNext())
     		{
-    			last = blah.next();
+    			last = iter.next();
     		}
     		if (last != null)
     		{

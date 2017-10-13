@@ -33,8 +33,9 @@ public final class EventProcessorHost
     private PartitionManagerOptions partitionManagerOptions = null;
 
     // weOwnExecutor exists to support user-supplied thread pools.
-    private final ExecutorService executorService;
+    private final ScheduledExecutorService executorService;
     private final boolean weOwnExecutor;
+    private final int executorServicePoolSize = 4;
     
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(EventProcessorHost.class);
 
@@ -93,7 +94,7 @@ public final class EventProcessorHost
             final String storageConnectionString)
     {
         this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, new AzureStorageCheckpointLeaseManager(storageConnectionString), 
-        		(ExecutorService)null);
+        		(ScheduledExecutorService)null);
         this.initializeLeaseManager = true;
     }
 
@@ -117,7 +118,7 @@ public final class EventProcessorHost
             final String storageConnectionString,
             final String storageContainerName)
     {
-        this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, storageConnectionString, storageContainerName, (ExecutorService)null);
+        this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, storageConnectionString, storageContainerName, (ScheduledExecutorService)null);
     }
 
     /**
@@ -140,7 +141,7 @@ public final class EventProcessorHost
             final String eventHubConnectionString,
             final String storageConnectionString,
             final String storageContainerName,
-            final ExecutorService executorService)
+            final ScheduledExecutorService executorService)
     {
         this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, storageConnectionString, storageContainerName, (String)null, executorService);
     }
@@ -168,7 +169,7 @@ public final class EventProcessorHost
             final String storageBlobPrefix)
     {
         this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, storageConnectionString, storageContainerName, storageBlobPrefix,
-        		(ExecutorService)null);
+        		(ScheduledExecutorService)null);
     }
 
     /**
@@ -193,7 +194,7 @@ public final class EventProcessorHost
             final String storageConnectionString,
             final String storageContainerName,
             final String storageBlobPrefix,
-            final ExecutorService executorService)
+            final ScheduledExecutorService executorService)
     {
     	// Want to check storageConnectionString and storageContainerName here but can't because Java doesn't allow statements before
     	// calling another constructor. storageBlobPrefix is allowed to be null or empty, doesn't need checking. 
@@ -211,7 +212,7 @@ public final class EventProcessorHost
             final String consumerGroupName,
             final String eventHubConnectionString,
             final AzureStorageCheckpointLeaseManager combinedManager,
-            final ExecutorService executorService)
+            final ScheduledExecutorService executorService)
     {
         this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, combinedManager, combinedManager, executorService);
     }
@@ -262,7 +263,7 @@ public final class EventProcessorHost
             final String eventHubConnectionString,
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager,
-            ExecutorService executorService)
+            ScheduledExecutorService executorService)
     {
     	if ((hostName == null) || hostName.isEmpty())
     	{
@@ -351,7 +352,7 @@ public final class EventProcessorHost
         else
         {
             this.weOwnExecutor = true;
-            this.executorService = Executors.newCachedThreadPool();
+            this.executorService = Executors.newScheduledThreadPool(this.executorServicePoolSize);
         }
         
         this.partitionManager = new PartitionManager(this);
@@ -383,7 +384,7 @@ public final class EventProcessorHost
     void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
     
     // All of these accessors are for internal use only.
-    ExecutorService getExecutorService() { return this.executorService; }
+    ScheduledExecutorService getExecutorService() { return this.executorService; }
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
     ILeaseManager getLeaseManager() { return this.leaseManager; }
     PartitionManager getPartitionManager() { return this.partitionManager; }
@@ -531,25 +532,12 @@ public final class EventProcessorHost
     	
     	if (this.partitionManager != null)
     	{
-	        try
-	        {
-	        	Future<?> stoppingPartitions = this.partitionManager.stopPartitions();
-	        	if (stoppingPartitions != null)
-	        	{
-	        		stoppingPartitions.get();
-	        	}
-	            
-                if (this.weOwnExecutor)
-                {
-                    this.executorService.awaitTermination(10, TimeUnit.MINUTES);
-                }
-			}
-	        catch (InterruptedException | ExecutionException e)
-	        {
-	        	// Log the failure but nothing really to do about it.
-                TRACE_LOGGER.warn(LoggingUtils.withHost(this.hostName, "Failure shutting down"), e);
-	        	throw e;
-			}
+        	this.partitionManager.stopPartitions();
+            if (this.weOwnExecutor)
+            {
+            	stopExecutor();
+                this.executorService.awaitTermination(10, TimeUnit.MINUTES);
+            }
     	}
     }
     
