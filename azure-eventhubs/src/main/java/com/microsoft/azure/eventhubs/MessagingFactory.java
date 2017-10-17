@@ -299,8 +299,9 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                     this.startReactor(new ReactorHandler());
                 }
             } catch (IOException e) {
-                TRACE_LOGGER.error("messagingFactory[%s], error[%s]",
+                TRACE_LOGGER.error("messagingFactory[%s], hostName[%s], error[%s]",
                         this.getClientId(),
+                        this.getHostName(),
                         ExceptionUtil.toStackTraceString(e, "Re-starting reactor failed with error"));
 
                 this.onReactorError(cause);
