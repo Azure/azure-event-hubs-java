@@ -120,9 +120,4 @@ class Pump
     	}
     	return futures;
     }
-    
-    public boolean hasPump(String partitionId)
-    {
-    	return this.pumpStates.containsKey(partitionId);
-    }
 }

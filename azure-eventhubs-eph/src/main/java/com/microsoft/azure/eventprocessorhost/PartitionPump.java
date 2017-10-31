@@ -473,9 +473,8 @@ class PartitionPump
     protected Void onError(Throwable error)
     {
     	// How this method gets called:
-    	// 1) JavaClient calls an error handler installed by EventHubPartitionPump.
-    	// 2) That error handler calls EventHubPartitionPump.onError.
-    	// 3) EventHubPartitionPump doesn't override onError, so the call winds up here.
+    	// 1) JavaClient calls InternalReceiveHandler.onError
+    	// 2) That error handler calls this one.
     	//
     	// JavaClient can only make the call in (1) when execution is down in javaClient. Therefore no onEvents
     	// call can be in progress right now. JavaClient will not get control back until this handler
