@@ -40,7 +40,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private EventProcessorHost host;
     private final String storageConnectionString;
     private String storageContainerName;
-    private String storageBlobPrefix;
+    private final String storageBlobPrefix;
     
     private CloudBlobClient storageClient;
     private CloudBlobContainer eventHubContainer;
@@ -138,53 +138,84 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     //
     
     @Override
-    public Future<Boolean> checkpointStoreExists()
+    public boolean checkpointStoreExists() throws ExceptionWithAction
     {
-        return leaseStoreExists(this.checkpointOperationOptions);
-    }
-
-    @Override
-    public Future<Boolean> createCheckpointStoreIfNotExists()
-    {
-        return createLeaseStoreIfNotExists(this.checkpointOperationOptions);
-    }
-    
-    @Override
-    public Future<Boolean> deleteCheckpointStore()
-    {
-    	return deleteLeaseStore(this.checkpointOperationOptions);
-    }
-
-    @Override
-    public Future<Checkpoint> getCheckpoint(String partitionId)
-    {
-        return this.host.getExecutorService().submit(() -> getCheckpointSync(partitionId));
-    }
-    
-    private Checkpoint getCheckpointSync(String partitionId) throws URISyntaxException, IOException, StorageException
-    {
-    	AzureBlobLease lease = getLeaseSync(partitionId, this.checkpointOperationOptions);
-    	Checkpoint checkpoint = null;
-    	if (lease.getOffset() != null)
+    	boolean result = false;
+    	try
     	{
-	    	checkpoint = new Checkpoint(partitionId);
-	    	checkpoint.setOffset(lease.getOffset());
-	    	checkpoint.setSequenceNumber(lease.getSequenceNumber());
+        	result = leaseStoreExistsInternal(this.checkpointOperationOptions);
     	}
-    	// else offset is null meaning no checkpoint stored for this partition so return null
+    	catch (StorageException e)
+    	{
+    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure while checking lease store existence"), e);
+    		throw new ExceptionWithAction(e, EventProcessorHostActionStrings.CHECKING_CHECKPOINT_STORE);
+    	}
+    	return result;
+    }
+
+    @Override
+    public Void createCheckpointStoreIfNotExists() throws ExceptionWithAction
+    {
+        try
+        {
+        	createLeaseStoreIfNotExistsInternal(this.checkpointOperationOptions);
+        }
+        catch (StorageException e)
+        {
+        	TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure while creating checkpoint store"), e);
+        	throw new ExceptionWithAction(e, EventProcessorHostActionStrings.CREATING_CHECKPOINT_STORE);
+        }
+        return null;
+    }
+    
+    @Override
+    public boolean deleteCheckpointStore()
+    {
+    	return deleteLeaseStoreInternal(this.checkpointOperationOptions);
+    }
+
+    @Override
+    public Checkpoint getCheckpoint(String partitionId) throws ExceptionWithAction
+    {
+    	AzureBlobLease lease = null;
+		try
+		{
+			lease = getLeaseInternal(partitionId, this.checkpointOperationOptions);
+		}
+		catch (URISyntaxException | IOException | StorageException e)
+		{
+			throw new ExceptionWithAction(e, EventProcessorHostActionStrings.GETTING_CHECKPOINT);
+		}
+    	Checkpoint checkpoint = null;
+    	if (lease != null)
+    	{
+	    	if (lease.getOffset() != null)
+	    	{
+		    	checkpoint = new Checkpoint(partitionId);
+		    	checkpoint.setOffset(lease.getOffset());
+		    	checkpoint.setSequenceNumber(lease.getSequenceNumber());
+	    	}
+	    	// else offset is null meaning no checkpoint stored for this partition so return null
+    	}
     	return checkpoint;
     }
 
     @Override
-    public Future<Checkpoint> createCheckpointIfNotExists(String partitionId)
-    {
-        return this.host.getExecutorService().submit(() -> createCheckpointIfNotExistsSync(partitionId));
-    }
-    
-    private Checkpoint createCheckpointIfNotExistsSync(String partitionId) throws Exception
+    public Checkpoint createCheckpointIfNotExists(String partitionId) throws ExceptionWithAction
     {
     	// Normally the lease will already be created, checkpoint store is initialized after lease store.
-    	AzureBlobLease lease = createLeaseIfNotExistsSync(partitionId, this.checkpointOperationOptions);
+    	AzureBlobLease lease = null;
+		try
+		{
+			lease = createLeaseIfNotExistsInternal(partitionId, this.checkpointOperationOptions);
+		}
+		catch (URISyntaxException | IOException | StorageException e)
+		{
+            TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId,
+				"CreateCheckpointIfNotExist exception - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
+				"storageBlobPrefix: " + this.storageBlobPrefix), e);
+            throw new ExceptionWithAction(e, EventProcessorHostActionStrings.CREATING_CHECKPOINT);
+		}
     	
     	Checkpoint checkpoint = null;
     	if (lease.getOffset() != null)
@@ -195,47 +226,35 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	return checkpoint;
     }
 
-    @Deprecated
     @Override
-    public Future<Void> updateCheckpoint(Checkpoint checkpoint)
-    {
-        throw new RuntimeException("Use updateCheckpoint(checkpoint, lease) instead.");
-    }
-    
-    @Override
-    public Future<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint)
-    {
-        return this.host.getExecutorService().submit(() -> updateCheckpointSync(lease, checkpoint));
-    }
-    
-    private Void updateCheckpointSync(Lease lease, Checkpoint checkpoint) throws Exception
+    public void updateCheckpoint(Lease lease, Checkpoint checkpoint) throws ExceptionWithAction
     {
     	AzureBlobLease updatedLease = new AzureBlobLease((AzureBlobLease) lease);
-
         TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), checkpoint.getPartitionId(),
                 "Checkpointing at " + checkpoint.getOffset() + " // " + checkpoint.getSequenceNumber()));
     	updatedLease.setOffset(checkpoint.getOffset());
     	updatedLease.setSequenceNumber(checkpoint.getSequenceNumber());
-    	updateLeaseSync(updatedLease, this.checkpointOperationOptions);
-    	return null;
+    	try
+    	{
+			if (!updateLeaseInternal(updatedLease, this.checkpointOperationOptions))
+			{
+				throw new LeaseLostException(lease, "Lease lost"); 
+			}
+		}
+    	catch (ExceptionWithAction | IOException | StorageException | LeaseLostException e)
+    	{
+    		throw new ExceptionWithAction(e, EventProcessorHostActionStrings.UPDATING_CHECKPOINT);
+		}
+    	return;
     }
 
     @Override
-    public Future<Void> deleteCheckpoint(String partitionId)
+    public void deleteCheckpoint(String partitionId) throws ExceptionWithAction
     {
-        return this.host.getExecutorService().submit(() -> deleteCheckpointSync(partitionId));
+    	// Not currently used by EventProcessorHost.
+        return;
     }
     
-    private Void deleteCheckpointSync(String partitionId) throws Exception
-    {
-    	// "Delete" a checkpoint by changing the offset to null, so first we need to fetch the most current lease
-    	AzureBlobLease lease = getLeaseSync(partitionId, this.checkpointOperationOptions);
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId, "Deleting checkpoint for " + partitionId));
-    	lease.setOffset(null);
-    	lease.setSequenceNumber(0L);
-    	updateLeaseSync(lease, this.checkpointOperationOptions);
-        return null;
-    }
 
     
     //
@@ -255,39 +274,54 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
     
     @Override
-    public Future<Boolean> leaseStoreExists()
+    public boolean leaseStoreExists() throws ExceptionWithAction
     {
-        return leaseStoreExists(this.leaseOperationOptions);
+    	boolean result = false;
+    	try
+    	{
+        	result = leaseStoreExistsInternal(this.leaseOperationOptions);
+    	}
+    	catch (StorageException e)
+    	{
+    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure while checking lease store existence"), e);
+    		throw new ExceptionWithAction(e, EventProcessorHostActionStrings.CHECKING_LEASE_STORE);
+    	}
+    	return result;
     }
     
-    private Future<Boolean> leaseStoreExists(BlobRequestOptions options)
+    private boolean leaseStoreExistsInternal(BlobRequestOptions options) throws StorageException
     {
-        return this.host.getExecutorService().submit(() -> this.eventHubContainer.exists(null, options, null));
+    	return this.eventHubContainer.exists(null, options, null);
     }
 
     @Override
-    public Future<Boolean> createLeaseStoreIfNotExists()
+    public Void createLeaseStoreIfNotExists() throws ExceptionWithAction
     {
-        return createLeaseStoreIfNotExists(this.leaseOperationOptions);
+    	try
+    	{
+    		createLeaseStoreIfNotExistsInternal(this.leaseOperationOptions);
+    	}
+    	catch (StorageException e)
+    	{
+        	TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure while creating lease store"), e);
+        	throw new ExceptionWithAction(e, EventProcessorHostActionStrings.CREATING_LEASE_STORE);
+    	}
+    	return null;
     }
     
-    private Future<Boolean> createLeaseStoreIfNotExists(BlobRequestOptions options)
+    private void createLeaseStoreIfNotExistsInternal(BlobRequestOptions options) throws StorageException
     {
-        return this.host.getExecutorService().submit(() -> this.eventHubContainer.createIfNotExists(options, null));
+    	// returns true if the container was created, false if it already existed -- we don't care
+		this.eventHubContainer.createIfNotExists(options, null);
     }
 
     @Override
-    public Future<Boolean> deleteLeaseStore()
+    public boolean deleteLeaseStore()
     {
-        return this.host.getExecutorService().submit(() -> deleteLeaseStoreSync(this.leaseOperationOptions));
+        return deleteLeaseStoreInternal(this.leaseOperationOptions);
     }
     
-    private Future<Boolean> deleteLeaseStore(BlobRequestOptions options)
-    {
-        return this.host.getExecutorService().submit(() -> deleteLeaseStoreSync(options));
-    }
-    
-    private Boolean deleteLeaseStoreSync(BlobRequestOptions options)
+    private boolean deleteLeaseStoreInternal(BlobRequestOptions options)
     {
     	boolean retval = true;
     	
@@ -336,12 +370,24 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
     
     @Override
-    public Future<Lease> getLease(String partitionId)
+    public Lease getLease(String partitionId) throws ExceptionWithAction
     {
-        return this.host.getExecutorService().submit(() -> getLeaseSync(partitionId, this.leaseOperationOptions));
+    	Lease result = null;
+    	
+    	try
+    	{
+    		result = getLeaseInternal(partitionId, this.leaseOperationOptions);
+    	}
+    	catch (URISyntaxException|IOException|StorageException e)
+    	{
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId, "Failure while getting lease details"), e);
+    		throw new ExceptionWithAction(e, EventProcessorHostActionStrings.GETTING_LEASE);
+    	}
+    	
+    	return result;
     }
     
-    private AzureBlobLease getLeaseSync(String partitionId, BlobRequestOptions options) throws URISyntaxException, IOException, StorageException
+    private AzureBlobLease getLeaseInternal(String partitionId, BlobRequestOptions options) throws URISyntaxException, IOException, StorageException
     {
     	AzureBlobLease retval = null;
     	
@@ -355,24 +401,58 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
 
     @Override
-    public Iterable<Future<Lease>> getAllLeases() throws IllegalEntityException
+    public ArrayList<CompletableFuture<Lease>> getAllLeases() throws ExceptionWithAction
     {
-        ArrayList<Future<Lease>> leaseFutures = new ArrayList<Future<Lease>>();
-        String[] partitionIds = this.host.getPartitionManager().getPartitionIds();
+        ArrayList<CompletableFuture<Lease>> leaseFutures = new ArrayList<CompletableFuture<Lease>>();
+        
+        String[] partitionIds = null;
+        try
+        {
+        	partitionIds = this.host.getPartitionManager().getPartitionIds();
+        }
+        catch (IllegalEntityException e)
+        {
+    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host.getHostName(), "Failure while getting details of all leases"), e);
+    		throw new ExceptionWithAction(e, EventProcessorHostActionStrings.GETTING_LEASE);
+        }
+        
         for (String id : partitionIds)
         {
-            leaseFutures.add(getLease(id));
+        	leaseFutures.add(CompletableFuture.supplyAsync(() -> {
+        		Lease result = null;
+        		try
+        		{
+        			result = getLease(id);
+        		}
+        		catch (ExceptionWithAction e)
+        		{
+        			throw new CompletionException(e);
+        		}
+        		return result;
+        	}, this.host.getExecutorService()));
         }
         return leaseFutures;
     }
 
     @Override
-    public Future<Lease> createLeaseIfNotExists(String partitionId)
+    public Lease createLeaseIfNotExists(String partitionId) throws ExceptionWithAction
     {
-        return this.host.getExecutorService().submit(() -> createLeaseIfNotExistsSync(partitionId, this.leaseOperationOptions));
+    	Lease returnLease = null;
+    	try
+    	{
+            returnLease = createLeaseIfNotExistsInternal(partitionId, this.leaseOperationOptions);
+        }
+    	catch (URISyntaxException|IOException|StorageException e)
+    	{
+            TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId,
+				"CreateLeaseIfNotExist exception - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
+				"storageBlobPrefix: " + this.storageBlobPrefix), e);
+            throw new ExceptionWithAction(e, EventProcessorHostActionStrings.CREATING_LEASE);
+    	}
+    	return returnLease;
     }
     
-    private AzureBlobLease createLeaseIfNotExistsSync(String partitionId, BlobRequestOptions options) throws URISyntaxException, IOException, StorageException
+    private AzureBlobLease createLeaseIfNotExistsInternal(String partitionId, BlobRequestOptions options) throws URISyntaxException, IOException, StorageException
     {
     	AzureBlobLease returnLease = null;
     	try
@@ -393,13 +473,10 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		{
     			// The blob already exists.
     			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId, "Lease already exists"));
-        		returnLease = getLeaseSync(partitionId, options);
+        		returnLease = getLeaseInternal(partitionId, options);
     		}
     		else
     		{
-                TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId,
-    				"CreateLeaseIfNotExist StorageException - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
-    				"storageBlobPrefix: " + this.storageBlobPrefix), se);
     			throw se;
     		}
     	}
@@ -408,25 +485,37 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
 
     @Override
-    public Future<Void> deleteLease(Lease lease)
-    {
-        return this.host.getExecutorService().submit(() -> deleteLeaseSync((AzureBlobLease)lease));
-    }
-    
-    private Void deleteLeaseSync(AzureBlobLease lease) throws StorageException
+    public void deleteLease(Lease lease) throws ExceptionWithAction
     {
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(),"Deleting lease"));
-    	lease.getBlob().deleteIfExists();
-    	return null;
+    	try
+    	{
+			((AzureBlobLease)lease).getBlob().deleteIfExists();
+		}
+    	catch (StorageException e)
+    	{
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "Exception deleting lease"), e);
+    		throw new ExceptionWithAction(e, EventProcessorHostActionStrings.DELETING_LEASE);
+		}
     }
 
     @Override
-    public Future<Boolean> acquireLease(Lease lease)
+    public boolean acquireLease(Lease lease) throws ExceptionWithAction
     {
-        return this.host.getExecutorService().submit(() -> acquireLeaseSync((AzureBlobLease)lease));
+    	boolean result = false;
+    	try
+    	{
+    		result = acquireLeaseInternal((AzureBlobLease)lease);
+    	}
+    	catch (IOException|StorageException e)
+    	{
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "Failure acquiring lease"), e);
+    		throw new ExceptionWithAction(e, EventProcessorHostActionStrings.ACQUIRING_LEASE);
+    	}
+        return result;
     }
     
-    private Boolean acquireLeaseSync(AzureBlobLease lease) throws Exception
+    private boolean acquireLeaseInternal(AzureBlobLease lease) throws IOException, StorageException
     {
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "Acquiring lease"));
     	
@@ -489,16 +578,11 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
 
     @Override
-    public Future<Boolean> renewLease(Lease lease)
-    {
-        return this.host.getExecutorService().submit(() -> renewLeaseSync((AzureBlobLease)lease));
-    }
-    
-    private Boolean renewLeaseSync(AzureBlobLease lease) throws Exception
+    public boolean renewLease(Lease lease) throws ExceptionWithAction
     {
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "Renewing lease"));
     	
-    	CloudBlockBlob leaseBlob = lease.getBlob();
+    	CloudBlockBlob leaseBlob = ((AzureBlobLease)lease).getBlob();
     	boolean retval = true;
     	
     	try
@@ -513,7 +597,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		}
     		else
     		{
-    			throw se;
+        		throw new ExceptionWithAction(se, EventProcessorHostActionStrings.RENEWING_LEASE);
     		}
     	}
     	
@@ -521,21 +605,17 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
 
     @Override
-    public Future<Boolean> releaseLease(Lease lease)
-    {
-        return this.host.getExecutorService().submit(() -> releaseLeaseSync((AzureBlobLease)lease));
-    }
-    
-    private Boolean releaseLeaseSync(AzureBlobLease lease) throws Exception
+    public boolean releaseLease(Lease lease) throws ExceptionWithAction
     {
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "Releasing lease"));
     	
-    	CloudBlockBlob leaseBlob = lease.getBlob();
+    	AzureBlobLease inLease = (AzureBlobLease)lease;
+    	CloudBlockBlob leaseBlob = inLease.getBlob();
     	boolean retval = true;
     	try
     	{
     		String leaseId = lease.getToken();
-    		AzureBlobLease releasedCopy = new AzureBlobLease(lease);
+    		AzureBlobLease releasedCopy = new AzureBlobLease(inLease);
     		releasedCopy.setToken("");
     		releasedCopy.setOwner("");
     		uploadLease(releasedCopy, leaseBlob, AccessCondition.generateLeaseCondition(leaseId), UploadActivity.Release, this.leaseOperationOptions);
@@ -549,20 +629,34 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		}
     		else
     		{
-    			throw se;
+    			throw new ExceptionWithAction(se, EventProcessorHostActionStrings.RELEASING_LEASE);
     		}
+    	}
+    	catch (IOException ie)
+    	{
+    		throw new ExceptionWithAction(ie, EventProcessorHostActionStrings.RELEASING_LEASE);
     	}
     	
     	return retval;
     }
 
     @Override
-    public Future<Boolean> updateLease(Lease lease)
+    public boolean updateLease(Lease lease) throws ExceptionWithAction
     {
-        return this.host.getExecutorService().submit(() -> updateLeaseSync((AzureBlobLease)lease, this.leaseOperationOptions));
+    	boolean result = false;
+    	try
+    	{
+    		result = updateLeaseInternal((AzureBlobLease)lease, this.leaseOperationOptions);
+    	}
+    	catch (IOException | StorageException | ExceptionWithAction e)
+    	{
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "Failure updating lease"), e);
+    		throw new ExceptionWithAction(e, EventProcessorHostActionStrings.UPDATING_LEASE);
+    	}
+        return result;
     }
     
-    public Boolean updateLeaseSync(AzureBlobLease lease, BlobRequestOptions options) throws Exception
+    public boolean updateLeaseInternal(AzureBlobLease lease, BlobRequestOptions options) throws ExceptionWithAction, IOException, StorageException
     {
     	if (lease == null)
     	{
@@ -580,7 +674,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	// First, renew the lease to make sure the update will go through.
     	// Renewing the lease is always logically a lease operation, even if it is part of writing a checkpoint, so
     	// don't pass options.
-    	if (!renewLeaseSync(lease))
+    	if (!renewLease(lease))
     	{
     		return false;
     	}
@@ -594,7 +688,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	{
     		if (wasLeaseLost(se, lease.getPartitionId()))
     		{
-    			throw new LeaseLostException(lease, se);
+    			return false;
     		}
     		else
     		{

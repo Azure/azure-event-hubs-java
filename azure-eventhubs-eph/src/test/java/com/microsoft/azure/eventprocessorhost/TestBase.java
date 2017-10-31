@@ -4,8 +4,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.AfterClass;
 
@@ -55,7 +55,7 @@ public class TestBase
 			effectiveConnectionString = settings.inoutEPHConstructorArgs.getEHConnection();
 		}
 		
-		ExecutorService effectiveExecutor = settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EXECUTOR_OVERRIDE) ?
+		ScheduledExecutorService effectiveExecutor = settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EXECUTOR_OVERRIDE) ?
 				settings.inoutEPHConstructorArgs.getExecutor() : null;
 		
 		if (settings.inTelltaleOnTimeout)

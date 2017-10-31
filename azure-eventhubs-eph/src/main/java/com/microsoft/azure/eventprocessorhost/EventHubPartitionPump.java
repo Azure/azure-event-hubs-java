@@ -52,7 +52,7 @@ class EventHubPartitionPump extends PartitionPump
 	        catch (Exception e)
 	        {
 	        	lastException = e;
-	        	if ((e instanceof ExecutionException) && (e.getCause() instanceof ReceiverDisconnectedException))
+	        	if ((e instanceof ExecutionException) && (e.getCause() != null) && (e.getCause() instanceof ReceiverDisconnectedException))
 	        	{
 	        		// TODO Assuming this is due to a receiver with a higher epoch.
 	        		// Is there a way to be sure without checking the exception text?
@@ -95,7 +95,7 @@ class EventHubPartitionPump extends PartitionPump
         }
     }
     
-    private void openClients() throws EventHubException, IOException, InterruptedException, ExecutionException
+    private void openClients() throws EventHubException, IOException, InterruptedException, ExecutionException, ExceptionWithAction
     {
     	// Create new client
         TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.partitionContext, "Opening EH client"));
@@ -159,15 +159,15 @@ class EventHubPartitionPump extends PartitionPump
 			{
 				this.partitionReceiver.setReceiveHandler(null).get();
 			}
-			catch (InterruptedException | ExecutionException exception)
+			catch (InterruptedException | ExecutionException e)
 			{
-				if (exception instanceof InterruptedException)
+				if (e instanceof InterruptedException)
 				{
 					// Re-assert the thread's interrupted status
 					Thread.currentThread().interrupt();
 				}
 
-				final Throwable throwable = exception.getCause();
+				final Throwable throwable = e.getCause();
 				if (throwable != null)
 				{
 					TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.partitionContext,
@@ -245,28 +245,28 @@ class EventHubPartitionPump extends PartitionPump
 		@Override
 		public void onReceive(Iterable<EventData> events)
 		{
-                    if (EventHubPartitionPump.this.host.getEventProcessorOptions().getReceiverRuntimeMetricEnabled())
-                    {
-                        EventHubPartitionPump.this.partitionContext.setRuntimeInformation(EventHubPartitionPump.this.partitionReceiver.getRuntimeInformation());
-                    }
-                    
-                    // This method is called on the thread that the Java EH client uses to run the pump.
-                    // There is one pump per EventHubClient. Since each PartitionPump creates a new EventHubClient,
-                    // using that thread to call onEvents does no harm. Even if onEvents is slow, the pump will
-                    // get control back each time onEvents returns, and be able to receive a new batch of messages
-                    // with which to make the next onEvents call. The pump gains nothing by running faster than onEvents.
+            if (EventHubPartitionPump.this.host.getEventProcessorOptions().getReceiverRuntimeMetricEnabled())
+            {
+                EventHubPartitionPump.this.partitionContext.setRuntimeInformation(EventHubPartitionPump.this.partitionReceiver.getRuntimeInformation());
+            }
+            
+            // This method is called on the thread that the Java EH client uses to run the pump.
+            // There is one pump per EventHubClient. Since each PartitionPump creates a new EventHubClient,
+            // using that thread to call onEvents does no harm. Even if onEvents is slow, the pump will
+            // get control back each time onEvents returns, and be able to receive a new batch of messages
+            // with which to make the next onEvents call. The pump gains nothing by running faster than onEvents.
 
-                    // The underlying client returns null if there are no events, but the contract for IEventProcessor
-                    // is different and is expecting an empty iterable if there are no events (and invoke processor after
-                    // receive timeout is turned on).
-                    
-                    Iterable<EventData> effectiveEvents = events;
-                    if (effectiveEvents == null)
-                    {
-                    	effectiveEvents = new ArrayList<EventData>();
-                    }
-                    
-                    EventHubPartitionPump.this.onEvents(effectiveEvents);
+            // The underlying client returns null if there are no events, but the contract for IEventProcessor
+            // is different and is expecting an empty iterable if there are no events (and invoke processor after
+            // receive timeout is turned on).
+            
+            Iterable<EventData> effectiveEvents = events;
+            if (effectiveEvents == null)
+            {
+            	effectiveEvents = new ArrayList<EventData>();
+            }
+            
+            EventHubPartitionPump.this.onEvents(effectiveEvents);
 		}
 
 		@Override

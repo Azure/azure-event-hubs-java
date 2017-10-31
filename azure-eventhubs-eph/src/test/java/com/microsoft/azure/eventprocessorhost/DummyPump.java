@@ -65,9 +65,9 @@ class DummyPump extends Pump
 	//
 	
 	@Override
-    public void addPump(String partitionId, Lease lease) throws Exception
+    public void addPump(Lease lease) throws Exception
     {
-		this.pumps.add(partitionId);
+		this.pumps.add(lease.getPartitionId());
     }
     
 	@Override

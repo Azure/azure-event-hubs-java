@@ -9,7 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -63,23 +62,13 @@ class Pump
     
     private void createNewPump(String partitionId, Lease lease) throws Exception
     {
-		PartitionPump newPartitionPump = new EventHubPartitionPump(this.host, this, lease);
-		this.host.getExecutorService().submit(new Callable<Void>()
-			{
-				@Override
-				public Void call() throws Exception
-				{
-					// Do this whole section as a callable so it runs on a separate thread and doesn't hold up the main loop
-					// while we wait for startPump to return in order to know whether to add the pump to pumpStates.
-					newPartitionPump.startPump();
-					if (newPartitionPump.getPumpStatus() == PartitionPumpStatus.PP_RUNNING)
-					{
-						Pump.this.pumpStates.put(partitionId, newPartitionPump); // do the put after start, if the start fails then put doesn't happen
-						TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(Pump.this.host.getHostName(), partitionId, "created new pump"));
-					}
-					return null;
-				}
-			});
+		PartitionPump newPartitionPump = new PartitionPump(this.host, this, lease);
+		newPartitionPump.startPump();
+		if (newPartitionPump.getPumpStatus() == PartitionPumpStatus.PP_RUNNING)
+		{
+			Pump.this.pumpStates.put(partitionId, newPartitionPump); // do the put after start, if the start fails then put doesn't happen
+			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(Pump.this.host.getHostName(), partitionId, "created new pump"));
+		}
     }
     
     public Future<?> removePump(String partitionId, final CloseReason reason)

@@ -6,7 +6,6 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.time.Instant;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import com.microsoft.azure.eventhubs.EventData;
@@ -36,7 +35,7 @@ public class PartitionContext
         this.eventHubPath = eventHubPath;
         this.consumerGroupName = consumerGroupName;
 
-      this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
+        this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
     }
 
     public String getConsumerGroupName()
@@ -96,11 +95,12 @@ public class PartitionContext
     }
     
     // Returns a String (offset) or Instant (timestamp).
-    Object getInitialOffset() throws InterruptedException, ExecutionException
+    Object getInitialOffset() throws ExceptionWithAction
     {
     	Object startAt = null;
     	
-    	Checkpoint startingCheckpoint = this.host.getCheckpointManager().getCheckpoint(this.partitionId).get();
+    	TRACE_LOGGER.info(LoggingUtils.threadPoolStatusReport(this.host.getHostName(), this.host.getExecutorService()));
+    	Checkpoint startingCheckpoint = this.host.getCheckpointManager().getCheckpoint(this.partitionId);
     	if (startingCheckpoint == null)
     	{
     		// No checkpoint was ever stored. Use the initialOffsetProvider instead.
@@ -141,18 +141,10 @@ public class PartitionContext
 
     /**
      * Writes the current offset and sequenceNumber to the checkpoint store via the checkpoint manager.
-     * @throws IllegalArgumentException  If this.sequenceNumber is less than the last checkpointed value  
-     * @throws ExecutionException 
-     * @throws InterruptedException 
+     * @throws ExceptionWithAction
      */
-    public void checkpoint() throws IllegalArgumentException, InterruptedException, ExecutionException
+    public void checkpoint() throws ExceptionWithAction
     {
-    	// Capture the current offset and sequenceNumber. Synchronize to be sure we get a matched pair
-    	// instead of catching an update halfway through. The capturing may not be strictly necessary,
-    	// since checkpoint() is called from the user's event processor which also controls the retrieval
-    	// of events, and no other thread should be updating this PartitionContext, unless perhaps the
-    	// event processor is itself multithreaded... Whether it's required or not, the amount of work
-    	// required is trivial, so we might as well do it to be sure.
     	Checkpoint capturedCheckpoint = new Checkpoint(this.partitionId, this.offset, this.sequenceNumber);
     	persistCheckpoint(capturedCheckpoint);
     }
@@ -162,20 +154,18 @@ public class PartitionContext
      * values to the checkpoint store via the checkpoint manager.
      *  
      * @param event  A received EventData with valid offset and sequenceNumber
-     * @throws IllegalArgumentException  If the sequenceNumber in the provided event is less than the last checkpointed value  
-     * @throws ExecutionException 
-     * @throws InterruptedException 
+     * @throws ExceptionWithAction  
      */
-    public void checkpoint(EventData event) throws IllegalArgumentException, InterruptedException, ExecutionException
+    public void checkpoint(EventData event) throws ExceptionWithAction
     {
     	persistCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
     }
     
-    private void persistCheckpoint(Checkpoint persistThis) throws IllegalArgumentException, InterruptedException, ExecutionException
+    private void persistCheckpoint(Checkpoint persistThis) throws ExceptionWithAction
     {
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), persistThis.getPartitionId(),
                 "Saving checkpoint: " + persistThis.getOffset() + "//" + persistThis.getSequenceNumber()));
 		
-        this.host.getCheckpointManager().updateCheckpoint(this.lease, persistThis).get();
+        this.host.getCheckpointManager().updateCheckpoint(this.lease, persistThis);
     }
 }

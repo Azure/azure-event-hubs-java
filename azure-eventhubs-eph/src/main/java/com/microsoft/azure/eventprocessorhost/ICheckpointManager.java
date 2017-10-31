@@ -5,8 +5,6 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import java.util.concurrent.Future;
-
 /***
  * If you wish to have EventProcessorHost store checkpoints somewhere other than Azure Storage,
  * you can write your own checkpoint manager using this interface.  
@@ -24,22 +22,24 @@ public interface ICheckpointManager
 	 * Does the checkpoint store exist?
 	 * 
 	 * @return true if it exists, false if not
+	 * @throws ExceptionWithAction with action EventProcessorHostActionStrings.CHECKING_CHECKPOINT_STORE on error
 	 */
-    public Future<Boolean> checkpointStoreExists();
+    public boolean checkpointStoreExists() throws ExceptionWithAction;
 
     /***
      * Create the checkpoint store if it doesn't exist. Do nothing if it does exist.
      * 
-     * @return true if the checkpoint store already exists or was created OK, false if there was a failure
+     * @return Void so it can be called from lambdas
+     * @throws ExceptionWithAction with action EventProcessorHostActionStrings.CREATING_CHECKPOINT_STORE on error
      */
-    public Future<Boolean> createCheckpointStoreIfNotExists();
+    public Void createCheckpointStoreIfNotExists() throws ExceptionWithAction;
     
     /**
      * Not used by EventProcessorHost, but a convenient function to have for testing.
      * 
      * @return true if the checkpoint store was deleted successfully, false if not
      */
-    public Future<Boolean> deleteCheckpointStore();
+    public boolean deleteCheckpointStore();
 
     /***
      * Get the checkpoint data associated with the given partition. Could return null if no checkpoint has
@@ -48,8 +48,9 @@ public interface ICheckpointManager
      * @param partitionId  Id of partition to get checkpoint info for.
      * 
      * @return  Checkpoint info for the given partition, or null if none has been previously stored.
+     * @throws ExceptionWithAction with action EventProcessorHostActionStrings.GETTING_CHECKPOINT on error
      */
-    public Future<Checkpoint> getCheckpoint(String partitionId);
+    public Checkpoint getCheckpoint(String partitionId) throws ExceptionWithAction;
     
     /***
      * Create the checkpoint HOLDER for the given partition if it doesn't exist. This method is about
@@ -63,8 +64,9 @@ public interface ICheckpointManager
      * @param partitionId  Id of partition to create the checkpoint for.
      *  
      * @return  The checkpoint for the given partition, if one exists, or null.
+     * @throws ExceptionWithAction with action EventProcessorHostActionStrings.CREATING_CHECKPOINT on error
      */
-    public Future<Checkpoint> createCheckpointIfNotExists(String partitionId);
+    public Checkpoint createCheckpointIfNotExists(String partitionId) throws ExceptionWithAction;
 
     /***
      * Update the checkpoint in the store with the offset/sequenceNumber in the provided checkpoint.
@@ -77,19 +79,17 @@ public interface ICheckpointManager
      * @param lease		  lease for the partition to be checkpointed.
      * @param checkpoint  offset/sequenceNumber and partition id to update the store with.
      *   
-     * @return  Void
+     * @return  void
+     * @throws ExceptionWithAction with action EventProcessorHostActionStrings.UPDATING_CHECKPOINT on error
      */
-    public Future<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint);
-    
-    @Deprecated
-    public Future<Void> updateCheckpoint(Checkpoint checkpoint);
+    public void updateCheckpoint(Lease lease, Checkpoint checkpoint) throws ExceptionWithAction;
     
     /***
      * Delete the stored checkpoint for the given partition. If there is no stored checkpoint for the
-     * given partition, that is treated as success.
+     * given partition, that is treated as success. Not currently used by EventProcessorHost.
      * 
      * @param partitionId  id of partition to delete checkpoint from store
-     * @return  Void
+     * @return  void
      */
-    public Future<Void> deleteCheckpoint(String partitionId);
+    public void deleteCheckpoint(String partitionId) throws ExceptionWithAction;
 }

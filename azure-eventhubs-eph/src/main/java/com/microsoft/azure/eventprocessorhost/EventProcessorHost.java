@@ -23,8 +23,8 @@ public final class EventProcessorHost
     private final String consumerGroupName;
     private String eventHubConnectionString;
 
-    private ICheckpointManager checkpointManager;
-    private ILeaseManager leaseManager;
+    private final ICheckpointManager checkpointManager;
+    private final ILeaseManager leaseManager;
     private boolean initializeLeaseManager = false;
     private boolean unregistered = false;
     private PartitionManager partitionManager;
@@ -35,7 +35,7 @@ public final class EventProcessorHost
     // weOwnExecutor exists to support user-supplied thread pools.
     private final ScheduledExecutorService executorService;
     private final boolean weOwnExecutor;
-    private final int executorServicePoolSize = 4;
+    private final int executorServicePoolSize = 32;
     
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(EventProcessorHost.class);
 
@@ -354,6 +354,7 @@ public final class EventProcessorHost
             this.weOwnExecutor = true;
             this.executorService = Executors.newScheduledThreadPool(this.executorServicePoolSize);
         }
+        TRACE_LOGGER.info(LoggingUtils.threadPoolStatusReport(this.hostName, this.executorService));
         
         this.partitionManager = new PartitionManager(this);
 
@@ -428,9 +429,9 @@ public final class EventProcessorHost
      * </pre>
      *  
      * @param eventProcessorType	Class that implements IEventProcessor.
-     * @return						Future that completes when initialization is finished. If initialization fails, get() will throw. 
+     * @return					Future that completes when initialization is finished. If initialization fails, get() will throw CompletionException. Check the cause for details.
      */
-    public <T extends IEventProcessor> Future<?> registerEventProcessor(Class<T> eventProcessorType) throws Exception
+    public <T extends IEventProcessor> CompletableFuture<Void> registerEventProcessor(Class<T> eventProcessorType) throws Exception
     {
         DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
         defaultFactory.setEventProcessorClass(eventProcessorType);
@@ -445,9 +446,9 @@ public final class EventProcessorHost
      *  
      * @param eventProcessorType	Class that implements IEventProcessor.
      * @param processorOptions		Options for the processor host and event processor(s).
-     * @return						Future that completes when initialization is finished. If initialization fails, get() will throw. 
+     * @return					Future that completes when initialization is finished. If initialization fails, get() will throw CompletionException. Check the cause for details.
      */
-    public <T extends IEventProcessor> Future<?> registerEventProcessor(Class<T> eventProcessorType, EventProcessorOptions processorOptions) throws Exception
+    public <T extends IEventProcessor> CompletableFuture<Void> registerEventProcessor(Class<T> eventProcessorType, EventProcessorOptions processorOptions) throws Exception
     {
         DefaultEventProcessorFactory<T> defaultFactory = new DefaultEventProcessorFactory<T>();
         defaultFactory.setEventProcessorClass(eventProcessorType);
@@ -465,9 +466,9 @@ public final class EventProcessorHost
      * This overload uses default options for the processor host and event processor(s).
      * 
      * @param factory	User-supplied event processor factory object.
-     * @return			Future that completes when initialization is finished. If initialization fails, get() will throw.
+     * @return					Future that completes when initialization is finished. If initialization fails, get() will throw CompletionException. Check the cause for details.
      */
-    public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory) throws Exception
+    public CompletableFuture<Void> registerEventProcessorFactory(IEventProcessorFactory<?> factory) throws Exception
     {
         return registerEventProcessorFactory(factory, EventProcessorOptions.getDefaultOptions());
     }
@@ -479,9 +480,9 @@ public final class EventProcessorHost
      * 
      * @param factory			User-supplied event processor factory object.			
      * @param processorOptions	Options for the processor host and event processor(s).
-     * @return					Future that completes when initialization is finished. If initialization fails, get() will throw.
+     * @return					Future that completes when initialization is finished. If initialization fails, get() will throw CompletionException. Check the cause for details.
      */
-    public Future<?> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions) throws Exception
+    public CompletableFuture<Void> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
         if (this.unregistered)
         {
@@ -516,7 +517,8 @@ public final class EventProcessorHost
 
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
-        return this.executorService.submit(() -> this.partitionManager.initialize());
+        
+        return CompletableFuture.runAsync(() -> this.partitionManager.initialize(), this.executorService);
     }
 
     /**

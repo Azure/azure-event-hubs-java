@@ -193,7 +193,7 @@ public class SmokeTest extends TestBase
 		
 		PerTestSettings settings = new PerTestSettings("rcvAllPartsUserExec");
 		settings.inOptions.setInitialOffsetProvider((partitionId) -> { return savedNow; });
-		settings.inoutEPHConstructorArgs.setExecutor(Executors.newCachedThreadPool());
+		settings.inoutEPHConstructorArgs.setExecutor(Executors.newScheduledThreadPool(4));
 		settings = testSetup(settings);
 
 		final int maxGeneration = 10;

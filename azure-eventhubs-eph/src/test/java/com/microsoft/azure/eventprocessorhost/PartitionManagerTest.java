@@ -399,7 +399,7 @@ public class PartitionManagerTest
 		{
 			if (this.running[i])
 			{
-				this.partitionManagers[i].stopPartitions().get();
+				this.partitionManagers[i].stopPartitions();
 				TestUtilities.log("Host " + i + " stopped");
 			}
 		}
@@ -409,7 +409,7 @@ public class PartitionManagerTest
 	{
 		if (this.running[index])
 		{
-			this.partitionManagers[index].stopPartitions().get();
+			this.partitionManagers[index].stopPartitions();
 			TestUtilities.log("Host " + index + " stopped");
 			this.running[index] = false;
 		}
