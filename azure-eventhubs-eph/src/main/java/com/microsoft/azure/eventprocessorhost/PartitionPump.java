@@ -97,7 +97,7 @@ class PartitionPump extends PartitionReceiveHandler
         
         if (this.pumpStatus == PartitionPumpStatus.PP_RUNNING)
         {
-			this.host.getExecutorService().schedule(() -> leaseRenewer(),
+			this.leaseRenewerFuture = this.host.getExecutorService().schedule(() -> leaseRenewer(),
 					this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(), TimeUnit.SECONDS);
         }
         else
@@ -325,6 +325,8 @@ class PartitionPump extends PartitionReceiveHandler
     	}
         TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.partitionContext,
                "pump shutdown for reason " + reason.toString()));
+        
+        this.leaseRenewerFuture.cancel(false);
 
         specializedShutdown(reason);
 
@@ -397,6 +399,13 @@ class PartitionPump extends PartitionReceiveHandler
     // Returns Void so it can be used in a lambda.
     Void leaseRenewer()
     {
+    	// Theoretically, if the future is cancelled then this method should never fire, but
+    	// there's no harm in being sure.
+    	if (this.leaseRenewerFuture.isCancelled())
+    	{
+    		return null;
+    	}
+    	
     	boolean scheduleNext = true;
     	
     	try
@@ -421,9 +430,9 @@ class PartitionPump extends PartitionReceiveHandler
     				this.partitionContext.getPartitionId());
 		}
     	
-		if (scheduleNext)
+		if (scheduleNext && !this.leaseRenewerFuture.isCancelled())
 		{
-			this.host.getExecutorService().schedule(() -> leaseRenewer(),
+			this.leaseRenewerFuture = this.host.getExecutorService().schedule(() -> leaseRenewer(),
 					this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(), TimeUnit.SECONDS);
 		}
 		
