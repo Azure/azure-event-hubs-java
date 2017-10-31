@@ -25,7 +25,7 @@ import com.microsoft.azure.eventhubs.ReceiverOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class PartitionPump
+class PartitionPump extends PartitionReceiveHandler
 {
 	protected final EventProcessorHost host;
 	protected final Pump pump;
@@ -33,7 +33,6 @@ class PartitionPump
 
 	private EventHubClient eventHubClient = null;
 	private PartitionReceiver partitionReceiver = null;
-    private InternalReceiveHandler internalReceiveHandler = null;
 
 	protected PartitionPumpStatus pumpStatus = PartitionPumpStatus.PP_UNINITIALIZED;
 
@@ -50,6 +49,8 @@ class PartitionPump
     
 	PartitionPump(EventProcessorHost host, Pump pump, Lease lease)
 	{
+		super(host.getEventProcessorOptions().getMaxBatchSize());
+		
 		this.host = host;
 		this.pump = pump;
 		this.lease = lease;
@@ -162,12 +163,11 @@ class PartitionPump
 
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENING)
         {
-            this.internalReceiveHandler = new InternalReceiveHandler();
             // IEventProcessor.onOpen is called from the base PartitionPump and must have returned in order for execution to reach here, 
             // meaning it is safe to set the handler and start calling IEventProcessor.onEvents.
             // Set the status to running before setting the javaClient handler, so the IEventProcessor.onEvents can never race and see status != running.
             this.pumpStatus = PartitionPumpStatus.PP_RUNNING;
-            this.partitionReceiver.setReceiveHandler(this.internalReceiveHandler, this.host.getEventProcessorOptions().getInvokeProcessorAfterReceiveTimeout());
+            this.partitionReceiver.setReceiveHandler(this, this.host.getEventProcessorOptions().getInvokeProcessorAfterReceiveTimeout());
         }
         
         if (this.pumpStatus == PartitionPumpStatus.PP_OPENFAILED)
@@ -429,22 +429,41 @@ class PartitionPump
 		
     	return null;
     }
-    
-    protected void onEvents(Iterable<EventData> events)
+
+	@Override
+	public void onReceive(Iterable<EventData> events)
 	{
+        if (this.host.getEventProcessorOptions().getReceiverRuntimeMetricEnabled())
+        {
+            this.partitionContext.setRuntimeInformation(this.partitionReceiver.getRuntimeInformation());
+        }
+        
+        // This method is called on the thread that the Java EH client uses to run the pump.
+        // There is one pump per EventHubClient. Since each PartitionPump creates a new EventHubClient,
+        // using that thread to call onEvents does no harm. Even if onEvents is slow, the pump will
+        // get control back each time onEvents returns, and be able to receive a new batch of messages
+        // with which to make the next onEvents call. The pump gains nothing by running faster than onEvents.
+
+        // The underlying client returns null if there are no events, but the contract for IEventProcessor
+        // is different and is expecting an empty iterable if there are no events (and invoke processor after
+        // receive timeout is turned on).
+        
+        Iterable<EventData> effectiveEvents = events;
+        if (effectiveEvents == null)
+        {
+        	effectiveEvents = new ArrayList<EventData>();
+        }
+        
     	// Update offset and sequence number in the PartitionContext to support argument-less overload of PartitionContext.checkpoint()
-		if (events != null)
+		Iterator<EventData> iter = effectiveEvents.iterator();
+		EventData last = null;
+		while (iter.hasNext())
 		{
-    		Iterator<EventData> iter = events.iterator();
-    		EventData last = null;
-    		while (iter.hasNext())
-    		{
-    			last = iter.next();
-    		}
-    		if (last != null)
-    		{
-    			this.partitionContext.setOffsetAndSequenceNumber(last);
-    		}
+			last = iter.next();
+		}
+		if (last != null)
+		{
+			this.partitionContext.setOffsetAndSequenceNumber(last);
 		}
 		
     	try
@@ -455,7 +474,7 @@ class PartitionPump
         	// while an onEvents call is still in progress.
         	synchronized(this.processingSynchronizer)
         	{
-        		this.processor.onEvents(this.partitionContext, events);
+        		this.processor.onEvents(this.partitionContext, effectiveEvents);
         	}
         }
         catch (Exception e)
@@ -468,93 +487,48 @@ class PartitionPump
                     "Got exception from onEvents"), e);
         }
 	}
-    
-    // Returns Void so it can be called from a lambda.
-    protected Void onError(Throwable error)
-    {
-    	// How this method gets called:
-    	// 1) JavaClient calls InternalReceiveHandler.onError
-    	// 2) That error handler calls this one.
-    	//
-    	// JavaClient can only make the call in (1) when execution is down in javaClient. Therefore no onEvents
-    	// call can be in progress right now. JavaClient will not get control back until this handler
-    	// returns, so there will be no calls to onEvents until after the user's error handler has returned.
-    	
-    	// Notify the user's IEventProcessor
-    	this.processor.onError(this.partitionContext, error);
-    	
-    	// Notify upstream that this pump is dead so that cleanup will occur.
-    	// Failing to do so results in reactor threads leaking.
-    	this.pump.onPumpError(this.partitionContext.getPartitionId());
 
-        return null;
-    }
-    
-    private class InternalReceiveHandler extends PartitionReceiveHandler
+	@Override
+    public void onError(Throwable error)
     {
-    	InternalReceiveHandler()
-    	{
-    		super(PartitionPump.this.host.getEventProcessorOptions().getMaxBatchSize());
-    	}
-    	
-		@Override
-		public void onReceive(Iterable<EventData> events)
+		this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
+		if (error == null)
 		{
-            if (PartitionPump.this.host.getEventProcessorOptions().getReceiverRuntimeMetricEnabled())
-            {
-                PartitionPump.this.partitionContext.setRuntimeInformation(PartitionPump.this.partitionReceiver.getRuntimeInformation());
-            }
-            
-            // This method is called on the thread that the Java EH client uses to run the pump.
-            // There is one pump per EventHubClient. Since each PartitionPump creates a new EventHubClient,
-            // using that thread to call onEvents does no harm. Even if onEvents is slow, the pump will
-            // get control back each time onEvents returns, and be able to receive a new batch of messages
-            // with which to make the next onEvents call. The pump gains nothing by running faster than onEvents.
-
-            // The underlying client returns null if there are no events, but the contract for IEventProcessor
-            // is different and is expecting an empty iterable if there are no events (and invoke processor after
-            // receive timeout is turned on).
-            
-            Iterable<EventData> effectiveEvents = events;
-            if (effectiveEvents == null)
-            {
-            	effectiveEvents = new ArrayList<EventData>();
-            }
-            
-            PartitionPump.this.onEvents(effectiveEvents);
+			error = new Throwable("No error info supplied by EventHub client");
+		}
+		if (error instanceof ReceiverDisconnectedException)
+		{
+			TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(),
+                    this.partitionContext,
+					"EventHub client disconnected, probably another host took the partition"));
+		}
+		else
+		{
+            TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(),
+                    this.partitionContext, "EventHub client error: " + error.toString()));
+			if (error instanceof Exception)
+			{
+				TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(),
+                        this.partitionContext, "EventHub client error continued"), (Exception)error);
+			}
 		}
 
-		@Override
-		public void onError(Throwable error)
-		{
-			PartitionPump.this.pumpStatus = PartitionPumpStatus.PP_ERRORED;
-			if (error == null)
+		// It is vital to perform the rest of cleanup in a separate thread and not block this one. This thread is the client's
+		// receive pump thread, and blocking it means that the receive pump never completes its CompletableFuture, which in turn
+		// blocks other client calls that we would like to make during cleanup. Specifically, this issue was found when
+		// PartitionReceiver.setReceiveHandler(null).get() was called and never returned.
+		final Throwable capturedError = error;
+		PartitionPump.this.host.getExecutorService().submit(new Runnable() {
+			@Override
+			public void run()
 			{
-				error = new Throwable("No error info supplied by EventHub client");
+		    	// Notify the user's IEventProcessor
+		    	PartitionPump.this.processor.onError(PartitionPump.this.partitionContext, capturedError);
+		    	
+		    	// Notify upstream that this pump is dead so that cleanup will occur.
+		    	// Failing to do so results in reactor threads leaking.
+		    	PartitionPump.this.pump.onPumpError(PartitionPump.this.partitionContext.getPartitionId());
 			}
-			if (error instanceof ReceiverDisconnectedException)
-			{
-				TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(PartitionPump.this.host.getHostName(),
-                        PartitionPump.this.partitionContext,
-						"EventHub client disconnected, probably another host took the partition"));
-			}
-			else
-			{
-                TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(PartitionPump.this.host.getHostName(),
-                        PartitionPump.this.partitionContext, "EventHub client error: " + error.toString()));
-				if (error instanceof Exception)
-				{
-					TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(PartitionPump.this.host.getHostName(),
-                            PartitionPump.this.partitionContext, "EventHub client error continued"), (Exception)error);
-				}
-			}
-
-			// It is vital to perform the rest of cleanup in a separate thread and not block this one. This thread is the client's
-			// receive pump thread, and blocking it means that the receive pump never completes its CompletableFuture, which in turn
-			// blocks other client calls that we would like to make during cleanup. Specifically, this issue was found when
-			// PartitionReceiver.setReceiveHandler(null).get() was called and never returned.
-			final Throwable capturedError = error;
-			PartitionPump.this.host.getExecutorService().submit(() -> PartitionPump.this.onError(capturedError));
-		}
+		});
     }
 }
