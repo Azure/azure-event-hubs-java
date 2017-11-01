@@ -9,6 +9,7 @@ public final class EventProcessorHostActionStrings
 	public final static String CLOSING_EVENT_PROCESSOR = "Closing Event Processor";
 	public final static String CREATING_CHECKPOINT = "Creating Checkpoint";
 	public final static String CREATING_CHECKPOINT_STORE = "Creating Checkpoint Store";
+	public final static String CREATING_EVENT_HUB_CLIENT = "Creating Event Hub Client";
 	public final static String CREATING_EVENT_PROCESSOR = "Creating Event Processor";
 	public final static String CREATING_LEASE = "Creating Lease";
 	public final static String CREATING_LEASE_STORE = "Creating Lease Store";

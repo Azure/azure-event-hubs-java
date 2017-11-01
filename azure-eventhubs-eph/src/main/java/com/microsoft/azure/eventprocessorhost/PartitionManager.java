@@ -107,7 +107,7 @@ class PartitionManager
 
     	// Stop any partition pumps that are running.
     	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "Shutting down all pumps"));
-    	Iterable<Future<?>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
+    	Iterable<CompletableFuture<Void>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
     	for (Future<?> removal : pumpRemovals)
     	{
     		try
@@ -323,14 +323,7 @@ class PartitionManager
             		{
             			if (lsh.state == LeaseState.ACQUIRED)
             			{
-            				try
-            				{
-								this.pump.addPump(lsh.lease);
-							}
-            				catch (Exception e)
-            				{
-            					throw new CompletionException(e);
-							}
+							this.pump.addPump(lsh.lease);
             				lsh.state = LeaseState.FINAL_OURS;
             			}
             			return lsh;
