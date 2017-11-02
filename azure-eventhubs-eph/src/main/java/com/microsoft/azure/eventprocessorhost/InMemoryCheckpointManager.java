@@ -9,9 +9,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 /***
  * An ICheckpointManager implementation based on an in-memory store. 
@@ -36,13 +33,11 @@ import java.util.concurrent.Future;
 public class InMemoryCheckpointManager implements ICheckpointManager
 {
     private EventProcessorHost host;
-    private ExecutorService executor;
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(InMemoryCheckpointManager.class);
 
     public InMemoryCheckpointManager()
     {
-    	this.executor = Executors.newCachedThreadPool();
     }
 
     // This object is constructed before the EventProcessorHost and passed as an argument to
@@ -53,47 +48,27 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     }
 
     @Override
-    public Future<Boolean> checkpointStoreExists()
-    {
-    	return this.executor.submit(() -> checkpointStoreExistsSync());
-    }
-    
-    private Boolean checkpointStoreExistsSync()
+    public boolean checkpointStoreExists()
     {
     	return InMemoryCheckpointStore.singleton.existsMap();
     }
 
     @Override
-    public Future<Boolean> createCheckpointStoreIfNotExists()
-    {
-        return this.executor.submit(() -> createCheckpointStoreIfNotExistsSync());
-    }
-
-    private Boolean createCheckpointStoreIfNotExistsSync()
+    public Void createCheckpointStoreIfNotExists()
     {
         InMemoryCheckpointStore.singleton.initializeMap();
-        return true;
+        return null;
     }
     
     @Override
-    public Future<Boolean> deleteCheckpointStore()
-    {
-    	return this.executor.submit(() -> deleteCheckpointStoreSync());
-    }
-    
-    private Boolean deleteCheckpointStoreSync()
+    public boolean deleteCheckpointStore()
     {
     	InMemoryCheckpointStore.singleton.deleteMap();
     	return true;
     }
     
     @Override
-    public Future<Checkpoint> getCheckpoint(String partitionId)
-    {
-        return this.executor.submit(() -> getCheckpointSync(partitionId));
-    }
-    
-    private Checkpoint getCheckpointSync(String partitionId)
+    public Checkpoint getCheckpoint(String partitionId)
     {
     	Checkpoint returnCheckpoint = null;
         Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(partitionId);
@@ -116,12 +91,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     }
     
     @Override
-    public Future<Checkpoint> createCheckpointIfNotExists(String partitionId)
-    {
-    	return this.executor.submit(() -> createCheckpointIfNotExistsSync(partitionId));
-    }
-    
-    private Checkpoint createCheckpointIfNotExistsSync(String partitionId)
+    public Checkpoint createCheckpointIfNotExists(String partitionId)
     {
     	Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(partitionId);
     	Checkpoint returnCheckpoint = null;
@@ -154,47 +124,28 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     	}
     	return returnCheckpoint;
     }
-
-    @Deprecated
-    @Override
-    public Future<Void> updateCheckpoint(Checkpoint checkpoint)
-    {
-    	return null;
-    }
     
     @Override
-    public Future<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint)
+    public void updateCheckpoint(Lease lease, Checkpoint checkpoint)
     {
-        return this.executor.submit(() -> updateCheckpointSync(checkpoint.getPartitionId(), checkpoint.getOffset(), checkpoint.getSequenceNumber()));
-    }
-
-    private Void updateCheckpointSync(String partitionId, String offset, long sequenceNumber)
-    {
-    	Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(partitionId);
+    	Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(checkpoint.getPartitionId());
     	if (checkpointInStore != null)
     	{
     		// No live checkpoint is provided, so we can only update the persisted one.
-    		checkpointInStore.setOffset(offset);
-    		checkpointInStore.setSequenceNumber(sequenceNumber);
+    		checkpointInStore.setOffset(checkpoint.getOffset());
+    		checkpointInStore.setSequenceNumber(checkpoint.getSequenceNumber());
     	}
     	else
     	{
-    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId,
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), checkpoint.getPartitionId(),
                     "updateCheckpoint() can't find checkpoint"));
     	}
-    	return null;
     }
 
     @Override
-    public Future<Void> deleteCheckpoint(String partitionId)
-    {
-    	return this.executor.submit(() -> deleteCheckpointSync(partitionId));
-    }
-    
-    private Void deleteCheckpointSync(String partitionId)
+    public void deleteCheckpoint(String partitionId)
     {
     	InMemoryCheckpointStore.singleton.removeCheckpoint(partitionId);
-    	return null;
     }
 
 
