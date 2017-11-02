@@ -3,8 +3,9 @@ package com.microsoft.azure.eventprocessorhost;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.AfterClass;
@@ -182,65 +183,48 @@ public class TestBase
 	@AfterClass
 	public static void allTestFinish()
 	{
-		try
-		{
-			EventProcessorHost.forceExecutorShutdown(20);
-		}
-		catch (InterruptedException e)
-		{
-			TestUtilities.log("forceExecutorShutdown threw " + e.toString() + "\n");
-		}
 	}
 	
 	class BogusCheckpointMananger implements ICheckpointManager
 	{
 		@Override
-		public Future<Boolean> checkpointStoreExists()
+		public boolean checkpointStoreExists()
+		{
+			return true;
+		}
+
+		@Override
+		public Void createCheckpointStoreIfNotExists()
 		{
 			return null;
 		}
 
 		@Override
-		public Future<Boolean> createCheckpointStoreIfNotExists()
+		public boolean deleteCheckpointStore()
+		{
+			return true;
+		}
+
+		@Override
+		public Checkpoint getCheckpoint(String partitionId)
 		{
 			return null;
 		}
 
 		@Override
-		public Future<Boolean> deleteCheckpointStore()
+		public Checkpoint createCheckpointIfNotExists(String partitionId)
 		{
 			return null;
 		}
 
 		@Override
-		public Future<Checkpoint> getCheckpoint(String partitionId)
+		public void updateCheckpoint(Lease lease, Checkpoint checkpoint)
 		{
-			return null;
 		}
 
 		@Override
-		public Future<Checkpoint> createCheckpointIfNotExists(String partitionId)
+		public void deleteCheckpoint(String partitionId)
 		{
-			return null;
-		}
-
-		@Deprecated
-		@Override
-		public Future<Void> updateCheckpoint(Checkpoint checkpoint)
-		{
-			return null;
-		}
-
-		@Override
-		public Future<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint)
-		{
-			return null;
-		}
-
-		@Override
-		public Future<Void> deleteCheckpoint(String partitionId)
-		{
-			return null;
 		}
 	}
 	
@@ -259,69 +243,68 @@ public class TestBase
 		}
 
 		@Override
-		public Future<Boolean> leaseStoreExists()
+		public boolean leaseStoreExists()
+		{
+			return true;
+		}
+
+		@Override
+		public Void createLeaseStoreIfNotExists()
 		{
 			return null;
 		}
 
 		@Override
-		public Future<Boolean> createLeaseStoreIfNotExists()
+		public boolean deleteLeaseStore()
+		{
+			return true;
+		}
+
+		@Override
+		public Lease getLease(String partitionId)
 		{
 			return null;
 		}
 
 		@Override
-		public Future<Boolean> deleteLeaseStore()
+		public ArrayList<CompletableFuture<Lease>> getAllLeases()
 		{
 			return null;
 		}
 
 		@Override
-		public Future<Lease> getLease(String partitionId)
+		public Lease createLeaseIfNotExists(String partitionId)
 		{
 			return null;
 		}
 
 		@Override
-		public Iterable<Future<Lease>> getAllLeases() throws Exception
+		public void deleteLease(Lease lease)
 		{
-			return null;
 		}
 
 		@Override
-		public Future<Lease> createLeaseIfNotExists(String partitionId)
+		public boolean acquireLease(Lease lease)
 		{
-			return null;
+			return true;
 		}
 
 		@Override
-		public Future<Void> deleteLease(Lease lease)
+		public boolean renewLease(Lease lease)
 		{
-			return null;
+			return true;
 		}
 
 		@Override
-		public Future<Boolean> acquireLease(Lease lease)
+		public boolean releaseLease(Lease lease)
 		{
-			return null;
+			return true;
 		}
 
 		@Override
-		public Future<Boolean> renewLease(Lease lease)
+		public boolean updateLease(Lease lease)
 		{
-			return null;
-		}
-
-		@Override
-		public Future<Boolean> releaseLease(Lease lease)
-		{
-			return null;
-		}
-
-		@Override
-		public Future<Boolean> updateLease(Lease lease)
-		{
-			return null;
+			return true;
 		}
 	}
 }

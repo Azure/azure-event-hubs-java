@@ -9,8 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 class DummyPump extends Pump
 {
@@ -34,9 +34,9 @@ class DummyPump extends Pump
 			Lease l = null;
 			try
 			{
-				l = this.host.getLeaseManager().getLease(p).get();
+				l = this.host.getLeaseManager().getLease(p);
 			} 
-			catch (InterruptedException | ExecutionException e)
+			catch (ExceptionWithAction e)
 			{
 				continue;
 			}
@@ -65,21 +65,22 @@ class DummyPump extends Pump
 	//
 	
 	@Override
-    public void addPump(Lease lease) throws Exception
+    public void addPump(Lease lease)
     {
 		this.pumps.add(lease.getPartitionId());
     }
     
 	@Override
-    public Future<?> removePump(String partitionId, final CloseReason reason)
+    public CompletableFuture<Void> removePump(String partitionId, final CloseReason reason)
     {
-		return this.host.getExecutorService().submit(() -> this.pumps.remove(partitionId));
+		this.pumps.remove(partitionId);
+		return CompletableFuture.completedFuture(null);
     }
     
 	@Override
-    public Iterable<Future<?>> removeAllPumps(CloseReason reason)
+    public Iterable<CompletableFuture<Void>> removeAllPumps(CloseReason reason)
     {
-		ArrayList<Future<?>> futures = new ArrayList<Future<?>>();
+		ArrayList<CompletableFuture<Void>> futures = new ArrayList<CompletableFuture<Void>>();
 		ArrayList<String> capturedPumps = new ArrayList<String>(this.pumps);
 		for (String p : capturedPumps)
 		{
@@ -87,10 +88,4 @@ class DummyPump extends Pump
 		}
 		return futures;
     }
-    
-	@Override
-    public boolean hasPump(String partitionId)
-    {
-		return this.pumps.contains(partitionId);
-    }    
 }

@@ -64,9 +64,9 @@ public class PartitionManagerTest
 		
 		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
 
-		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore();
 		assertTrue("failed while cleaning up lease store", boolret);
-		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
+		boolret = this.checkpointManagers[0].deleteCheckpointStore();
 		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		TestUtilities.log("DONE");
@@ -105,9 +105,9 @@ public class PartitionManagerTest
 		
 		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
 
-		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore();
 		assertTrue("failed while cleaning up lease store", boolret);
-		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
+		boolret = this.checkpointManagers[0].deleteCheckpointStore();
 		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		TestUtilities.log("DONE");
@@ -197,9 +197,9 @@ public class PartitionManagerTest
 
 		stopManagers();
 
-		boolean boolret = this.leaseManagers[1].deleteLeaseStore().get();
+		boolean boolret = this.leaseManagers[1].deleteLeaseStore();
 		assertTrue("failed while cleaning up lease store", boolret);
-		boolret = this.checkpointManagers[1].deleteCheckpointStore().get();
+		boolret = this.checkpointManagers[1].deleteCheckpointStore();
 		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		TestUtilities.log("DONE");
@@ -238,9 +238,9 @@ public class PartitionManagerTest
 		
 		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
 
-		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore();
 		assertTrue("failed while cleaning up lease store", boolret);
-		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
+		boolret = this.checkpointManagers[0].deleteCheckpointStore();
 		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		TestUtilities.log("DONE");
