@@ -20,6 +20,7 @@ public class PartitionManagerTest
 	private ICheckpointManager[] checkpointManagers;
 	private EventProcessorHost[] hosts;
 	private TestPartitionManager[] partitionManagers;
+	private int partitionCount;
 	private boolean[] running;
 	
 	private int countOfChecks;
@@ -118,7 +119,7 @@ public class PartitionManagerTest
 	{
 		TestUtilities.log("partitionRebalancingTest");
 		
-		setup(3,8); // three hosts, eight partitions
+		setup(3, 8); // three hosts, eight partitions
 		
 		//
 		// Start two hosts of three, expect 4/4/0.
@@ -255,10 +256,7 @@ public class PartitionManagerTest
 		
 		TestUtilities.log("Partitions redistributed");
 		int[] countsPerHost = new int[this.partitionManagers.length];
-		for (int i = 0; i < this.partitionManagers.length; i++)
-		{
-			this.partitionManagers[i].cleanStolen();
-		}
+		int totalCounts = 0;
 		for (int i = 0; i < this.partitionManagers.length; i++)
 		{
 			StringBuilder blah = new StringBuilder();
@@ -271,8 +269,15 @@ public class PartitionManagerTest
 				blah.append(id);
 				blah.append(", ");
 				countsPerHost[i]++;
+				totalCounts++;
 			}
 			TestUtilities.log(blah.toString());
+		}
+		
+		if (totalCounts != this.partitionCount)
+		{
+			TestUtilities.log("Hosts have not trimmed stolen leases, " + totalCounts + " owned versus " + this.partitionCount + " partitions, skipping checks");
+			return;
 		}
 		
 		boolean desired = true;
@@ -340,6 +345,7 @@ public class PartitionManagerTest
 		this.checkpointManagers = new ICheckpointManager[hostCount];
 		this.hosts = new EventProcessorHost[hostCount];
 		this.partitionManagers = new TestPartitionManager[hostCount];
+		this.partitionCount = partitionCount;
 		this.running = new boolean[hostCount];
 		
 		for (int i = 0; i < hostCount; i++)
@@ -360,6 +366,12 @@ public class PartitionManagerTest
 			
 			this.partitionManagers[i] = new TestPartitionManager(this.hosts[i], partitionCount);
 			this.hosts[i].setPartitionManager(this.partitionManagers[i]);
+			this.hosts[i].setEventProcessorOptions(EventProcessorOptions.getDefaultOptions());
+			// Quick lease expiration helps with some tests. Because we're using InMemoryLeaseManager, don't
+			// have to worry about storage latency, all lease operations are guaranteed to be fast.
+			PartitionManagerOptions opts = new PartitionManagerOptions();
+			opts.setLeaseDurationInSeconds(15);
+			this.hosts[i].setPartitionManagerOptions(opts);
 		}
 	}
 	
@@ -438,15 +450,6 @@ public class PartitionManagerTest
 				retval = new ArrayList<String>();
 			}
 			return retval;
-		}
-		
-		void cleanStolen()
-		{
-			// Skip cleanup if the manager isn't started.
-			if (this.pump != null)
-			{
-				((DummyPump)this.pump).fastCleanup(); // fast cleanup of stolen partitions
-			}
 		}
 
 		@Override

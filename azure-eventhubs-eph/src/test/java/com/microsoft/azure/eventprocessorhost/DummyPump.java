@@ -5,17 +5,14 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+
+import com.microsoft.azure.eventhubs.EventData;
+
 
 class DummyPump extends Pump
 {
-	private Set<String> pumps = Collections.synchronizedSet(new HashSet<String>());
-	
 	public DummyPump(EventProcessorHost host)
 	{
 		super(host);
@@ -23,69 +20,80 @@ class DummyPump extends Pump
 	
 	Iterable<String> getPumpsList()
 	{
-		return this.pumps;
+		return this.pumpStates.keySet();
 	}
-	
-	void fastCleanup()
+
+	@Override
+	protected PartitionPump createNewPump(Lease lease)
 	{
-		HashSet<String> capturedList = new HashSet<String>(this.pumps); // avoid deadlock!
-		for (String p : capturedList)
-		{
-			Lease l = null;
-			try
-			{
-				l = this.host.getLeaseManager().getLease(p);
-			} 
-			catch (ExceptionWithAction e)
-			{
-				continue;
-			}
-			
-			if (this.host.getHostName().compareTo(l.getOwner()) != 0)
-			{
-				// Another host has stolen this lease.
-				try
-				{
-					TestUtilities.log("Steal detected, host " + this.host.getHostName() + " removing " + p);
-					removePump(p, CloseReason.LeaseLost).get();
-				}
-				catch (InterruptedException | ExecutionException e)
-				{
-				}
-			}
-			else
-			{
-				
-			}
-		}
+		return new DummyPartitionPump(this.host, lease); 
 	}
 	
-	//
-	// Completely override all functionality.
-	//
+	@Override
+	protected void removingPumpTestHook(String partitionId, Throwable e)
+    {
+		TestUtilities.log("Steal detected, host " + this.host.getHostName() + " removing " + partitionId);
+    }
 	
-	@Override
-    public void addPump(Lease lease)
-    {
-		this.pumps.add(lease.getPartitionId());
-    }
-    
-	@Override
-    public CompletableFuture<Void> removePump(String partitionId, final CloseReason reason)
-    {
-		this.pumps.remove(partitionId);
-		return CompletableFuture.completedFuture(null);
-    }
-    
-	@Override
-    public Iterable<CompletableFuture<Void>> removeAllPumps(CloseReason reason)
-    {
-		ArrayList<CompletableFuture<Void>> futures = new ArrayList<CompletableFuture<Void>>();
-		ArrayList<String> capturedPumps = new ArrayList<String>(this.pumps);
-		for (String p : capturedPumps)
+	
+	private class DummyPartitionPump extends PartitionPump implements Callable<Void>
+	{
+		CompletableFuture<Void> blah = null;
+		
+		DummyPartitionPump(EventProcessorHost host, Lease lease)
 		{
-			futures.add(removePump(p, reason));
+			super(host, lease);
 		}
-		return futures;
-    }
+
+		@Override
+	    CompletableFuture<Void> startPump()
+	    {
+			super.setupPartitionContext();
+			this.blah = new CompletableFuture<Void>();
+			((InMemoryLeaseManager)this.host.getLeaseManager()).notifyOnSteal(this.host.getHostName(), this.lease.getPartitionId(), this);
+			super.scheduleLeaseRenewer();
+			return this.blah;
+	    }
+		
+		@Override
+	    protected void internalShutdown(CloseReason reason, Throwable e)
+	    {
+			super.cancelPendingOperations();
+	    	if (e != null)
+	    	{
+	    		this.blah.completeExceptionally(e);
+	    	}
+	    	else
+	    	{
+	    		this.blah.complete(null);
+	    	}
+	    }
+
+	    @Override
+	    CompletableFuture<Void> shutdown(CloseReason reason)
+	    {
+	    	internalShutdown(reason, null);
+	    	return this.blah;
+	    }
+	    
+		@Override
+		public void onReceive(Iterable<EventData> events)
+		{
+		}
+
+		@Override
+	    public void onError(Throwable error)
+	    {
+	    }
+
+		@Override
+		public Void call()
+		{
+			if (this.blah != null)
+			{
+				this.blah.completeExceptionally(new LeaseLostException(this.lease, "lease stolen"));
+			}
+			return null;
+		}
+	}
 }
