@@ -17,7 +17,7 @@ class Pump
 {
     protected final EventProcessorHost host; // protected for testability
 
-    private ConcurrentHashMap<String, PartitionPump> pumpStates;
+    protected ConcurrentHashMap<String, PartitionPump> pumpStates; // protected for testability
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(Pump.class);
     
@@ -34,7 +34,13 @@ class Pump
     	if (capturedPump == null)
     	{
     		// No existing pump, create a new one.
-    		createNewPump(lease.getPartitionId(), lease);
+    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(Pump.this.host.getHostName(), lease.getPartitionId(), "creating new pump"));
+    		PartitionPump newPartitionPump = createNewPump(lease);
+    		this.pumpStates.put(lease.getPartitionId(), newPartitionPump);
+    		
+    		final String capturedPartitionId = lease.getPartitionId();
+    		newPartitionPump.startPump().whenCompleteAsync((r,e) -> this.pumpStates.remove(capturedPartitionId), this.host.getExecutorService())
+    			.whenComplete((r,e) -> removingPumpTestHook(capturedPartitionId, e));
     	}
     	else
     	{
@@ -44,14 +50,10 @@ class Pump
     	}
     }
     
-    private void createNewPump(String partitionId, Lease lease)
+    // Separated out so that tests can override and substitute their own pump class.
+    protected PartitionPump createNewPump(Lease lease)
     {
-		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(Pump.this.host.getHostName(), partitionId, "creating new pump"));
-		PartitionPump newPartitionPump = new PartitionPump(this.host, lease);
-		this.pumpStates.put(partitionId, newPartitionPump);
-		
-		final String capturedPartitionId = partitionId;
-		newPartitionPump.startPump().whenCompleteAsync((r,e) -> this.pumpStates.remove(capturedPartitionId), this.host.getExecutorService());
+    	return new PartitionPump(this.host, lease);
     }
     
     public CompletableFuture<Void> removePump(String partitionId, final CloseReason reason)
@@ -81,5 +83,10 @@ class Pump
     		futures.add(removePump(partitionId, reason));
     	}
     	return futures;
+    }
+    
+    protected void removingPumpTestHook(String partitionId, Throwable e)
+    {
+    	// For test use.
     }
 }

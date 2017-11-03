@@ -28,8 +28,8 @@ import org.slf4j.LoggerFactory;
 
 class PartitionPump extends PartitionReceiveHandler
 {
-	private final EventProcessorHost host;
-	private Lease lease = null;
+	protected final EventProcessorHost host; // protected for testability
+	protected Lease lease = null; // protected for testability
 
 	private EventHubClient eventHubClient = null;
 	private PartitionReceiver partitionReceiver = null;
@@ -59,7 +59,11 @@ class PartitionPump extends PartitionReceiveHandler
 	
 	void setLease(Lease newLease)
 	{
-		this.partitionContext.setLease(newLease);
+		this.lease = newLease;
+		if (this.partitionContext != null)
+		{
+			this.partitionContext.setLease(newLease);
+		}
 	}
 	
 	// The CompletableFuture returned by startPump remains uncompleted as long as the pump is running.
@@ -68,8 +72,7 @@ class PartitionPump extends PartitionReceiveHandler
     CompletableFuture<Void> startPump()
     {
     	// Fast, non-blocking actions.
-        this.partitionContext = new PartitionContext(this.host, this.lease.getPartitionId(), this.host.getEventHubPath(), this.host.getConsumerGroupName());
-        this.partitionContext.setLease(this.lease);
+    	setupPartitionContext();
         
         // Set up the shutdown future. The shutdown process can be triggered just by completing this.shutdownFuture.
         // Use whenComplete so that shutdown stages execute whether normal or exceptional completion.
@@ -93,6 +96,12 @@ class PartitionPump extends PartitionReceiveHandler
 		        	}, this.host.getExecutorService());
         
         return shutdownFuture;
+    }
+    
+    protected void setupPartitionContext()
+    {
+        this.partitionContext = new PartitionContext(this.host, this.lease.getPartitionId(), this.host.getEventHubPath(), this.host.getConsumerGroupName());
+        this.partitionContext.setLease(this.lease);
     }
     
     private void openProcessor()
@@ -166,10 +175,12 @@ class PartitionPump extends PartitionReceiveHandler
     	}
     }
     
-    private void scheduleLeaseRenewer()
+    protected void scheduleLeaseRenewer()
     {
-		this.leaseRenewerFuture = this.host.getExecutorService().schedule(() -> leaseRenewer(),
-				this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(), TimeUnit.SECONDS);
+    	int seconds = this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(); 
+		this.leaseRenewerFuture = this.host.getExecutorService().schedule(() -> leaseRenewer(), seconds, TimeUnit.SECONDS);
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.lease.getPartitionId(),
+    			"scheduling leaseRenewer in " + seconds));
     }
 
     private void openClients() throws EventHubException, IOException, InterruptedException, ExecutionException, ExceptionWithAction
@@ -322,7 +333,7 @@ class PartitionPump extends PartitionReceiveHandler
         }
     }
     
-    private void cancelPendingOperations()
+    protected void cancelPendingOperations()
     {
     	// If an open operation is stuck, this lets us shut down anyway.
     	CompletableFuture<?> captured = this.internalOperationFuture;
@@ -358,7 +369,7 @@ class PartitionPump extends PartitionReceiveHandler
         // else we already lost the lease, releasing is unnecessary and would fail if we try
     }
     
-    private void internalShutdown(CloseReason reason, Throwable e)
+    protected void internalShutdown(CloseReason reason, Throwable e)
     {
     	this.shutdownReason = reason;
     	if (e == null)
@@ -379,8 +390,10 @@ class PartitionPump extends PartitionReceiveHandler
     	return this.shutdownFuture;
     }
     
-    void leaseRenewer()
+    private void leaseRenewer()
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.lease.getPartitionId(), "leaseRenewer()"));
+    	
     	// Theoretically, if the future is cancelled then this method should never fire, but
     	// there's no harm in being sure.
     	if (this.leaseRenewerFuture.isCancelled())
@@ -398,7 +411,7 @@ class PartitionPump extends PartitionReceiveHandler
 				// False return from renewLease means that lease was lost.
 				// Start pump shutdown process and do not schedule another call to leaseRenewer.
 				scheduleNext = false;
-	    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.partitionContext, "Lease lost, shutting down pump"));
+	    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.lease.getPartitionId(), "Lease lost, shutting down pump"));
 				internalShutdown(CloseReason.LeaseLost, null);
 			}
 		}
@@ -407,10 +420,10 @@ class PartitionPump extends PartitionReceiveHandler
     		// Failure renewing lease due to storage exception or whatever.
     		// Trace error and leave scheduleNext as true to schedule another try.
     		Exception notifyWith = LoggingUtils.unwrapException(e, null);
-    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.partitionContext, "Transient failure renewing lease"), notifyWith);
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), this.lease.getPartitionId(), "Transient failure renewing lease"), notifyWith);
     		// Notify the general error handler rather than calling this.processor.onError so we can provide context (RENEWING_LEASE)
     		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith, EventProcessorHostActionStrings.RENEWING_LEASE,
-    				this.partitionContext.getPartitionId());
+    				this.lease.getPartitionId());
 		}
     	
 		if (scheduleNext && !this.leaseRenewerFuture.isCancelled())
