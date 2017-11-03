@@ -34,7 +34,7 @@ class Pump
     	if (capturedPump == null)
     	{
     		// No existing pump, create a new one.
-    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(Pump.this.host.getHostName(), lease.getPartitionId(), "creating new pump"));
+    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(Pump.this.host, lease, "creating new pump"));
     		PartitionPump newPartitionPump = createNewPump(lease);
     		this.pumpStates.put(lease.getPartitionId(), newPartitionPump);
     		
@@ -45,7 +45,7 @@ class Pump
     	else
     	{
     		// There already is a pump. Shouldn't get here but do something sane if it happens -- just replace the lease.
-			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "updating lease for pump"));
+			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, lease, "updating lease for pump"));
 			capturedPump.setLease(lease);
     	}
     }
@@ -62,14 +62,14 @@ class Pump
     	PartitionPump capturedPump = this.pumpStates.get(partitionId);
     	if (capturedPump != null)
     	{
-            TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId,
+            TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId,
                     "closing pump for reason " + reason.toString()));
             retval = capturedPump.shutdown(reason);
     	}
     	else
     	{
     		// Shouldn't get here but not really harmful, so just trace.
-    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId,
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, partitionId,
                     "no pump found to remove for partition " + partitionId));
     	}
     	return retval;

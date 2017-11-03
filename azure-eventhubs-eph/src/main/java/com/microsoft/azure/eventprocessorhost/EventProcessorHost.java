@@ -315,7 +315,7 @@ public final class EventProcessorHost
         
         this.partitionManager = new PartitionManager(this);
 
-        TRACE_LOGGER.info(LoggingUtils.withHost(this.hostName, "New EventProcessorHost created."));
+        TRACE_LOGGER.info(LoggingUtils.withHost(this, "New EventProcessorHost created."));
     }
 
     /**
@@ -453,7 +453,7 @@ public final class EventProcessorHost
     	
         if (this.executorService.isShutdown() || this.executorService.isTerminated())
     	{
-    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.hostName,
+    		TRACE_LOGGER.warn(LoggingUtils.withHost(this,
                     "Calling registerEventProcessor/Factory after executor service has been shut down."));
     		throw new RejectedExecutionException("EventProcessorHost executor service has been shut down");
     	}
@@ -466,12 +466,12 @@ public final class EventProcessorHost
 			}
             catch (InvalidKeyException | URISyntaxException | StorageException e)
             {
-                TRACE_LOGGER.warn(LoggingUtils.withHost(this.hostName, "Failure initializing Storage lease manager."));
+                TRACE_LOGGER.warn(LoggingUtils.withHost(this, "Failure initializing Storage lease manager."));
             	throw new RuntimeException("Failure initializing Storage lease manager", e);
 			}
         }
 
-        TRACE_LOGGER.info(LoggingUtils.withHost(this.hostName, "Starting event processing."));
+        TRACE_LOGGER.info(LoggingUtils.withHost(this, "Starting event processing."));
 
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
@@ -487,7 +487,7 @@ public final class EventProcessorHost
      */
     public void unregisterEventProcessor() throws InterruptedException, ExecutionException
     {
-    	TRACE_LOGGER.info(LoggingUtils.withHost(this.hostName, "Stopping event processing"));
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this, "Stopping event processing"));
         this.unregistered = true;
     	
     	if (this.partitionManager != null)

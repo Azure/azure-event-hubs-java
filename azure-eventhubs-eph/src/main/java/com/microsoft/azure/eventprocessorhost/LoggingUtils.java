@@ -14,16 +14,24 @@ import java.util.concurrent.ThreadPoolExecutor;
  * Centralize log message generation
  */
 public final class LoggingUtils {
-    static String withHost(String hostName, String logMessage) {
-        return "host " + hostName + ": " + logMessage;
+    static String withHost(EventProcessorHost host, String logMessage)
+    {
+        return "host " + host.getHostName() + ": " + logMessage;
     }
 
-    static String withHostAndPartition(String hostName, String partitionId, String logMessage) {
-        return "host " + hostName + ": " + partitionId + ": " + logMessage;
+    static String withHostAndPartition(EventProcessorHost host, String partitionId, String logMessage)
+    {
+        return LoggingUtils.withHost(host, partitionId + ": " + logMessage);
     }
 
-    static String withHostAndPartition(String hostName, PartitionContext context, String logMessage) {
-        return "host " + hostName + ": " + context.getPartitionId() + ": " + logMessage;
+    static String withHostAndPartition(EventProcessorHost host, PartitionContext context, String logMessage)
+    {
+    	return LoggingUtils.withHostAndPartition(host, context.getPartitionId(), logMessage);
+    }
+    
+    static String withHostAndPartition(EventProcessorHost host, Lease lease, String logMessage)
+    {
+    	return LoggingUtils.withHostAndPartition(host, lease.getPartitionId(), logMessage);
     }
     
     // outAction can be null if you don't care about any action string
