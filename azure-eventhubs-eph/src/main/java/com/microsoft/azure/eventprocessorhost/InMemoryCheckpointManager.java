@@ -50,12 +50,15 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     @Override
     public boolean checkpointStoreExists()
     {
-    	return InMemoryCheckpointStore.singleton.existsMap();
+    	boolean exists = InMemoryCheckpointStore.singleton.existsMap();
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "checkpointStoreExists() " + exists));
+    	return exists;
     }
 
     @Override
     public Void createCheckpointStoreIfNotExists()
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "createCheckpointStoreIfNotExists()"));
         InMemoryCheckpointStore.singleton.initializeMap();
         return null;
     }
@@ -63,6 +66,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     @Override
     public boolean deleteCheckpointStore()
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "deleteCheckpointStore()"));
     	InMemoryCheckpointStore.singleton.deleteMap();
     	return true;
     }
@@ -81,10 +85,13 @@ public class InMemoryCheckpointManager implements ICheckpointManager
         else if (checkpointInStore.getSequenceNumber() == -1)
         {
         	// Uninitialized, so return null.
+        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId, "getCheckpoint() uninitalized"));
         	returnCheckpoint = null;
         }
         else
         {
+        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId,
+        			"getCheckpoint() found " + checkpointInStore.getOffset() + "//" + checkpointInStore.getSequenceNumber()));
         	returnCheckpoint = new Checkpoint(checkpointInStore);
         }
         return returnCheckpoint;
@@ -128,10 +135,11 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     @Override
     public void updateCheckpoint(Lease lease, Checkpoint checkpoint)
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), checkpoint.getPartitionId(),
+    		"updateCheckpoint() " + checkpoint.getOffset() + "//" + checkpoint.getSequenceNumber()));
     	Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(checkpoint.getPartitionId());
     	if (checkpointInStore != null)
     	{
-    		// No live checkpoint is provided, so we can only update the persisted one.
     		checkpointInStore.setOffset(checkpoint.getOffset());
     		checkpointInStore.setSequenceNumber(checkpoint.getSequenceNumber());
     	}
@@ -145,6 +153,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     @Override
     public void deleteCheckpoint(String partitionId)
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId, "deleteCheckpoint()"));
     	InMemoryCheckpointStore.singleton.removeCheckpoint(partitionId);
     }
 
