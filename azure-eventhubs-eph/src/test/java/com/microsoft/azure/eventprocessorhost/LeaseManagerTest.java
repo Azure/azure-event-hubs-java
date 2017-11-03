@@ -149,7 +149,7 @@ public class LeaseManagerTest
 		boolret = this.leaseManagers[0].acquireLease(leases[0]);
 		assertTrue("failed to acquire previously released 0", boolret);
 
-		TestUtilities.log("Trying to double release lease 0");
+		TestUtilities.log("Trying to release lease 0");
 		boolret = this.leaseManagers[0].releaseLease(leases[0]);
 		assertTrue("failed to release lease for 0", boolret);
 		
