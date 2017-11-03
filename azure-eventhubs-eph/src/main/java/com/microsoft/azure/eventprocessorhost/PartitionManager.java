@@ -258,6 +258,8 @@ class PartitionManager
     // throwOnFailure is true 
     private Void scan()
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "Starting lease scan"));
+    	
     	// Theoretically, if the future is cancelled then this method should never fire, but
     	// there's no harm in being sure.
     	if (this.scanFuture.isCancelled())
@@ -508,9 +510,9 @@ class PartitionManager
     	}
     	for (String owner : counts.keySet())
     	{
-    		TRACE_LOGGER.info("host " + owner + " owns " + counts.get(owner) + " leases");
+    		TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "host " + owner + " owns " + counts.get(owner) + " leases"));
     	}
-    	TRACE_LOGGER.info("total hosts in sorted list: " + counts.size());
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "total hosts in sorted list: " + counts.size()));
     	
     	return counts;
     }
