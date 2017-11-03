@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import com.microsoft.azure.eventhubs.IllegalEntityException;
 
 import java.util.ArrayList;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -66,12 +67,15 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public boolean leaseStoreExists()
     {
-    	return InMemoryLeaseStore.singleton.existsMap();
+    	boolean exists = InMemoryLeaseStore.singleton.existsMap();
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "leaseStoreExists() " + exists));
+    	return exists;
     }
 
     @Override
     public Void createLeaseStoreIfNotExists()
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "createLeaseStoreIfNotExists()"));
     	InMemoryLeaseStore.singleton.initializeMap(getLeaseDurationInMilliseconds());
         return null;
     }
@@ -79,6 +83,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public boolean deleteLeaseStore()
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "deleteLeaseStore()"));
     	InMemoryLeaseStore.singleton.deleteMap();
     	return true;
     }
@@ -95,6 +100,7 @@ public class InMemoryLeaseManager implements ILeaseManager
         }
         else
         {
+        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), partitionId, "getLease() found"));
         	returnLease = new InMemoryLease(leaseInStore);
         }
         return returnLease;
@@ -103,6 +109,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public ArrayList<CompletableFuture<Lease>> getAllLeases() throws ExceptionWithAction
     {
+    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host.getHostName(), "getAllLeases()"));
         ArrayList<CompletableFuture<Lease>> leases = new ArrayList<CompletableFuture<Lease>>();
         
         String[] partitionIds = null;
@@ -153,7 +160,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     @Override
     public void deleteLease(Lease lease)
     {
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "Deleting lease"));
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), lease.getPartitionId(), "deleteLease()"));
     	InMemoryLeaseStore.singleton.removeLease((InMemoryLease)lease);
     }
 
@@ -162,7 +169,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     {
     	InMemoryLease leaseToAcquire = (InMemoryLease)lease;
     	
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToAcquire.getPartitionId(), "Acquiring lease"));
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToAcquire.getPartitionId(), "acquireLease()"));
     	
     	boolean retval = true;
     	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(leaseToAcquire.getPartitionId());
@@ -189,7 +196,7 @@ public class InMemoryLeaseManager implements ILeaseManager
 	            {
 	            	String oldOwner = leaseInStore.getOwner();
 	            	// Make change in both persisted lease and live lease!
-	            	leaseInStore.setOwner(this.host.getHostName());
+	            	InMemoryLeaseStore.singleton.stealLease(leaseInStore, this.host.getHostName());
 	            	leaseToAcquire.setOwner(this.host.getHostName());
 	            	TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToAcquire.getPartitionId(),
                             "acquireLease() stole lease from " + oldOwner));
@@ -210,12 +217,23 @@ public class InMemoryLeaseManager implements ILeaseManager
         return retval;
     }
     
+    // Real partition pumps get "notified" when another host has stolen their lease because the receiver throws
+    // a ReceiverDisconnectedException. It doesn't matter how many hosts try to steal the lease at the same time,
+    // only one will end up with it and that one will kick the others off via the exclusivity of epoch receivers.
+    // This mechanism simulates that for dummy partition pumps used in testing. If expectedOwner does not currently
+    // own the lease for the given partition, then notifier is called immediately, otherwise it is called whenever
+    // ownership of the lease changes.
+    public void notifyOnSteal(String expectedOwner, String partitionId, Callable<?> notifier)
+    {
+    	InMemoryLeaseStore.singleton.notifyOnSteal(expectedOwner, partitionId, notifier);
+    }
+    
     @Override
     public boolean renewLease(Lease lease)
     {
     	InMemoryLease leaseToRenew = (InMemoryLease)lease;
     	
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToRenew.getPartitionId(), "Renewing lease"));
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToRenew.getPartitionId(), "renewLease()"));
     	
     	boolean retval = true;
     	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(leaseToRenew.getPartitionId());
@@ -253,7 +271,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     {
     	InMemoryLease leaseToRelease = (InMemoryLease)lease;
     	
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToRelease.getPartitionId(), "Releasing lease"));
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToRelease.getPartitionId(), "releaseLease()"));
     	
     	boolean retval = true;
     	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(leaseToRelease.getPartitionId());
@@ -288,7 +306,7 @@ public class InMemoryLeaseManager implements ILeaseManager
     {
     	InMemoryLease leaseToUpdate = (InMemoryLease)lease;
     	
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToUpdate.getPartitionId(), "Updating lease"));
+    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host.getHostName(), leaseToUpdate.getPartitionId(), "updateLease()"));
     	
     	// Renew lease first so it doesn't expire in the middle.
     	boolean retval = renewLease(leaseToUpdate);
@@ -330,6 +348,7 @@ public class InMemoryLeaseManager implements ILeaseManager
         private static int leaseDurationInMilliseconds;
 
         private ConcurrentHashMap<String, InMemoryLease> inMemoryLeasesPrivate = null;
+        private ConcurrentHashMap<String, Callable<?>> notifiers = new ConcurrentHashMap<String, Callable<?>>();
         
         synchronized boolean existsMap()
         {
@@ -371,6 +390,42 @@ public class InMemoryLeaseManager implements ILeaseManager
         	return leaseInStore;
         }
         
+        synchronized void notifyOnSteal(String expectedOwner, String partitionId, Callable<?> notifier)
+        {
+        	InMemoryLease leaseInStore = getLease(partitionId);
+        	if ((leaseInStore.getOwner() != null) && (expectedOwner.compareTo(leaseInStore.getOwner()) != 0))
+        	{
+        		// Already stolen.
+        		try
+        		{
+					notifier.call();
+				}
+        		catch (Exception e)
+        		{
+				}
+        	}
+        	else
+        	{
+        		this.notifiers.put(partitionId, notifier);
+        	}
+        }
+        
+        synchronized void stealLease(InMemoryLease stealee, String newOwner)
+        {
+        	stealee.setOwner(newOwner);
+        	Callable<?> notifier = this.notifiers.get(stealee.getPartitionId());
+        	if (notifier != null)
+        	{
+        		try
+        		{
+					notifier.call();
+				}
+        		catch (Exception e)
+        		{
+				}
+        	}
+        }
+        
         synchronized void setOrReplaceLease(InMemoryLease newLease)
         {
         	this.inMemoryLeasesPrivate.put(newLease.getPartitionId(), newLease);
@@ -386,6 +441,8 @@ public class InMemoryLeaseManager implements ILeaseManager
     private static class InMemoryLease extends Lease
     {
     	private long expirationTimeMillis = 0;
+
+        private final static Logger TRACE_LOGGER = LoggerFactory.getLogger(InMemoryLease.class);
     	
 		InMemoryLease(String partitionId)
 		{
@@ -419,6 +476,7 @@ public class InMemoryLeaseManager implements ILeaseManager
 				// InMemory, the owner field has to remain unchanged.
 				//setOwner("");
 			}
+			TRACE_LOGGER.info("isExpired(" + this.getPartitionId() + (hasExpired? ") expired " : ") leased ") + (this.expirationTimeMillis - System.currentTimeMillis()));
 			return hasExpired;
 	    }
     }
