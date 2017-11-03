@@ -340,6 +340,7 @@ public final class EventProcessorHost
     
     // TEST USE ONLY
     void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
+    void setEventProcessorOptions(EventProcessorOptions epo) { this.processorOptions = epo; }
     
     // All of these accessors are for internal use only.
     ScheduledExecutorService getExecutorService() { return this.executorService; }
