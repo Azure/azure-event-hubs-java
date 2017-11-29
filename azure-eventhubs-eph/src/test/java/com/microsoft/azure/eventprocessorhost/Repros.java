@@ -69,7 +69,47 @@ public class Repros extends TestBase
 			Thread.sleep(100);
 		}
 	}
-	
+
+	@Test
+	public void infiniteReceive() throws Exception
+	{
+		System.out.println("infiniteReceive starting");
+		
+		RealEventHubUtilities utils = new RealEventHubUtilities();
+		utils.setupWithoutSenders(RealEventHubUtilities.QUERY_ENTITY_FOR_PARTITIONS);
+		
+		PrefabGeneralErrorHandler genErr = new PrefabGeneralErrorHandler();
+		PrefabProcessorFactory factory = new PrefabProcessorFactory("never match", PrefabEventProcessor.CheckpointChoices.CKP_NONE, true, false);
+		InMemoryCheckpointManager checkpointer = new InMemoryCheckpointManager();
+		InMemoryLeaseManager leaser = new InMemoryLeaseManager();
+		EventProcessorHost host = new EventProcessorHost("infiniteReceive-1", utils.getConnectionString().getEntityPath(),
+				utils.getConsumerGroup(), utils.getConnectionString().toString(),
+				checkpointer, leaser);
+		checkpointer.initialize(host);
+		leaser.initialize(host);
+		
+		EventProcessorOptions opts = EventProcessorOptions.getDefaultOptions();
+		opts.setExceptionNotification(genErr);
+		host.registerEventProcessorFactory(factory, opts).get();
+		
+		while (System.in.available() == 0)
+		{
+			System.out.println("STANDING BY AT " + Thread.activeCount());
+			Thread.sleep(10000);
+		}
+		while (System.in.available() > 0)
+		{
+			System.in.read();
+		}
+		while (System.in.available() == 0)
+		{
+			System.out.println("STANDING BY AT " + Thread.activeCount());
+			Thread.sleep(1000);
+		}
+
+		host.unregisterEventProcessor();
+	}
+
 	/*
 	 * The memory leak mentioned in the previous case turned out to be a thread leak. This case was created to see if
 	 * the thread leak was related to EPH or was in the underlying client. At first we believed that the leak was due
