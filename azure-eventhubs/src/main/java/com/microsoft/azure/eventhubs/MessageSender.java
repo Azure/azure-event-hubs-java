@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
+import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.Iterator;
@@ -149,7 +150,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                         try {
                             underlyingFactory.getCBSChannel().sendToken(
                                     underlyingFactory.getReactorScheduler(),
-                                    underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY),
+                                    underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY).get(),
                                     tokenAudience,
                                     new IOperationResult<Void, Exception>() {
                                         @Override
@@ -168,7 +169,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                                             }
                                         }
                                     });
-                        } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | RuntimeException exception) {
+                        } catch (ExecutionException | InterruptedException | RuntimeException exception) {
                             if (TRACE_LOGGER.isWarnEnabled()) {
                                 TRACE_LOGGER.warn(String.format(Locale.US,
                                                 "path[%s], linkName[%s] - tokenRenewalScheduleFailure[%s]", sendPath, sendLink.getName(), exception.getMessage()));
@@ -584,7 +585,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
         try {
             this.underlyingFactory.getCBSChannel().sendToken(
                     this.underlyingFactory.getReactorScheduler(),
-                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY),
+                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY).get(),
                     tokenAudience,
                     new IOperationResult<Void, Exception>() {
                         @Override
@@ -614,7 +615,7 @@ public class MessageSender extends ClientEntity implements IAmqpSender, IErrorCo
                             MessageSender.this.onError(completionException);
                         }
                     });
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | RuntimeException exception) {
+        } catch (ExecutionException | InterruptedException | RuntimeException exception) {
             MessageSender.this.onError(exception);
         }
     }

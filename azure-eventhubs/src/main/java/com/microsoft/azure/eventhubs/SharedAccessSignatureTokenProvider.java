@@ -13,11 +13,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-public class SharedAccessSignatureTokenProvider {
+public class SharedAccessSignatureTokenProvider implements ITokenProvider {
     final String keyName;
     final String sharedAccessKey;
     final String sharedAccessSignature;
@@ -36,10 +37,25 @@ public class SharedAccessSignatureTokenProvider {
         this.sharedAccessSignature = sharedAccessSignature;
     }
 
-    public String getToken(final String resource, final Duration tokenTimeToLive) throws IOException, InvalidKeyException, NoSuchAlgorithmException {
-        return this.sharedAccessSignature == null
-                ? generateSharedAccessSignature(this.keyName, this.sharedAccessKey, resource, tokenTimeToLive)
-                : this.sharedAccessSignature;
+    public CompletableFuture<SecurityToken> getToken(final String resource, final Duration tokenTimeToLive) {
+        final CompletableFuture<SecurityToken> result = new CompletableFuture<>();
+        final String token;
+
+        if (this.sharedAccessSignature == null) {
+            try {
+                token = generateSharedAccessSignature(this.keyName, this.sharedAccessKey, resource, tokenTimeToLive);
+            } catch (NoSuchAlgorithmException|IOException|InvalidKeyException e) {
+                result.completeExceptionally(e);
+                return result;
+            }
+
+            result.complete(new SecurityToken(ClientConstants.SAS_TOKEN_TYPE, token, null));
+        }
+        else {
+            result.complete(new SecurityToken(ClientConstants.SAS_TOKEN_TYPE, this.sharedAccessSignature, null));
+        }
+
+        return result;
     }
 
     public static String generateSharedAccessSignature(

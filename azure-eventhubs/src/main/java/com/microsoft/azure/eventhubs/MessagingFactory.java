@@ -55,7 +55,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     private final Object reactorLock;
     private final Object cbsChannelCreateLock;
     private final Object mgmtChannelCreateLock;
-    private final SharedAccessSignatureTokenProvider tokenProvider;
+    private final ITokenProvider tokenProvider;
     private final ThreadFactory reactorThreadFactory;
     private final ReactorFactory reactorFactory;
 
@@ -71,27 +71,27 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     private ScheduledFuture openTimer;
     private ScheduledFuture closeTimer;
 
-    MessagingFactory(final ConnectionStringBuilder builder,
+    MessagingFactory(final String hostName,
+                     final Duration operationTimeout,
                      final RetryPolicy retryPolicy,
                      final ThreadFactory reactorThreadFactory,
-                     final ReactorFactory reactorFactory) {
+                     final ReactorFactory reactorFactory,
+                     final ITokenProvider tokenProvider) {
         super("MessagingFactory".concat(StringUtil.getRandomString()), null);
 
         Timer.register(this.getClientId());
-        this.hostName = builder.getEndpoint().getHost();
+        this.hostName = hostName;
         this.reactorThreadFactory = reactorThreadFactory;
         this.reactorFactory = reactorFactory;
 
-        this.operationTimeout = builder.getOperationTimeout();
+        this.operationTimeout = operationTimeout;
         this.retryPolicy = retryPolicy;
         this.registeredLinks = new LinkedList<>();
         this.reactorLock = new Object();
         this.connectionHandler = new ConnectionHandler(this);
         this.cbsChannelCreateLock = new Object();
         this.mgmtChannelCreateLock = new Object();
-        this.tokenProvider = builder.getSharedAccessSignature() == null
-                ? new SharedAccessSignatureTokenProvider(builder.getSasKeyName(), builder.getSasKey())
-                : new SharedAccessSignatureTokenProvider(builder.getSharedAccessSignature());
+        this.tokenProvider = tokenProvider;
 
         this.closeTask = new CompletableFuture<>();
         this.closeTask.thenAcceptAsync(new Consumer<Void>() {
@@ -118,11 +118,11 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         }
     }
 
-    public SharedAccessSignatureTokenProvider getTokenProvider() {
+    public ITokenProvider getTokenProvider() {
         return this.tokenProvider;
     }
 
-    private void createConnection(ConnectionStringBuilder builder) throws IOException {
+    private void createConnection() throws IOException {
         this.open = new CompletableFuture<>();
         this.startReactor(new ReactorHandler() {
             @Override
@@ -210,10 +210,41 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             final ThreadFactory threadFactory,
             final ReactorFactory reactorFactory) throws IOException {
         final ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString);
-        final MessagingFactory messagingFactory = new MessagingFactory(builder,
+        final ITokenProvider tokenProvider = builder.getSharedAccessSignature() == null
+                ? new SharedAccessSignatureTokenProvider(builder.getSasKeyName(), builder.getSasKey())
+                : new SharedAccessSignatureTokenProvider(builder.getSharedAccessSignature());
+
+        return create(builder.getEndpoint().getHost(),
+                builder.getOperationTimeout(),
+                retryPolicy,
+                threadFactory,
+                reactorFactory,
+                tokenProvider);
+    }
+
+    public static CompletableFuture<MessagingFactory> create(
+            final String hostName,
+            final Duration operationTimeout,
+            final RetryPolicy retryPolicy,
+    final ITokenProvider tokenProvider) throws IOException {
+
+        return create(hostName, operationTimeout, retryPolicy, new ThreadFactory(), new ReactorFactory(), tokenProvider);
+    }
+
+    public static CompletableFuture<MessagingFactory> create(
+            final String hostName,
+            final Duration operationTimeout,
+            final RetryPolicy retryPolicy,
+            final ThreadFactory threadFactory,
+            final ReactorFactory reactorFactory,
+            final ITokenProvider tokenProvider) throws IOException {
+
+        final MessagingFactory messagingFactory = new MessagingFactory(hostName,
+                operationTimeout,
                 (retryPolicy != null) ? retryPolicy : RetryPolicy.getDefault(),
                 threadFactory,
-                reactorFactory);
+                reactorFactory,
+                tokenProvider);
         messagingFactory.openTimer = Timer.schedule(new Runnable() {
                                                         @Override
                                                         public void run() {
@@ -225,7 +256,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                                                     },
                 messagingFactory.getOperationTimeout(),
                 TimerType.OneTimeRun);
-        messagingFactory.createConnection(builder);
+        messagingFactory.createConnection();
         return messagingFactory.open;
     }
 

@@ -7,6 +7,7 @@ package com.microsoft.azure.eventhubs;
 import com.microsoft.azure.eventhubs.amqp.AmqpException;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.channels.UnresolvedAddressException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -44,9 +45,13 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     private CompletableFuture<Void> createSender;
 
     private EventHubClient(final ConnectionStringBuilder connectionString) throws IOException, IllegalEntityException {
+        this(connectionString.getEntityPath());
+    }
+
+    private EventHubClient(final String eventHubName) {
         super(StringUtil.getRandomString(), null);
 
-        this.eventHubName = connectionString.getEntityPath();
+        this.eventHubName = eventHubName;
         this.senderCreateSync = new Object();
     }
 
@@ -106,6 +111,24 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString)
             throws EventHubException, IOException {
         return createFromConnectionString(connectionString, null);
+    }
+
+    public static CompletableFuture<EventHubClient> create(final URI endpointAddress, final String eventHubName, final ITokenProvider tokenProvider)
+            throws EventHubException, IOException {
+        final EventHubClient eventHubClient = new EventHubClient(eventHubName);
+
+        return MessagingFactory.create(
+                endpointAddress.getHost(),
+                MessagingFactory.DefaultOperationTimeout,
+                RetryPolicy.getDefault(),
+                tokenProvider)
+                .thenApplyAsync(new Function<MessagingFactory, EventHubClient>() {
+                    @Override
+                    public EventHubClient apply(MessagingFactory factory) {
+                        eventHubClient.underlyingFactory = factory;
+                        return eventHubClient;
+                    }
+                });
     }
 
     /**
@@ -1355,16 +1378,25 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     private <T> CompletableFuture<T> addManagementToken(Map<String, String> request)
     {
     	CompletableFuture<T> retval = null;
+    	Exception failure = null;
         try {
         	String audience = String.format("amqp://%s/%s", this.underlyingFactory.getHostName(), this.eventHubName);
-        	String token = this.underlyingFactory.getTokenProvider().getToken(audience, ClientConstants.TOKEN_REFRESH_INTERVAL);
-			request.put(ClientConstants.MANAGEMENT_SECURITY_TOKEN_KEY, token);
+        	String token;
+            token = this.underlyingFactory.getTokenProvider().getToken(audience, ClientConstants.TOKEN_REFRESH_INTERVAL).get().getToken();
+            request.put(ClientConstants.MANAGEMENT_SECURITY_TOKEN_KEY, token);
 		} 
-        catch (InvalidKeyException | NoSuchAlgorithmException | IOException e) {
-        	retval = new CompletableFuture<T>();
-        	retval.completeExceptionally(e);
-		}
-    	return retval;
+        catch (InterruptedException | RuntimeException e) {
+            retval = new CompletableFuture<T>();
+            retval.completeExceptionally(e);
+        } catch (ExecutionException e) {
+            retval = new CompletableFuture<T>();
+            final Throwable cause = e.getCause();
+
+            //&& (cause instanceof InvalidKeyException || cause instanceof NoSuchAlgorithmException || cause instanceof IOException)
+            retval.completeExceptionally(cause != null ? cause : e);
+        }
+
+        return retval;
     }
     
     private CompletableFuture<Map<String, Object>> managementWithRetry(Map<String, String> request) {
