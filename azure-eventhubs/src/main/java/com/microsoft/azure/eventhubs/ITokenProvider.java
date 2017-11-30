@@ -9,5 +9,5 @@ import java.util.concurrent.CompletableFuture;
 
 public interface ITokenProvider {
 
-    CompletableFuture<SecurityToken> getToken(final String resource, final Duration tokenTimeToLive);
+    CompletableFuture<SecurityToken> getToken(final String resource, final Duration timeout);
 }

@@ -132,7 +132,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                         try {
                             underlyingFactory.getCBSChannel().sendToken(
                                     underlyingFactory.getReactorScheduler(),
-                                    underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY).get(),
+                                    underlyingFactory.getTokenProvider().getToken(tokenAudience, underlyingFactory.getOperationTimeout()).get(),
                                     tokenAudience,
                                     new IOperationResult<Void, Exception>() {
                                         @Override
@@ -476,7 +476,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
         try {
             this.underlyingFactory.getCBSChannel().sendToken(
                     this.underlyingFactory.getReactorScheduler(),
-                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY).get(),
+                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, this.underlyingFactory.getOperationTimeout()).get(),
                     tokenAudience,
                     new IOperationResult<Void, Exception>() {
                         @Override

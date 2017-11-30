@@ -18,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-public class SharedAccessSignatureTokenProvider implements ITokenProvider {
+public final class SharedAccessSignatureTokenProvider implements ITokenProvider {
     final String keyName;
     final String sharedAccessKey;
     final String sharedAccessSignature;
@@ -31,7 +31,7 @@ public class SharedAccessSignatureTokenProvider implements ITokenProvider {
         this.sharedAccessSignature = null;
     }
 
-    public SharedAccessSignatureTokenProvider(final String sharedAccessSignature) {
+    SharedAccessSignatureTokenProvider(final String sharedAccessSignature) {
         this.keyName = null;
         this.sharedAccessKey = null;
         this.sharedAccessSignature = sharedAccessSignature;
