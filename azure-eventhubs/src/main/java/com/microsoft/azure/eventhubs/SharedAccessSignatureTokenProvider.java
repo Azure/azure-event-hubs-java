@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 
@@ -37,22 +38,22 @@ public final class SharedAccessSignatureTokenProvider implements ITokenProvider 
         this.sharedAccessSignature = sharedAccessSignature;
     }
 
-    public CompletableFuture<SecurityToken> getToken(final String resource, final Duration tokenTimeToLive) {
+    public CompletableFuture<SecurityToken> getToken(final String resource, final Duration timeout) {
         final CompletableFuture<SecurityToken> result = new CompletableFuture<>();
         final String token;
 
         if (this.sharedAccessSignature == null) {
             try {
-                token = generateSharedAccessSignature(this.keyName, this.sharedAccessKey, resource, tokenTimeToLive);
+                token = generateSharedAccessSignature(this.keyName, this.sharedAccessKey, resource, ClientConstants.TOKEN_VALIDITY);
             } catch (NoSuchAlgorithmException|IOException|InvalidKeyException e) {
                 result.completeExceptionally(e);
                 return result;
             }
 
-            result.complete(new SecurityToken(ClientConstants.SAS_TOKEN_TYPE, token, null));
+            result.complete(new SecurityToken(ClientConstants.SAS_TOKEN_TYPE, token, Date.from(Instant.now().plus(ClientConstants.TOKEN_VALIDITY))));
         }
         else {
-            result.complete(new SecurityToken(ClientConstants.SAS_TOKEN_TYPE, this.sharedAccessSignature, null));
+            result.complete(new SecurityToken(ClientConstants.SAS_TOKEN_TYPE, this.sharedAccessSignature, Date.from(Instant.now().plus(ClientConstants.TOKEN_VALIDITY))));
         }
 
         return result;
