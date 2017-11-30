@@ -34,7 +34,8 @@ class PartitionPump extends PartitionReceiveHandler
 	private EventHubClient eventHubClient = null;
 	private PartitionReceiver partitionReceiver = null;
 
-	private CompletableFuture<Void> shutdownFuture = null;
+	private CompletableFuture<Void> shutdownTriggerFuture = null;
+	private CompletableFuture<Void> shutdownFinishedFuture = null;
 	private CloseReason shutdownReason;
 
     private CompletableFuture<?> internalOperationFuture = null;
@@ -76,8 +77,8 @@ class PartitionPump extends PartitionReceiveHandler
         
         // Set up the shutdown future. The shutdown process can be triggered just by completing this.shutdownFuture.
         // Use whenComplete so that shutdown stages execute whether normal or exceptional completion.
-        this.shutdownFuture = new CompletableFuture<Void>();
-        this.shutdownFuture.whenCompleteAsync((r,e) -> cancelPendingOperations(), this.host.getExecutorService())
+        this.shutdownTriggerFuture = new CompletableFuture<Void>();
+        this.shutdownFinishedFuture = this.shutdownTriggerFuture.whenCompleteAsync((r,e) -> cancelPendingOperations(), this.host.getExecutorService())
         		.whenCompleteAsync((r,e) -> cleanUpAll(this.shutdownReason), this.host.getExecutorService())
         		.whenCompleteAsync((r,e) -> releaseLeaseOnShutdown(), this.host.getExecutorService());
         
@@ -95,7 +96,7 @@ class PartitionPump extends PartitionReceiveHandler
 		        		}
 		        	}, this.host.getExecutorService());
         
-        return shutdownFuture;
+        return shutdownFinishedFuture;
     }
     
     protected void setupPartitionContext()
@@ -374,11 +375,11 @@ class PartitionPump extends PartitionReceiveHandler
     	this.shutdownReason = reason;
     	if (e == null)
     	{
-    		this.shutdownFuture.complete(null);
+    		this.shutdownTriggerFuture.complete(null);
     	}
     	else
     	{
-    		this.shutdownFuture.completeExceptionally(e);
+    		this.shutdownTriggerFuture.completeExceptionally(e);
     	}
     }
 
@@ -387,7 +388,7 @@ class PartitionPump extends PartitionReceiveHandler
         TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionContext,
                 "pump shutdown for reason " + reason.toString()));
     	internalShutdown(reason, null);
-    	return this.shutdownFuture;
+    	return this.shutdownFinishedFuture;
     }
     
     private void leaseRenewer()
