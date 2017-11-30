@@ -68,7 +68,7 @@ public class TestBase
 			settings.outTelltale = settings.getTestName() + "-telltale-" + EventProcessorHost.safeCreateUUID();
 		}
 		settings.outGeneralErrorHandler = new PrefabGeneralErrorHandler();
-		settings.outProcessorFactory = new PrefabProcessorFactory(settings.outTelltale, settings.inDoCheckpoint, true, true);
+		settings.outProcessorFactory = new PrefabProcessorFactory(settings.outTelltale, settings.inDoCheckpoint, false, false);
 		
 		settings.inOptions.setExceptionNotification(settings.outGeneralErrorHandler);
 		
