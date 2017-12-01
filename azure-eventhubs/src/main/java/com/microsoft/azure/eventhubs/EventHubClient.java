@@ -132,6 +132,19 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             final URI endpointAddress,
             final String eventHubName,
             final ITokenProvider tokenProvider) throws EventHubException, IOException {
+
+        if (endpointAddress == null) {
+            throw new IllegalArgumentException("endpointAddress cannot be null");
+        }
+
+        if (StringUtil.isNullOrWhiteSpace(eventHubName)) {
+            throw new IllegalArgumentException("Specified EventHubName is illegal.");
+        }
+
+        if (tokenProvider == null) {
+            throw new IllegalArgumentException("TokenProvider cannot be null");
+        }
+
         final EventHubClient eventHubClient = new EventHubClient(eventHubName);
 
         return MessagingFactory.create(
@@ -166,6 +179,14 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
             final String eventHubName,
             final AuthenticationContext authenticationContext,
             final ClientCredential clientCredential) throws EventHubException, IOException {
+
+        if (authenticationContext == null) {
+            throw new IllegalArgumentException("authenticationContext cannot be null");
+        }
+
+        if (clientCredential == null) {
+            throw new IllegalArgumentException("clientCredential cannot be null");
+        }
 
         return create(
                 endpointAddress,

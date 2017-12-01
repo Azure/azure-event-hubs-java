@@ -5,40 +5,177 @@ import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
 import com.microsoft.azure.eventhubs.AzureActiveDirectoryTokenProvider;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.ClientConstants;
 import com.microsoft.azure.eventhubs.ITokenProvider;
+import com.microsoft.azure.eventhubs.PartitionSender;
+import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.SecurityToken;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
+import com.microsoft.azure.eventhubs.lib.TestContext;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Date;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class AdalTest extends ApiTestBase {
 
+    final ExecutorService executorService = Executors.newCachedThreadPool();
+
     // @Test
-    public void runEventHubSendTest() throws Exception {
+    public void runEventHubSendReceiveTest() throws Exception {
 
-        final ExecutorService exectorService = Executors.newCachedThreadPool();
+        final String testMessage = "somedata test";
         final AuthenticationContext authenticationContext = new AuthenticationContext(
-                "-------TenantAuthorityUrl---------",
+                "https://login.windows.net/---TenantID---",
                 true,
-                exectorService);
+                executorService);
         final ClientCredential clientCredential = new ClientCredential(
-                "----------ClientId------------",
-                "-----------ClientSecret-----------");
-
-        EventHubClient ehClient = EventHubClient.create(
-                new URI("sb://namespace.servicebus.windows.net"),
-                "----eventhubname-----",
+                "---clientId---",
+                "----ClientSecret----");
+        final EventHubClient ehClient = EventHubClient.create(
+                new URI("sb://NAMESPACE_NAME.servicebus.windows.net"),
+                "EVENTHUBNAME",
                 authenticationContext,
                 clientCredential).get();
 
-        ehClient.sendSync(new EventData("something test".getBytes()));
+
+        final PartitionReceiver pReceiver = ehClient.createReceiverSync("$Default", "0", PartitionReceiver.END_OF_STREAM);
+
+        final PartitionSender pSender = ehClient.createPartitionSenderSync("0");
+        pSender.send(new EventData(testMessage.getBytes()));
+
+        final Iterable<EventData> events = pReceiver.receiveSync(100);
+        Assert.assertEquals(testMessage, new String(events.iterator().next().getBytes()));
+
+        pSender.closeSync();
+        pReceiver.closeSync();;
+        ehClient.closeSync();
+    }
+
+    // @Test
+    public void runEventHubSendReceiveWithTokenProviderTest() throws Exception {
+
+        final AuthenticationContext authenticationContext = new AuthenticationContext(
+                "https://login.windows.net/---TenantID---",
+                true,
+                executorService);
+        final ClientCredential clientCredential = new ClientCredential(
+                "---clientId---",
+                "----ClientSecret----");
+
+        final String testMessage = "somedata test";
+
+        final EventHubClient ehClient = EventHubClient.create(
+                new URI("sb://NAMESPACE_NAME.servicebus.windows.net"),
+                "EVENTHUBNAME",
+                new ITokenProvider() {
+                    @Override
+                    public CompletableFuture<SecurityToken> getToken(String resource, Duration timeout) {
+
+                        final CompletableFuture<SecurityToken> result = new CompletableFuture<>();
+                        authenticationContext.acquireToken(AzureActiveDirectoryTokenProvider.EVENTHUBS_REGISTERED_AUDIENCE,
+                                clientCredential,
+                                new AuthenticationCallback() {
+                                    @Override
+                                    public void onSuccess(AuthenticationResult authenticationResult) {
+                                        result.complete(new SecurityToken(
+                                                "jwt",
+                                                authenticationResult.getAccessToken(),
+                                                Date.from(Instant.now().plusSeconds(200))));
+                                    }
+
+                                    @Override
+                                    public void onFailure(Throwable throwable) {
+                                        result.completeExceptionally(throwable);
+                                    }
+                                });
+
+                        return result;
+                    }
+                }).get();
+
+
+        final PartitionReceiver pReceiver = ehClient.createReceiverSync("$Default", "0", PartitionReceiver.END_OF_STREAM);
+
+        final PartitionSender pSender = ehClient.createPartitionSenderSync("0");
+        pSender.send(new EventData(testMessage.getBytes()));
+
+        final Iterable<EventData> events = pReceiver.receiveSync(100);
+        Assert.assertEquals(testMessage, new String(events.iterator().next().getBytes()));
+
+        pSender.closeSync();
+        pReceiver.closeSync();;
+        ehClient.closeSync();
+    }
+
+    @Test(expected=RuntimeException.class)
+    public void invalidAuthenticationContextTest() throws Exception {
+
+        final ConnectionStringBuilder connectionString = TestContext.getConnectionString();
+        final ExecutorService exectorService = Executors.newCachedThreadPool();
+        final AuthenticationContext authenticationContext = new AuthenticationContext(
+                "https://login.windows.net/nonexistant",
+                false,
+                exectorService);
+
+        final ClientCredential clientCredential = new ClientCredential("wrong_creds","random");
+        final EventHubClient ehClient = EventHubClient.create(connectionString.getEndpoint(), connectionString.getEntityPath(), authenticationContext, clientCredential).get();
+        ehClient.sendSync(new EventData("something".getBytes()));
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void nullAuthenticationContextTest() throws Exception {
+
+        final ConnectionStringBuilder connectionString = TestContext.getConnectionString();
+        final ClientCredential clientCredential = new ClientCredential("wrong_creds","random");
+        EventHubClient.create(
+                connectionString.getEndpoint(),
+                connectionString.getEntityPath(),
+                null,
+                clientCredential).get();
+    }
+
+    @Test(expected=IllegalArgumentException.class)
+    public void nullClientCredsTest() throws Exception {
+
+        final ConnectionStringBuilder connectionString = TestContext.getConnectionString();
+        final ExecutorService exectorService = Executors.newCachedThreadPool();
+        final AuthenticationContext authenticationContext = new AuthenticationContext(
+                "https://login.windows.net/nonexistant",
+                false,
+                exectorService);
+
+        EventHubClient.create(
+                connectionString.getEndpoint(),
+                connectionString.getEntityPath(),
+                authenticationContext,
+                null).get();
+    }
+
+    @Test(expected=ExecutionException.class)
+    public void invalidNamespaceEndpointTest() throws Exception {
+
+        final ConnectionStringBuilder connectionString = TestContext.getConnectionString();
+        final ExecutorService exectorService = Executors.newCachedThreadPool();
+        final AuthenticationContext authenticationContext = new AuthenticationContext(
+                "https://login.windows.net/nonexistant",
+                false,
+                exectorService);
+        final ClientCredential clientCredential = new ClientCredential("wrong_creds","random");
+
+        EventHubClient.create(
+                new URI("amqps://nonexistantNamespace"),
+                connectionString.getEntityPath(),
+                authenticationContext,
+                clientCredential).get();
     }
 }

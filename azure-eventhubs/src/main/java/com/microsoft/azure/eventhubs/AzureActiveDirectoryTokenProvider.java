@@ -24,7 +24,7 @@ public final class AzureActiveDirectoryTokenProvider implements ITokenProvider {
     }
 
     @Override
-    public CompletableFuture<SecurityToken> getToken(String resource, Duration tokenTimeToLive) {
+    public CompletableFuture<SecurityToken> getToken(String resource, Duration timeout) {
 
         final CompletableFuture<SecurityToken> result = new CompletableFuture<>();
         this.tokenAcquirer.acquireToken(this.authenticationContext, new EventHubsAuthenticationCallback(result));
