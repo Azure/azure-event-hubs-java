@@ -12,12 +12,14 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-public class SharedAccessSignatureTokenProvider {
+public final class SharedAccessSignatureTokenProvider implements ITokenProvider {
     final String keyName;
     final String sharedAccessKey;
     final String sharedAccessSignature;
@@ -30,16 +32,31 @@ public class SharedAccessSignatureTokenProvider {
         this.sharedAccessSignature = null;
     }
 
-    public SharedAccessSignatureTokenProvider(final String sharedAccessSignature) {
+    SharedAccessSignatureTokenProvider(final String sharedAccessSignature) {
         this.keyName = null;
         this.sharedAccessKey = null;
         this.sharedAccessSignature = sharedAccessSignature;
     }
 
-    public String getToken(final String resource, final Duration tokenTimeToLive) throws IOException, InvalidKeyException, NoSuchAlgorithmException {
-        return this.sharedAccessSignature == null
-                ? generateSharedAccessSignature(this.keyName, this.sharedAccessKey, resource, tokenTimeToLive)
-                : this.sharedAccessSignature;
+    public CompletableFuture<SecurityToken> getToken(final String resource, final Duration timeout) {
+        final CompletableFuture<SecurityToken> result = new CompletableFuture<>();
+        final String token;
+
+        if (this.sharedAccessSignature == null) {
+            try {
+                token = generateSharedAccessSignature(this.keyName, this.sharedAccessKey, resource, ClientConstants.TOKEN_VALIDITY);
+            } catch (NoSuchAlgorithmException|IOException|InvalidKeyException e) {
+                result.completeExceptionally(e);
+                return result;
+            }
+
+            result.complete(new SecurityToken(ClientConstants.SAS_TOKEN_TYPE, token, Date.from(Instant.now().plus(ClientConstants.TOKEN_VALIDITY))));
+        }
+        else {
+            result.complete(new SecurityToken(ClientConstants.SAS_TOKEN_TYPE, this.sharedAccessSignature, Date.from(Instant.now().plus(ClientConstants.TOKEN_VALIDITY))));
+        }
+
+        return result;
     }
 
     public static String generateSharedAccessSignature(

@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.eventhubs.amqp;
 
+import java.time.Instant;
+import java.util.Date;
 import java.util.Locale;
 
 import org.apache.qpid.proton.amqp.Binary;
@@ -120,6 +122,10 @@ public class AmqpUtil {
 
         if (obj instanceof Double) {
             return Double.BYTES;
+        }
+
+        if (obj instanceof Date) {
+            return 32;
         }
 
         throw new IllegalArgumentException(String.format(Locale.US, "Encoding Type: %s is not supported", obj.getClass()));

@@ -5,13 +5,12 @@
 package com.microsoft.azure.eventhubs;
 
 import java.io.IOException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -133,7 +132,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                         try {
                             underlyingFactory.getCBSChannel().sendToken(
                                     underlyingFactory.getReactorScheduler(),
-                                    underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY),
+                                    underlyingFactory.getTokenProvider().getToken(tokenAudience, underlyingFactory.getOperationTimeout()).get(),
                                     tokenAudience,
                                     new IOperationResult<Void, Exception>() {
                                         @Override
@@ -154,7 +153,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                                             }
                                         }
                                     });
-                        } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | RuntimeException exception) {
+                        } catch (InterruptedException | ExecutionException | RuntimeException exception) {
                             if (TRACE_LOGGER.isInfoEnabled()) {
                                 TRACE_LOGGER.info(
                                         String.format(Locale.US,
@@ -477,7 +476,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
         try {
             this.underlyingFactory.getCBSChannel().sendToken(
                     this.underlyingFactory.getReactorScheduler(),
-                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY),
+                    this.underlyingFactory.getTokenProvider().getToken(tokenAudience, this.underlyingFactory.getOperationTimeout()).get(),
                     tokenAudience,
                     new IOperationResult<Void, Exception>() {
                         @Override
@@ -507,7 +506,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                             MessageReceiver.this.onError(completionException);
                         }
                     });
-        } catch (IOException | NoSuchAlgorithmException | InvalidKeyException | RuntimeException exception) {
+        } catch (RuntimeException | InterruptedException | ExecutionException exception) {
             MessageReceiver.this.onError(exception);
         }
     }
