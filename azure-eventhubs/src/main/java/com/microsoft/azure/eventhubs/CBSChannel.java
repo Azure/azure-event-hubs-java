@@ -44,18 +44,20 @@ public class CBSChannel {
 
     public void sendToken(
             final ReactorDispatcher dispatcher,
-            final String token,
+            final SecurityToken token,
             final String tokenAudience,
             final IOperationResult<Void, Exception> sendTokenCallback) {
 
         final Message request = Proton.message();
         final Map<String, Object> properties = new HashMap<>();
         properties.put(ClientConstants.PUT_TOKEN_OPERATION, ClientConstants.PUT_TOKEN_OPERATION_VALUE);
-        properties.put(ClientConstants.PUT_TOKEN_TYPE, ClientConstants.SAS_TOKEN_TYPE);
+        properties.put(ClientConstants.PUT_TOKEN_TYPE, token.getTokenType());
+        properties.put(ClientConstants.PUT_TOKEN_EXPIRY, token.validTo());
         properties.put(ClientConstants.PUT_TOKEN_AUDIENCE, tokenAudience);
+
         final ApplicationProperties applicationProperties = new ApplicationProperties(properties);
         request.setApplicationProperties(applicationProperties);
-        request.setBody(new AmqpValue(token));
+        request.setBody(new AmqpValue(token.getToken()));
 
         this.innerChannel.runOnOpenedObject(dispatcher,
                 new IOperationResult<RequestResponseChannel, Exception>() {

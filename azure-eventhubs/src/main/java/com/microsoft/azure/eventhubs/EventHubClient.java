@@ -4,12 +4,15 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.aad.adal4j.AuthenticationCallback;
+import com.microsoft.aad.adal4j.AuthenticationContext;
+import com.microsoft.aad.adal4j.AuthenticationResult;
+import com.microsoft.aad.adal4j.ClientCredential;
 import com.microsoft.azure.eventhubs.amqp.AmqpException;
 
 import java.io.IOException;
+import java.net.URI;
 import java.nio.channels.UnresolvedAddressException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
@@ -18,6 +21,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -44,9 +48,13 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     private CompletableFuture<Void> createSender;
 
     private EventHubClient(final ConnectionStringBuilder connectionString) throws IOException, IllegalEntityException {
+        this(connectionString.getEntityPath());
+    }
+
+    private EventHubClient(final String eventHubName) {
         super(StringUtil.getRandomString(), null);
 
-        this.eventHubName = connectionString.getEntityPath();
+        this.eventHubName = eventHubName;
         this.senderCreateSync = new Object();
     }
 
@@ -106,6 +114,96 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString)
             throws EventHubException, IOException {
         return createFromConnectionString(connectionString, null);
+    }
+
+    /**
+     * Factory method to create an instance of {@link EventHubClient} using the supplied namespace endpoint address, eventhub name and authentication mechanism.
+     * In a normal scenario (when re-direct is not enabled) - one EventHubClient instance maps to one Connection to the Azure ServiceBus EventHubs service.
+     * <p>The {@link EventHubClient} created from this method creates a Sender instance internally, which is used by the {@link #send(EventData)} methods.
+     *
+     * @param endpointAddress namespace level endpoint. This needs to be in the format of scheme://fullyQualifiedServiceBusNamespaceEndpointName
+     * @param eventHubName EventHub name
+     * @param tokenProvider The {@link ITokenProvider} implementation to be used to authenticate
+     * @return EventHubClient which can be used to create Senders and Receivers to EventHub
+     * @throws EventHubException If the EventHubs service encountered problems during connection creation.
+     * @throws IOException If the underlying Proton-J layer encounter network errors.
+     */
+    public static CompletableFuture<EventHubClient> create(
+            final URI endpointAddress,
+            final String eventHubName,
+            final ITokenProvider tokenProvider) throws EventHubException, IOException {
+
+        if (endpointAddress == null) {
+            throw new IllegalArgumentException("endpointAddress cannot be null");
+        }
+
+        if (StringUtil.isNullOrWhiteSpace(eventHubName)) {
+            throw new IllegalArgumentException("Specified EventHubName is illegal.");
+        }
+
+        if (tokenProvider == null) {
+            throw new IllegalArgumentException("TokenProvider cannot be null");
+        }
+
+        final EventHubClient eventHubClient = new EventHubClient(eventHubName);
+
+        return MessagingFactory.create(
+                endpointAddress.getHost(),
+                MessagingFactory.DefaultOperationTimeout,
+                RetryPolicy.getDefault(),
+                tokenProvider)
+                .thenApplyAsync(new Function<MessagingFactory, EventHubClient>() {
+                    @Override
+                    public EventHubClient apply(MessagingFactory factory) {
+                        eventHubClient.underlyingFactory = factory;
+                        return eventHubClient;
+                    }
+                });
+    }
+
+    /**
+     * Factory method to create an instance of {@link EventHubClient} using the supplied namespace endpoint address, eventhub name and authentication mechanism.
+     * In a normal scenario (when re-direct is not enabled) - one EventHubClient instance maps to one Connection to the Azure ServiceBus EventHubs service.
+     * <p>The {@link EventHubClient} created from this method creates a Sender instance internally, which is used by the {@link #send(EventData)} methods.
+     *
+     * @param endpointAddress  namespace level endpoint. This needs to be in the format of scheme://fullyQualifiedServiceBusNamespaceEndpointName
+     * @param eventHubName EventHub name
+     * @param authenticationContext The Azure Active Directory {@link AuthenticationContext}
+     * @param clientCredential The Azure Active Directory {@link ClientCredential}
+     * @return
+     * @throws EventHubException If the EventHubs service encountered problems during connection creation.
+     * @throws IOException If the underlying Proton-J layer encounter network errors.
+     */
+    public static CompletableFuture<EventHubClient> create(
+            final URI endpointAddress,
+            final String eventHubName,
+            final AuthenticationContext authenticationContext,
+            final ClientCredential clientCredential) throws EventHubException, IOException {
+
+        if (authenticationContext == null) {
+            throw new IllegalArgumentException("authenticationContext cannot be null");
+        }
+
+        if (clientCredential == null) {
+            throw new IllegalArgumentException("clientCredential cannot be null");
+        }
+
+        return create(
+                endpointAddress,
+                eventHubName,
+                new AzureActiveDirectoryTokenProvider(
+                        authenticationContext,
+                        new AzureActiveDirectoryTokenProvider.ITokenAcquirer() {
+                            @Override
+                            public Future<AuthenticationResult> acquireToken(
+                                    final AuthenticationContext authenticationContext,
+                                    final AuthenticationCallback authenticationCallback) {
+                                return authenticationContext.acquireToken(
+                                        AzureActiveDirectoryTokenProvider.EVENTHUBS_REGISTERED_AUDIENCE,
+                                        clientCredential,
+                                        authenticationCallback);
+                            }
+                        }));
     }
 
     /**
@@ -1355,16 +1453,25 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     private <T> CompletableFuture<T> addManagementToken(Map<String, String> request)
     {
     	CompletableFuture<T> retval = null;
+    	Exception failure = null;
         try {
         	String audience = String.format("amqp://%s/%s", this.underlyingFactory.getHostName(), this.eventHubName);
-        	String token = this.underlyingFactory.getTokenProvider().getToken(audience, ClientConstants.TOKEN_REFRESH_INTERVAL);
-			request.put(ClientConstants.MANAGEMENT_SECURITY_TOKEN_KEY, token);
+        	String token;
+            token = this.underlyingFactory.getTokenProvider().getToken(audience, this.underlyingFactory.getOperationTimeout()).get().getToken();
+            request.put(ClientConstants.MANAGEMENT_SECURITY_TOKEN_KEY, token);
 		} 
-        catch (InvalidKeyException | NoSuchAlgorithmException | IOException e) {
-        	retval = new CompletableFuture<T>();
-        	retval.completeExceptionally(e);
-		}
-    	return retval;
+        catch (InterruptedException | RuntimeException e) {
+            retval = new CompletableFuture<T>();
+            retval.completeExceptionally(e);
+        } catch (ExecutionException e) {
+            retval = new CompletableFuture<T>();
+            final Throwable cause = e.getCause();
+
+            //&& (cause instanceof InvalidKeyException || cause instanceof NoSuchAlgorithmException || cause instanceof IOException)
+            retval.completeExceptionally(cause != null ? cause : e);
+        }
+
+        return retval;
     }
     
     private CompletableFuture<Map<String, Object>> managementWithRetry(Map<String, String> request) {
