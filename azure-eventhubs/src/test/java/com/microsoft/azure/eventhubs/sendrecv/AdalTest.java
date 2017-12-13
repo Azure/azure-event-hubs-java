@@ -26,16 +26,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class AdalTest extends ApiTestBase {
+public final class AdalTest extends ApiTestBase {
 
     final ExecutorService executorService = Executors.newCachedThreadPool();
 
-    final static String TENANT_ID = "---TenantID---";
-    final static String CLIENT_ID = "---clientId---";
-    final static String CLIENT_SECRET = "----ClientSecret----";
+    final static String TENANT_ID = "----TENANT_ID----";
+    final static String CLIENT_ID = "---CLIENT_ID----";
+    final static String CLIENT_SECRET = "---CLIENT_SECRET---";
 
-    final static URI NAMESPACE_ENDPOINT = TestContext.getConnectionString().getEndpoint();
     final static String EVENTHUB_NAME = TestContext.getConnectionString().getEntityPath();
+    final static String NAMESPACE_ENDPOINT = TestContext.getConnectionString().getEndpoint().getHost();
 
     // @Test
     public void runEventHubSendReceiveTest() throws Exception {
@@ -49,7 +49,7 @@ public class AdalTest extends ApiTestBase {
                 CLIENT_ID,
                 CLIENT_SECRET);
         final EventHubClient ehClient = EventHubClient.create(
-                NAMESPACE_ENDPOINT,
+                new URI("sb://" + NAMESPACE_ENDPOINT),
                 EVENTHUB_NAME,
                 authenticationContext,
                 clientCredential).get();
@@ -82,7 +82,7 @@ public class AdalTest extends ApiTestBase {
         final String testMessage = "somedata test";
 
         final EventHubClient ehClient = EventHubClient.create(
-                NAMESPACE_ENDPOINT,
+                new URI("sb://" + NAMESPACE_ENDPOINT),
                 EVENTHUB_NAME,
                 new ITokenProvider() {
                     @Override
