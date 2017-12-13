@@ -30,20 +30,27 @@ public class AdalTest extends ApiTestBase {
 
     final ExecutorService executorService = Executors.newCachedThreadPool();
 
+    final static String TENANT_ID = "---TenantID---";
+    final static String CLIENT_ID = "---clientId---";
+    final static String CLIENT_SECRET = "----ClientSecret----";
+
+    final static URI NAMESPACE_ENDPOINT = TestContext.getConnectionString().getEndpoint();
+    final static String EVENTHUB_NAME = TestContext.getConnectionString().getEntityPath();
+
     // @Test
     public void runEventHubSendReceiveTest() throws Exception {
 
         final String testMessage = "somedata test";
         final AuthenticationContext authenticationContext = new AuthenticationContext(
-                "https://login.windows.net/---TenantID---",
+                "https://login.windows.net/" + TENANT_ID,
                 true,
                 executorService);
         final ClientCredential clientCredential = new ClientCredential(
-                "---clientId---",
-                "----ClientSecret----");
+                CLIENT_ID,
+                CLIENT_SECRET);
         final EventHubClient ehClient = EventHubClient.create(
-                new URI("sb://NAMESPACE_NAME.servicebus.windows.net"),
-                "EVENTHUBNAME",
+                NAMESPACE_ENDPOINT,
+                EVENTHUB_NAME,
                 authenticationContext,
                 clientCredential).get();
 
@@ -65,18 +72,18 @@ public class AdalTest extends ApiTestBase {
     public void runEventHubSendReceiveWithTokenProviderTest() throws Exception {
 
         final AuthenticationContext authenticationContext = new AuthenticationContext(
-                "https://login.windows.net/---TenantID---",
+                "https://login.windows.net/" + TENANT_ID,
                 true,
                 executorService);
         final ClientCredential clientCredential = new ClientCredential(
-                "---clientId---",
-                "----ClientSecret----");
+                CLIENT_ID,
+                CLIENT_SECRET);
 
         final String testMessage = "somedata test";
 
         final EventHubClient ehClient = EventHubClient.create(
-                new URI("sb://NAMESPACE_NAME.servicebus.windows.net"),
-                "EVENTHUBNAME",
+                NAMESPACE_ENDPOINT,
+                EVENTHUB_NAME,
                 new ITokenProvider() {
                     @Override
                     public CompletableFuture<SecurityToken> getToken(String resource, Duration timeout) {
