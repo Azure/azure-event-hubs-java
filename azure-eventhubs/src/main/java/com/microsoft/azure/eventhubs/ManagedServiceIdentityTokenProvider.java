@@ -106,12 +106,10 @@ public class ManagedServiceIdentityTokenProvider implements ITokenProvider {
                 return getTokenTask;
             }
 
-            System.out.println("Response : " + responseBuilder.toString());
-
             final Gson gson = new Gson();
             final MSIToken token = gson.fromJson(responseBuilder.toString(), MSIToken.class);
 
-            getTokenTask.complete(new SecurityToken("jwt", token.access_token, new Date(token.expires_on)));
+            getTokenTask.complete(new SecurityToken(ClientConstants.JWT_TOKEN_TYPE, token.access_token, new Date(token.expires_on)));
             return getTokenTask;
         }finally {
             httpConnection.disconnect();
