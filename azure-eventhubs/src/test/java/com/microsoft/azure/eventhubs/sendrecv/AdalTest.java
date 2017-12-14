@@ -218,7 +218,7 @@ public final class AdalTest extends ApiTestBase {
                 connectionString.getEndpoint(),
                 connectionString.getEntityPath(),
                 authenticationContext,
-                null).get();
+                (ClientCredential) null).get();
     }
 
     @Test(expected=ExecutionException.class)
