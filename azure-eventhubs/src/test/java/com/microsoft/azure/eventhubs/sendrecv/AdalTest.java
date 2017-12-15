@@ -5,6 +5,7 @@ import com.microsoft.aad.adal4j.AuthenticationContext;
 import com.microsoft.aad.adal4j.AuthenticationResult;
 import com.microsoft.aad.adal4j.ClientCredential;
 import com.microsoft.azure.eventhubs.AzureActiveDirectoryTokenProvider;
+import com.microsoft.azure.eventhubs.AuthorizationFailedException;
 import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
@@ -26,24 +27,31 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class AdalTest extends ApiTestBase {
+public final class AdalTest extends ApiTestBase {
 
     final ExecutorService executorService = Executors.newCachedThreadPool();
+
+    final static String TENANT_ID = "----TENANT_ID----";
+    final static String CLIENT_ID = "---CLIENT_ID----";
+    final static String CLIENT_SECRET = "---CLIENT_SECRET---";
+
+    final static String EVENTHUB_NAME = TestContext.getConnectionString().getEntityPath();
+    final static String NAMESPACE_ENDPOINT = TestContext.getConnectionString().getEndpoint().getHost();
 
     // @Test
     public void runEventHubSendReceiveTest() throws Exception {
 
         final String testMessage = "somedata test";
         final AuthenticationContext authenticationContext = new AuthenticationContext(
-                "https://login.windows.net/---TenantID---",
+                "https://login.windows.net/" + TENANT_ID,
                 true,
                 executorService);
         final ClientCredential clientCredential = new ClientCredential(
-                "---clientId---",
-                "----ClientSecret----");
+                CLIENT_ID,
+                CLIENT_SECRET);
         final EventHubClient ehClient = EventHubClient.create(
-                new URI("sb://NAMESPACE_NAME.servicebus.windows.net"),
-                "EVENTHUBNAME",
+                new URI("sb://" + NAMESPACE_ENDPOINT),
+                EVENTHUB_NAME,
                 authenticationContext,
                 clientCredential).get();
 
@@ -65,18 +73,18 @@ public class AdalTest extends ApiTestBase {
     public void runEventHubSendReceiveWithTokenProviderTest() throws Exception {
 
         final AuthenticationContext authenticationContext = new AuthenticationContext(
-                "https://login.windows.net/---TenantID---",
+                "https://login.windows.net/" + TENANT_ID,
                 true,
                 executorService);
         final ClientCredential clientCredential = new ClientCredential(
-                "---clientId---",
-                "----ClientSecret----");
+                CLIENT_ID,
+                CLIENT_SECRET);
 
         final String testMessage = "somedata test";
 
         final EventHubClient ehClient = EventHubClient.create(
-                new URI("sb://NAMESPACE_NAME.servicebus.windows.net"),
-                "EVENTHUBNAME",
+                new URI("sb://" + NAMESPACE_ENDPOINT),
+                EVENTHUB_NAME,
                 new ITokenProvider() {
                     @Override
                     public CompletableFuture<SecurityToken> getToken(String resource, Duration timeout) {
@@ -115,6 +123,58 @@ public class AdalTest extends ApiTestBase {
         pSender.closeSync();
         pReceiver.closeSync();;
         ehClient.closeSync();
+    }
+
+    // @Test(expected=AuthorizationFailedException.class)
+    public void noRoleAssigned() throws Exception {
+
+        // TODO: REMOVE ROLE ASSIGNMENT BEFORE RUNNING THE TEST (to be automated - manual step for now)
+        final AuthenticationContext authenticationContext = new AuthenticationContext(
+                "https://login.windows.net/" + TENANT_ID,
+                true,
+                executorService);
+        final ClientCredential clientCredential = new ClientCredential(
+                CLIENT_ID,
+                CLIENT_SECRET);
+
+        EventHubClient ehClient = EventHubClient.create(
+                new URI("sb://" + NAMESPACE_ENDPOINT),
+                EVENTHUB_NAME,
+                authenticationContext,
+                clientCredential).get();
+
+        ehClient.sendSync(new EventData("some text".getBytes()));
+    }
+
+    // @Test
+    public void performManualActionsRbacRoles() throws Exception {
+
+        // TODO: this test keeps sending messages - perform actions on the background and see the expected output on console
+        final AuthenticationContext authenticationContext = new AuthenticationContext(
+                "https://login.windows.net/" + TENANT_ID,
+                true,
+                executorService);
+        final ClientCredential clientCredential = new ClientCredential(
+                CLIENT_ID,
+                CLIENT_SECRET);
+
+        EventHubClient ehClient = EventHubClient.create(
+                new URI("sb://" + NAMESPACE_ENDPOINT),
+                EVENTHUB_NAME,
+                authenticationContext,
+                clientCredential).get();
+
+        while (true) {
+            try {
+                ehClient.sendSync(new EventData("some text".getBytes()));
+                System.out.println(".");
+            } catch (Exception exception) {
+                System.out.println("Captured exception: ");
+                exception.printStackTrace();
+            }
+
+            Thread.sleep(1000);
+        }
     }
 
     @Test(expected=RuntimeException.class)
@@ -158,7 +218,7 @@ public class AdalTest extends ApiTestBase {
                 connectionString.getEndpoint(),
                 connectionString.getEntityPath(),
                 authenticationContext,
-                null).get();
+                (ClientCredential) null).get();
     }
 
     @Test(expected=ExecutionException.class)
