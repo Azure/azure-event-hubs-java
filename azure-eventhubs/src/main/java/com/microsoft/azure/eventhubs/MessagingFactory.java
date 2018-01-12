@@ -11,6 +11,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -56,8 +57,8 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     private final Object cbsChannelCreateLock;
     private final Object mgmtChannelCreateLock;
     private final SharedAccessSignatureTokenProvider tokenProvider;
-    private final ThreadFactory reactorThreadFactory;
     private final ReactorFactory reactorFactory;
+    private final ExecutorService executorService;
 
     private Reactor reactor;
     private ReactorDispatcher reactorScheduler;
@@ -73,14 +74,14 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
     MessagingFactory(final ConnectionStringBuilder builder,
                      final RetryPolicy retryPolicy,
-                     final ThreadFactory reactorThreadFactory,
+                     final ExecutorService executorService,
                      final ReactorFactory reactorFactory) {
         super("MessagingFactory".concat(StringUtil.getRandomString()), null);
 
         Timer.register(this.getClientId());
         this.hostName = builder.getEndpoint().getHost();
-        this.reactorThreadFactory = reactorThreadFactory;
         this.reactorFactory = reactorFactory;
+        this.executorService = executorService;
 
         this.operationTimeout = builder.getOperationTimeout();
         this.retryPolicy = retryPolicy;
@@ -122,7 +123,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         return this.tokenProvider;
     }
 
-    private void createConnection(ConnectionStringBuilder builder) throws IOException {
+    private void createConnection() throws IOException {
         this.open = new CompletableFuture<>();
         this.startReactor(new ReactorHandler() {
             @Override
@@ -143,8 +144,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             reactorHandler.unsafeSetReactorDispatcher(this.reactorScheduler);
         }
 
-        final Thread reactorThread = this.reactorThreadFactory.create(new RunReactor(newReactor));
-        reactorThread.start();
+        executorService.submit(new RunReactor(newReactor, executorService));
     }
 
     public CBSChannel getCBSChannel() {
@@ -194,25 +194,26 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         return this.retryPolicy;
     }
 
-    public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString) throws IOException {
-        return createFromConnectionString(connectionString, RetryPolicy.getDefault());
-    }
-
-    public static CompletableFuture<MessagingFactory> createFromConnectionString(
-            final String connectionString,
-            final RetryPolicy retryPolicy) throws IOException {
-        return createFromConnectionString(connectionString, retryPolicy, new ThreadFactory(), new ReactorFactory());
+    public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString, final ExecutorService executorService) throws IOException {
+        return createFromConnectionString(connectionString, RetryPolicy.getDefault(), executorService);
     }
 
     public static CompletableFuture<MessagingFactory> createFromConnectionString(
             final String connectionString,
             final RetryPolicy retryPolicy,
-            final ThreadFactory threadFactory,
+            final ExecutorService executorService) throws IOException {
+        return createFromConnectionString(connectionString, retryPolicy, executorService, new ReactorFactory());
+    }
+
+    public static CompletableFuture<MessagingFactory> createFromConnectionString(
+            final String connectionString,
+            final RetryPolicy retryPolicy,
+            final ExecutorService executorService,
             final ReactorFactory reactorFactory) throws IOException {
         final ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString);
         final MessagingFactory messagingFactory = new MessagingFactory(builder,
                 (retryPolicy != null) ? retryPolicy : RetryPolicy.getDefault(),
-                threadFactory,
+                executorService,
                 reactorFactory);
         messagingFactory.openTimer = Timer.schedule(new Runnable() {
                                                         @Override
@@ -225,7 +226,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                                                     },
                 messagingFactory.getOperationTimeout(),
                 TimerType.OneTimeRun);
-        messagingFactory.createConnection(builder);
+        messagingFactory.createConnection();
         return messagingFactory.open;
     }
 
@@ -422,24 +423,39 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
     private class RunReactor implements Runnable {
         final private Reactor rctr;
+        final private ExecutorService executorService;
 
-        public RunReactor(final Reactor reactor) {
+        volatile boolean hasStarted;
+
+        public RunReactor(final Reactor reactor, final ExecutorService executorService) {
             this.rctr = reactor;
+            this.executorService = executorService;
+            this.hasStarted = false;
         }
 
         public void run() {
-            if (TRACE_LOGGER.isInfoEnabled()) {
+            if (TRACE_LOGGER.isInfoEnabled() && !this.hasStarted) {
                 TRACE_LOGGER.info("messagingFactory[%s], hostName[%s], info[%s]",
                         getClientId(),
                         getHostName(),
                         "starting reactor instance.");
             }
 
+            boolean yieldedReactor = false;
+
             try {
-                this.rctr.setTimeout(3141);
-                this.rctr.start();
-                while (!Thread.interrupted() && this.rctr.process()) {
+                if (!this.hasStarted) {
+                    this.rctr.setTimeout(3141);
+                    this.rctr.start();
+                    this.hasStarted = true;
                 }
+
+                if (!Thread.interrupted() && this.rctr.process()) {
+                    this.executorService.submit(this);
+                    yieldedReactor = true;
+                    return;
+                }
+
                 this.rctr.stop();
             } catch (HandlerException handlerException) {
                 Throwable cause = handlerException.getCause();
@@ -454,7 +470,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                             ExceptionUtil.toStackTraceString(handlerException, "UnHandled exception while processing events in reactor:"));
                 }
 
-                String message = !StringUtil.isNullOrEmpty(cause.getMessage()) ?
+                final String message = !StringUtil.isNullOrEmpty(cause.getMessage()) ?
                         cause.getMessage() :
                         !StringUtil.isNullOrEmpty(handlerException.getMessage()) ?
                                 handlerException.getMessage() :
@@ -473,6 +489,10 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
                 MessagingFactory.this.onReactorError(sbException);
             } finally {
+                if (yieldedReactor) {
+                    return;
+                }
+
                 this.rctr.free();
 
                 if (getIsClosingOrClosed() && !closeTask.isDone()) {
@@ -501,13 +521,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
     public void scheduleOnReactorThread(final int delay, final DispatchHandler handler) throws IOException {
         this.getReactorScheduler().invoke(delay, handler);
-    }
-
-    public static class ThreadFactory {
-
-        public Thread create(final Runnable worker) {
-            return new Thread(worker);
-        }
     }
 
     public static class ReactorFactory {

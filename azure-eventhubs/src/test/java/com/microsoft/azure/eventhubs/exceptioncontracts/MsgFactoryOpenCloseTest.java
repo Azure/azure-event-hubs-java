@@ -33,40 +33,5 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
     @Test()
     public void VerifyThreadReleaseOnMsgFactoryOpenError() throws Exception    {
 
-        final LifecycleTrackingThreadFactory threadFactory = new LifecycleTrackingThreadFactory();
-        final FaultInjectingReactorFactory networkOutageSimulator = new FaultInjectingReactorFactory();
-        networkOutageSimulator.setFaultType(FaultInjectingReactorFactory.FaultType.NetworkOutage);
-
-        final CompletableFuture<MessagingFactory> openFuture = MessagingFactory.createFromConnectionString(
-                connStr.toString(), null,
-                threadFactory,
-                networkOutageSimulator);
-        try {
-            openFuture.get();
-            Assert.assertFalse(true);
-        }
-        catch (ExecutionException error) {
-            Assert.assertEquals(EventHubException.class, error.getCause().getClass());
-        };
-
-        Assert.assertEquals(1, threadFactory.Threads.size());
-
-        int retryAttempt = 0;
-        while (retryAttempt++ < 3 && threadFactory.Threads.get(0).isAlive()) {
-            Thread.sleep(1000); // for reactor to transition from cleanup to complete-stop
-        }
-
-        Assert.assertEquals(false, threadFactory.Threads.get(0).isAlive());
-    }
-
-    public static final class LifecycleTrackingThreadFactory extends MessagingFactory.ThreadFactory {
-        final public List<Thread> Threads = new LinkedList<>();
-
-        @Override
-        public Thread create(final Runnable worker) {
-            final Thread newThread = super.create(worker);
-            this.Threads.add(newThread);
-            return newThread;
-        }
     }
 }

@@ -28,7 +28,7 @@ public class EventHubClientTest extends ApiTestBase
 			ConnectionStringBuilder connectionString = TestContext.getConnectionString();
 			for (int i = 0; i < 4 ; i ++)
 			{
-			 createFutures[i] = EventHubClient.createFromConnectionString(connectionString.toString());		
+			 createFutures[i] = EventHubClient.createFromConnectionString(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 			}
 			
 			CompletableFuture.allOf(createFutures).get();
