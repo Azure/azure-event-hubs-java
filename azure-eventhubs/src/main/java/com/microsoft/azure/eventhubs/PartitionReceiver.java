@@ -40,7 +40,7 @@ import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
  * @see EventHubClient#createReceiver
  * @see EventHubClient#createEpochReceiver
  */
-public final class PartitionReceiver extends ClientEntity implements IReceiverSettingsProvider {
+public class PartitionReceiver extends ClientEntity implements IReceiverSettingsProvider {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionReceiver.class);
     static final int MINIMUM_PREFETCH_COUNT = 10;
 
@@ -75,7 +75,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
     private ReceiverOptions receiverOptions;
     private ReceiverRuntimeInformation runtimeInformation;
 
-    private PartitionReceiver(MessagingFactory factory,
+    protected PartitionReceiver(MessagingFactory factory,
                               final String eventHubName,
                               final String consumerGroupName,
                               final String partitionId,

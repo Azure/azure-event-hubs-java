@@ -15,7 +15,7 @@ final public class EventHubPartitionRuntimeInformation {
     private final String lastEnqueuedOffset;
     private final Instant lastEnqueuedTimeUtc;
 
-    EventHubPartitionRuntimeInformation(
+    public EventHubPartitionRuntimeInformation(
             final String eventHubPath,
             final String partitionId,
             final long beginSequenceNumber,
