@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -451,8 +452,20 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                 }
 
                 if (!Thread.interrupted() && this.rctr.process()) {
-                    this.executorService.submit(this);
-                    yieldedReactor = true;
+                    try {
+                        this.executorService.submit(this);
+                        yieldedReactor = true;
+                    } catch (RejectedExecutionException exception) {
+                        if (TRACE_LOGGER.isWarnEnabled()) {
+                            TRACE_LOGGER.warn("messagingFactory[%s], hostName[%s], error[%s]",
+                                    getClientId(),
+                                    getHostName(),
+                                    ExceptionUtil.toStackTraceString(exception, "scheduling reactor failed"));
+                        }
+
+                        MessagingFactory.this.setClosed();
+                    }
+
                     return;
                 }
 

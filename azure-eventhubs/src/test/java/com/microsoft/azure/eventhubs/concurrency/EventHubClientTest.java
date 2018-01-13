@@ -4,7 +4,6 @@
  */
 package com.microsoft.azure.eventhubs.concurrency;
 
-import java.io.IOException;
 import java.util.concurrent.*;
 
 import org.junit.*;

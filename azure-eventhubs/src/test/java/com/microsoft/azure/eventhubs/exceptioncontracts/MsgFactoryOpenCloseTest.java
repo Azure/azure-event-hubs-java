@@ -22,7 +22,10 @@ import org.junit.Test;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -96,5 +99,15 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         } finally {
             executor.shutdown();
         }
+    }
+
+    @Test(expected = RejectedExecutionException.class)
+    public void SupplyClosedExecutorServiceToEventHubClient() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        testClosed.shutdown();
+
+        EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed);
     }
 }
