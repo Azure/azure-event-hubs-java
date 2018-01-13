@@ -6,6 +6,8 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.time.Instant;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import com.microsoft.azure.eventhubs.EventData;
@@ -95,12 +97,21 @@ public class PartitionContext
     }
     
     // Returns a String (offset) or Instant (timestamp).
-    Object getInitialOffset() throws ExceptionWithAction
+    CompletableFuture<Object> getInitialOffset()
     {
     	Object startAt = null;
     	
     	TRACE_LOGGER.info(LoggingUtils.threadPoolStatusReport(this.host.getHostName(), this.host.getExecutorService()));
-    	Checkpoint startingCheckpoint = this.host.getCheckpointManager().getCheckpoint(this.partitionId);
+    	return this.host.getCheckpointManager().getCheckpoint(this.partitionId)
+    	.thenApply((startingCheckpoint) ->
+    	{
+    		return checkpointToOffset(startingCheckpoint);
+    	});
+    }
+    
+    Object checkpointToOffset(Checkpoint startingCheckpoint)
+    {
+    	Object startAt = null;
     	if (startingCheckpoint == null)
     	{
     		// No checkpoint was ever stored. Use the initialOffsetProvider instead.
@@ -141,31 +152,34 @@ public class PartitionContext
 
     /**
      * Writes the current offset and sequenceNumber to the checkpoint store via the checkpoint manager.
-     * @throws ExceptionWithAction
+     * It is important to check the result in order to detect failures.
+     * 
+     * @return A CompletableFuture that completes when the checkpoint is updated (result is null) or the update fails (exceptional completion).
      */
-    public void checkpoint() throws ExceptionWithAction
+    public CompletableFuture<Void> checkpoint()
     {
     	Checkpoint capturedCheckpoint = new Checkpoint(this.partitionId, this.offset, this.sequenceNumber);
-    	persistCheckpoint(capturedCheckpoint);
+    	return persistCheckpoint(capturedCheckpoint);
     }
 
     /**
      * Stores the offset and sequenceNumber from the provided received EventData instance, then writes those
      * values to the checkpoint store via the checkpoint manager.
+     * It is important to check the result in order to detect failures.
      *  
      * @param event  A received EventData with valid offset and sequenceNumber
-     * @throws ExceptionWithAction  
+     * @return A CompletableFuture that completes when the checkpoint is updated (result is null) or the update fails (exceptional completion).
      */
-    public void checkpoint(EventData event) throws ExceptionWithAction
+    public CompletableFuture<Void> checkpoint(EventData event)
     {
-    	persistCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
+    	return persistCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
     }
     
-    private void persistCheckpoint(Checkpoint persistThis) throws ExceptionWithAction
+    private CompletableFuture<Void> persistCheckpoint(Checkpoint persistThis)
     {
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, persistThis.getPartitionId(),
                 "Saving checkpoint: " + persistThis.getOffset() + "//" + persistThis.getSequenceNumber()));
 		
-        this.host.getCheckpointManager().updateCheckpoint(this.lease, persistThis);
+        return this.host.getCheckpointManager().updateCheckpoint(this.lease, persistThis);
     }
 }

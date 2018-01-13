@@ -58,21 +58,21 @@ public class CheckpointManagerTest
 		TestUtilities.log("USING " + (useAzureStorage ? "AzureStorageCheckpointLeaseManager" : "InMemoryCheckpointManager"));
 
 		TestUtilities.log("Check whether checkpoint store exists before create");
-		boolean boolret = this.checkpointManagers[0].checkpointStoreExists();
+		boolean boolret = this.checkpointManagers[0].checkpointStoreExists().get();
 		assertFalse("checkpoint store should not exist yet", boolret);
 		
 		TestUtilities.log("Create checkpoint store");
 		this.checkpointManagers[0].createCheckpointStoreIfNotExists();
 
 		TestUtilities.log("Check whether checkpoint store exists after create");
-		boolret = this.checkpointManagers[0].checkpointStoreExists();
+		boolret = this.checkpointManagers[0].checkpointStoreExists().get();
 		assertTrue("checkpoint store should exist but does not", boolret);
 		
 		TestUtilities.log("Create checkpoint holders for all partitions");
 		Checkpoint[] checkpoints = new Checkpoint[partitionCount];
 		for (int i = 0; i < partitionCount; i++)
 		{
-			Checkpoint createdCheckpoint = this.checkpointManagers[0].createCheckpointIfNotExists(String.valueOf(i));
+			Checkpoint createdCheckpoint = this.checkpointManagers[0].createCheckpointIfNotExists(String.valueOf(i)).get();
 			checkpoints[i] = createdCheckpoint;
 			assertNull("unexpected already existing checkpoint for " + i, createdCheckpoint);
 		}
@@ -80,7 +80,7 @@ public class CheckpointManagerTest
 		TestUtilities.log("Trying to get checkpoints for all partitions");
 		for (int i = 0; i < partitionCount; i++)
 		{
-			Checkpoint blah = this.checkpointManagers[0].getCheckpoint(String.valueOf(i));
+			Checkpoint blah = this.checkpointManagers[0].getCheckpoint(String.valueOf(i)).get();
 			assertNull("unexpectedly successful retrieve checkpoint for " + i, blah);
 		}
 		
@@ -92,9 +92,9 @@ public class CheckpointManagerTest
 		{
 			for (int i = 0; i < partitionCount; i++)
 			{
-				leases[i] = this.leaseManagers[0].getLease(String.valueOf(i));
+				leases[i] = this.leaseManagers[0].getLease(String.valueOf(i)).get();
 				assertNotNull("failed to retrieve lease for " + i, leases[i]);
-				boolret = this.leaseManagers[0].acquireLease(leases[i]);
+				boolret = this.leaseManagers[0].acquireLease(leases[i]).get();
 				assertTrue("failed to acquire lease for " + i, boolret);
 			}
 		}
@@ -112,7 +112,7 @@ public class CheckpointManagerTest
 		TestUtilities.log("Getting checkpoints for all partitions and verifying");
 		for (int i = 0; i < partitionCount; i++)
 		{
-			Checkpoint blah = this.checkpointManagers[0].getCheckpoint(String.valueOf(i));
+			Checkpoint blah = this.checkpointManagers[0].getCheckpoint(String.valueOf(i)).get();
 			assertNotNull("failed to retrieve checkpoint for " + i, blah);
 			assertEquals("retrieved offset does not match written offset", blah.getOffset(), checkpoints[i].getOffset());
 			assertEquals("retrieved seqno does not match written seqno", blah.getSequenceNumber(), checkpoints[i].getSequenceNumber());
@@ -123,15 +123,15 @@ public class CheckpointManagerTest
 		{
 			for (int i = 0; i < partitionCount; i++)
 			{
-				Lease l = this.leaseManagers[0].getLease(String.valueOf(i));
+				Lease l = this.leaseManagers[0].getLease(String.valueOf(i)).get();
 				assertNotNull("failed to retrieve lease for " + i, l);
-				boolret = this.leaseManagers[0].releaseLease(l);
+				boolret = this.leaseManagers[0].releaseLease(l).get();
 				assertTrue("failed to release lease for " + i, boolret);
 			}
 		}
 		
 		TestUtilities.log("Cleaning up checkpoint store");
-		boolret = this.checkpointManagers[0].deleteCheckpointStore();
+		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
 		assertTrue("failed while cleaning up store", boolret);
 		
 		TestUtilities.log("singleManagerCheckpointSmokeTest DONE");
@@ -150,21 +150,21 @@ public class CheckpointManagerTest
 		TestUtilities.log("USING " + (useAzureStorage ? "AzureStorageCheckpointLeaseManager" : "InMemoryLeaseManager"));
 		
 		TestUtilities.log("Check whether checkpoint store exists before create");
-		boolean boolret = this.checkpointManagers[0].checkpointStoreExists();
+		boolean boolret = this.checkpointManagers[0].checkpointStoreExists().get();
 		assertFalse("checkpoint store should not exist yet", boolret);
 		
 		TestUtilities.log("Second manager create checkpoint store");
 		this.checkpointManagers[1].createCheckpointStoreIfNotExists();
 
 		TestUtilities.log("First mananger check whether checkpoint store exists after create");
-		boolret = this.checkpointManagers[0].checkpointStoreExists();
+		boolret = this.checkpointManagers[0].checkpointStoreExists().get();
 		assertTrue("checkpoint store should exist but does not", boolret);
 		
 		TestUtilities.log("Alternately create checkpoint holders for all partitions");
 		Checkpoint[] checkpoints = new Checkpoint[partitionCount];
 		for (int i = 0; i < partitionCount; i++)
 		{
-			Checkpoint createdCheckpoint = this.checkpointManagers[i % 2].createCheckpointIfNotExists(String.valueOf(i));
+			Checkpoint createdCheckpoint = this.checkpointManagers[i % 2].createCheckpointIfNotExists(String.valueOf(i)).get();
 			checkpoints[i] = createdCheckpoint;
 			assertNull("unexpected already existing checkpoint for " + i, createdCheckpoint);
 		}
@@ -172,7 +172,7 @@ public class CheckpointManagerTest
 		TestUtilities.log("Try to get each others checkpoints for all partitions");
 		for (int i = 0; i < partitionCount; i++)
 		{
-			Checkpoint blah = this.checkpointManagers[(i + 1) % 2].getCheckpoint(String.valueOf(i));
+			Checkpoint blah = this.checkpointManagers[(i + 1) % 2].getCheckpoint(String.valueOf(i)).get();
 			assertNull("unexpected successful retrieve checkpoint for " + i, blah);
 		}
 		
@@ -184,9 +184,9 @@ public class CheckpointManagerTest
 		{
 			for (int i = 0; i < partitionCount; i++)
 			{
-				leases[i] = this.leaseManagers[1].getLease(String.valueOf(i));
+				leases[i] = this.leaseManagers[1].getLease(String.valueOf(i)).get();
 				assertNotNull("failed to retrieve lease for " + i, leases[i]);
-				boolret = this.leaseManagers[1].acquireLease(leases[i]);
+				boolret = this.leaseManagers[1].acquireLease(leases[i]).get();
 				assertTrue("failed to acquire lease for " + i, boolret);
 			}
 		}
@@ -204,7 +204,7 @@ public class CheckpointManagerTest
 		TestUtilities.log("First manager get and verify checkpoints for all partitions");
 		for (int i = 0; i < partitionCount; i++)
 		{
-			Checkpoint blah = this.checkpointManagers[0].getCheckpoint(String.valueOf(i));
+			Checkpoint blah = this.checkpointManagers[0].getCheckpoint(String.valueOf(i)).get();
 			assertNotNull("failed to retrieve checkpoint for " + i, blah);
 			assertEquals("retrieved offset does not match written offset", blah.getOffset(), checkpoints[i].getOffset());
 			assertEquals("retrieved seqno does not match written seqno", blah.getSequenceNumber(), checkpoints[i].getSequenceNumber());
@@ -215,15 +215,15 @@ public class CheckpointManagerTest
 		{
 			for (int i = 0; i < partitionCount; i++)
 			{
-				Lease l = this.leaseManagers[1].getLease(String.valueOf(i));
+				Lease l = this.leaseManagers[1].getLease(String.valueOf(i)).get();
 				assertNotNull("failed to retrieve lease for " + i, l);
-				boolret = this.leaseManagers[1].releaseLease(l);
+				boolret = this.leaseManagers[1].releaseLease(l).get();
 				assertTrue("failed to release lease for " + i, boolret);
 			}
 		}
 		
 		TestUtilities.log("Clean up checkpoint store");
-		boolret = this.checkpointManagers[0].deleteCheckpointStore();
+		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
 		assertTrue("failed while cleaning up store", boolret);
 		
 		TestUtilities.log("twoManagerCheckpointSmokeTest DONE");

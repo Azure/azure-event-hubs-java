@@ -89,12 +89,12 @@ public class PrefabEventProcessor implements IEventProcessor
 			break;
 			
 		case CKP_EXPLICIT:
-			context.checkpoint(lastEvent);
+			context.checkpoint(lastEvent).get(); // do a get so that errors will throw
 			TestUtilities.log("P" + context.getPartitionId() + " checkpointed at " + lastEvent.getSystemProperties().getOffset() + "\n");
 			break;
 			
 		case CKP_NOARGS:
-			context.checkpoint();
+			context.checkpoint().get(); // do a get so errors will throw
 			TestUtilities.log("P" + context.getPartitionId() + " checkpointed without arguments\n");
 			break;
 		}

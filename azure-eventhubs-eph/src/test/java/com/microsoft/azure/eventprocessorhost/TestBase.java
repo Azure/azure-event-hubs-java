@@ -188,43 +188,45 @@ public class TestBase
 	class BogusCheckpointMananger implements ICheckpointManager
 	{
 		@Override
-		public boolean checkpointStoreExists()
+		public CompletableFuture<Boolean> checkpointStoreExists()
 		{
-			return true;
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override
-		public Void createCheckpointStoreIfNotExists()
+		public CompletableFuture<Void> createCheckpointStoreIfNotExists()
 		{
-			return null;
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override
-		public boolean deleteCheckpointStore()
+		public CompletableFuture<Boolean> deleteCheckpointStore()
 		{
-			return true;
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override
-		public Checkpoint getCheckpoint(String partitionId)
+		public CompletableFuture<Checkpoint> getCheckpoint(String partitionId)
 		{
-			return null;
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override
-		public Checkpoint createCheckpointIfNotExists(String partitionId)
+		public CompletableFuture<Checkpoint> createCheckpointIfNotExists(String partitionId)
 		{
-			return null;
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override
-		public void updateCheckpoint(Lease lease, Checkpoint checkpoint)
+		public CompletableFuture<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint)
 		{
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override
-		public void deleteCheckpoint(String partitionId)
+		public CompletableFuture<Void> deleteCheckpoint(String partitionId)
 		{
+			return CompletableFuture.completedFuture(null);
 		}
 	}
 	
@@ -243,68 +245,69 @@ public class TestBase
 		}
 
 		@Override
-		public boolean leaseStoreExists()
+		public CompletableFuture<Boolean> leaseStoreExists()
 		{
-			return true;
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override
-		public Void createLeaseStoreIfNotExists()
+		public CompletableFuture<Void> createLeaseStoreIfNotExists()
+		{
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public CompletableFuture<Boolean> deleteLeaseStore()
+		{
+			return CompletableFuture.completedFuture(true);
+		}
+
+		@Override
+		public CompletableFuture<Lease> getLease(String partitionId)
+		{
+			return CompletableFuture.completedFuture(null);
+		}
+
+		@Override
+		public ArrayList<CompletableFuture<Lease>> getAllLeases(String[] partitionIds)
 		{
 			return null;
 		}
 
 		@Override
-		public boolean deleteLeaseStore()
+		public CompletableFuture<Lease> createLeaseIfNotExists(String partitionId)
 		{
-			return true;
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override
-		public Lease getLease(String partitionId)
+		public CompletableFuture<Void> deleteLease(Lease lease)
 		{
-			return null;
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override
-		public ArrayList<CompletableFuture<Lease>> getAllLeases()
+		public CompletableFuture<Boolean> acquireLease(Lease lease)
 		{
-			return null;
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override
-		public Lease createLeaseIfNotExists(String partitionId)
+		public CompletableFuture<Boolean> renewLease(Lease lease)
 		{
-			return null;
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override
-		public void deleteLease(Lease lease)
+		public CompletableFuture<Boolean> releaseLease(Lease lease)
 		{
+			return CompletableFuture.completedFuture(true);
 		}
 
 		@Override
-		public boolean acquireLease(Lease lease)
+		public CompletableFuture<Boolean> updateLease(Lease lease)
 		{
-			return true;
-		}
-
-		@Override
-		public boolean renewLease(Lease lease)
-		{
-			return true;
-		}
-
-		@Override
-		public boolean releaseLease(Lease lease)
-		{
-			return true;
-		}
-
-		@Override
-		public boolean updateLease(Lease lease)
-		{
-			return true;
+			return CompletableFuture.completedFuture(true);
 		}
 	}
 }

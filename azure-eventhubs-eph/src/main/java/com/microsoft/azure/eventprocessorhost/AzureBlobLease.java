@@ -5,6 +5,9 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+
 import com.microsoft.azure.storage.StorageException;
 import com.microsoft.azure.storage.blob.BlobProperties;
 import com.microsoft.azure.storage.blob.BlobRequestOptions;
@@ -75,12 +78,25 @@ final class AzureBlobLease extends Lease
 	}
 
 	@Override
-	public boolean isExpired() throws Exception
+	public CompletableFuture<Boolean> isExpired()
 	{
-		// Can throw StorageException
-		this.blob.downloadAttributes(null, options, null); // Get the latest metadata
-		LeaseState currentState = this.blob.getProperties().getLeaseState();
-		return (currentState != LeaseState.LEASED); 
+		return CompletableFuture.supplyAsync(() ->
+		{
+			try
+			{
+				this.blob.downloadAttributes(null, options, null); // Get the latest metadata
+			}
+			catch (StorageException e)
+			{
+				throw new CompletionException(e);
+			}
+			LeaseState currentState = this.blob.getProperties().getLeaseState();
+			// There are multiple lease states, but for our purposes anything but LEASED means that
+			// the blob is no longer definitely owned by the last known owner and is potentially available.
+			// It could be owned by another host, so just because the state is LEASED does not mean
+			// that operations on the blob will not fail with lease lost.
+			return (currentState != LeaseState.LEASED);
+		});
 	}
 	
 	@Override

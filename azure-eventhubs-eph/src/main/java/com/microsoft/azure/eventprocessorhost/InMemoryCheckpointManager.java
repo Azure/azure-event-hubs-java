@@ -8,6 +8,7 @@ package com.microsoft.azure.eventprocessorhost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /***
@@ -48,31 +49,31 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     }
 
     @Override
-    public boolean checkpointStoreExists()
+    public CompletableFuture<Boolean> checkpointStoreExists()
     {
     	boolean exists = InMemoryCheckpointStore.singleton.existsMap();
     	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "checkpointStoreExists() " + exists));
-    	return exists;
+    	return CompletableFuture.completedFuture(exists);
     }
 
     @Override
-    public Void createCheckpointStoreIfNotExists()
+    public CompletableFuture<Void> createCheckpointStoreIfNotExists()
     {
     	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "createCheckpointStoreIfNotExists()"));
         InMemoryCheckpointStore.singleton.initializeMap();
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
     
     @Override
-    public boolean deleteCheckpointStore()
+    public CompletableFuture<Boolean> deleteCheckpointStore()
     {
     	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "deleteCheckpointStore()"));
     	InMemoryCheckpointStore.singleton.deleteMap();
-    	return true;
+    	return CompletableFuture.completedFuture(true);
     }
     
     @Override
-    public Checkpoint getCheckpoint(String partitionId)
+    public CompletableFuture<Checkpoint> getCheckpoint(String partitionId)
     {
     	Checkpoint returnCheckpoint = null;
         Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(partitionId);
@@ -94,11 +95,11 @@ public class InMemoryCheckpointManager implements ICheckpointManager
         			"getCheckpoint() found " + checkpointInStore.getOffset() + "//" + checkpointInStore.getSequenceNumber()));
         	returnCheckpoint = new Checkpoint(checkpointInStore);
         }
-        return returnCheckpoint;
+        return CompletableFuture.completedFuture(returnCheckpoint);
     }
     
     @Override
-    public Checkpoint createCheckpointIfNotExists(String partitionId)
+    public CompletableFuture<Checkpoint> createCheckpointIfNotExists(String partitionId)
     {
     	Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(partitionId);
     	Checkpoint returnCheckpoint = null;
@@ -129,11 +130,11 @@ public class InMemoryCheckpointManager implements ICheckpointManager
             // behavior of AzureStorageCheckpointLeaseMananger.
             returnCheckpoint = null;
     	}
-    	return returnCheckpoint;
+    	return CompletableFuture.completedFuture(returnCheckpoint);
     }
     
     @Override
-    public void updateCheckpoint(Lease lease, Checkpoint checkpoint)
+    public CompletableFuture<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint)
     {
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, checkpoint.getPartitionId(),
     		"updateCheckpoint() " + checkpoint.getOffset() + "//" + checkpoint.getSequenceNumber()));
@@ -148,13 +149,15 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, checkpoint.getPartitionId(),
                     "updateCheckpoint() can't find checkpoint"));
     	}
+    	return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public void deleteCheckpoint(String partitionId)
+    public CompletableFuture<Void> deleteCheckpoint(String partitionId)
     {
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId, "deleteCheckpoint()"));
     	InMemoryCheckpointStore.singleton.removeCheckpoint(partitionId);
+    	return CompletableFuture.completedFuture(null);
     }
 
 

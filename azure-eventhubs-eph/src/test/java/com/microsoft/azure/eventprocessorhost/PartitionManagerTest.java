@@ -12,6 +12,7 @@ import com.microsoft.azure.eventhubs.EventHubClient;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class PartitionManagerTest
@@ -65,9 +66,9 @@ public class PartitionManagerTest
 		
 		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
 
-		boolean boolret = this.leaseManagers[0].deleteLeaseStore();
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
 		assertTrue("failed while cleaning up lease store", boolret);
-		boolret = this.checkpointManagers[0].deleteCheckpointStore();
+		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
 		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		TestUtilities.log("DONE");
@@ -106,9 +107,9 @@ public class PartitionManagerTest
 		
 		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
 
-		boolean boolret = this.leaseManagers[0].deleteLeaseStore();
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
 		assertTrue("failed while cleaning up lease store", boolret);
-		boolret = this.checkpointManagers[0].deleteCheckpointStore();
+		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
 		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		TestUtilities.log("DONE");
@@ -198,9 +199,9 @@ public class PartitionManagerTest
 
 		stopManagers();
 
-		boolean boolret = this.leaseManagers[1].deleteLeaseStore();
+		boolean boolret = this.leaseManagers[1].deleteLeaseStore().get();
 		assertTrue("failed while cleaning up lease store", boolret);
-		boolret = this.checkpointManagers[1].deleteCheckpointStore();
+		boolret = this.checkpointManagers[1].deleteCheckpointStore().get();
 		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		TestUtilities.log("DONE");
@@ -239,9 +240,9 @@ public class PartitionManagerTest
 		
 		assertTrue("Desired distribution never reached or was not stable", this.desiredDistributionDetected >= this.partitionManagers.length);
 
-		boolean boolret = this.leaseManagers[0].deleteLeaseStore();
+		boolean boolret = this.leaseManagers[0].deleteLeaseStore().get();
 		assertTrue("failed while cleaning up lease store", boolret);
-		boolret = this.checkpointManagers[0].deleteCheckpointStore();
+		boolret = this.checkpointManagers[0].deleteCheckpointStore().get();
 		assertTrue("failed while cleaning up checkpoint store", boolret);
 		
 		TestUtilities.log("DONE");
@@ -453,14 +454,14 @@ public class PartitionManagerTest
 		}
 
 		@Override
-	    String[] getPartitionIds()
+	    CompletableFuture<String[]> getPartitionIds()
 	    {
 			String ids[] = new String[this.partitionCount];
 			for (int i = 0; i < this.partitionCount; i++)
 			{
 				ids[i] = String.valueOf(i);
 			}
-			return ids;
+			return CompletableFuture.completedFuture(ids);
 	    }
 	    
 		@Override

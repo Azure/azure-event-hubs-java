@@ -346,7 +346,7 @@ public final class EventProcessorHost
     ScheduledExecutorService getExecutorService() { return this.executorService; }
     ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
     ILeaseManager getLeaseManager() { return this.leaseManager; }
-    PartitionManager getPartitionManager() { return this.partitionManager; }
+    //PartitionManager getPartitionManager() { return this.partitionManager; }
     IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
     String getEventHubPath() { return this.eventHubPath; }
     String getConsumerGroupName() { return this.consumerGroupName; }
@@ -476,7 +476,7 @@ public final class EventProcessorHost
         this.processorFactory = factory;
         this.processorOptions = processorOptions;
         
-        return CompletableFuture.runAsync(() -> this.partitionManager.initialize(), this.executorService);
+        return this.partitionManager.initialize();
     }
 
     /**

@@ -141,7 +141,7 @@ class PartitionPump extends PartitionReceiveHandler
 			}
 	        catch (Exception e)
 	        {
-	        	lastException = LoggingUtils.unwrapException(e, null);
+	        	lastException = (Exception)LoggingUtils.unwrapException(e, null);
 	        	if (lastException instanceof ReceiverDisconnectedException)
 	        	{
 	        		// TODO Assuming this is due to a receiver with a higher epoch.
@@ -195,38 +195,44 @@ class PartitionPump extends PartitionReceiveHandler
 	    // Create new receiver and set options
         ReceiverOptions options = new ReceiverOptions();
         options.setReceiverRuntimeMetricEnabled(this.host.getEventProcessorOptions().getReceiverRuntimeMetricEnabled());
-    	Object startAt = this.partitionContext.getInitialOffset();
     	long epoch = this.lease.getEpoch();
-        TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionContext,
-                "Opening EH receiver with epoch " + epoch + " at location " + startAt));
-    	if (startAt instanceof String)
+    	
+    	this.internalOperationFuture = this.partitionContext.getInitialOffset()
+    	.thenComposeAsync((startAt) ->
     	{
-    		this.internalOperationFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(),
-    				(String)startAt, epoch, options);
-    	}
-    	else if (startAt instanceof Instant) 
-    	{
-    		this.internalOperationFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(),
-    				(Instant)startAt, epoch, options);
-    	}
-    	else
-    	{
-    		String errMsg = "Starting offset is not String or Instant, is " + ((startAt != null) ? startAt.getClass().toString() : "null");
-            TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, this.partitionContext, errMsg));
-    		throw new RuntimeException(errMsg);
-    	}
-		this.lease.setEpoch(epoch);
-		if (this.internalOperationFuture != null)
-		{
-			this.partitionReceiver = (PartitionReceiver) this.internalOperationFuture.get();
-			this.internalOperationFuture = null;
-		}
-		else
-		{
-            TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, this.partitionContext,
-                    "createEpochReceiver failed with null"));
-			throw new RuntimeException("createEpochReceiver failed with null");
-		}
+    		CompletableFuture<PartitionReceiver> retval = null;
+            TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionContext,
+                    "Opening EH receiver with epoch " + epoch + " at location " + startAt));
+            try
+            {
+	        	if (startAt instanceof String)
+	        	{
+					retval = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(),
+							(String)startAt, epoch, options);
+	        	}
+	        	else if (startAt instanceof Instant) 
+	        	{
+	        		retval = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(), this.partitionContext.getPartitionId(),
+	        				(Instant)startAt, epoch, options);
+	        	}
+	        	else
+	        	{
+	        		String errMsg = "Starting offset is not String or Instant, is " + ((startAt != null) ? startAt.getClass().toString() : "null");
+	                TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, this.partitionContext, errMsg));
+	                retval = new CompletableFuture<PartitionReceiver>();
+	                retval.completeExceptionally(new RuntimeException(errMsg));
+	        	}
+            }
+            catch (EventHubException e)
+            {
+            	retval = new CompletableFuture<PartitionReceiver>();
+            	retval.completeExceptionally(e);
+            }
+        	return retval;
+    	}, this.host.getExecutorService());
+    	
+		this.partitionReceiver = (PartitionReceiver) this.internalOperationFuture.get();
+		this.internalOperationFuture = null;
 		this.partitionReceiver.setPrefetchCount(this.host.getEventProcessorOptions().getPrefetchCount());
 		this.partitionReceiver.setReceiveTimeout(this.host.getEventProcessorOptions().getReceiveTimeOut());
 
@@ -359,12 +365,12 @@ class PartitionPump extends PartitionReceiveHandler
         	// that the lease eventually expires, since the lease renewer has been cancelled.
 	        try
 	        {
-				PartitionPump.this.host.getLeaseManager().releaseLease(this.partitionContext.getLease());
+				PartitionPump.this.host.getLeaseManager().releaseLease(this.partitionContext.getLease()).get();
 			}
-	        catch (ExceptionWithAction e)
+	        catch (InterruptedException | ExecutionException e)
 	        {
 	        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(PartitionPump.this.host, this.partitionContext,
-	        			"Failure releasing lease on pump shutdown"), e);
+	        			"Failure releasing lease on pump shutdown"), LoggingUtils.unwrapException(e, null));
 			}
         }
         // else we already lost the lease, releasing is unnecessary and would fail if we try
@@ -407,7 +413,7 @@ class PartitionPump extends PartitionReceiveHandler
     	try
     	{
         	Lease captured = this.lease;
-			if (!this.host.getLeaseManager().renewLease(captured))
+			if (!this.host.getLeaseManager().renewLease(captured).get())
 			{
 				// False return from renewLease means that lease was lost.
 				// Start pump shutdown process and do not schedule another call to leaseRenewer.
@@ -416,11 +422,11 @@ class PartitionPump extends PartitionReceiveHandler
 				internalShutdown(CloseReason.LeaseLost, null);
 			}
 		}
-    	catch (ExceptionWithAction e)
+    	catch (InterruptedException | ExecutionException e)
     	{
     		// Failure renewing lease due to storage exception or whatever.
     		// Trace error and leave scheduleNext as true to schedule another try.
-    		Exception notifyWith = LoggingUtils.unwrapException(e, null);
+    		Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
     		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, this.lease, "Transient failure renewing lease"), notifyWith);
     		// Notify the general error handler rather than calling this.processor.onError so we can provide context (RENEWING_LEASE)
     		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith, EventProcessorHostActionStrings.RENEWING_LEASE,

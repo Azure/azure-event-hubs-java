@@ -6,6 +6,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /***
@@ -44,22 +45,22 @@ public interface ILeaseManager
 	 * @return true if it does, false if not
 	 * @throws ExceptionWithAction with action EventProcessorHostActionStrings.CHECKING_LEASE_STORE on error
 	 */
-    public boolean leaseStoreExists() throws ExceptionWithAction;
+    public CompletableFuture<Boolean> leaseStoreExists();
 
     /**
      * Create the lease store if it does not exist, do nothing if it does exist.
      * 
-     * @return Void so it can be called from lambdas
+     * @return Void
      * @throws ExceptionWithAction with action EventProcessorHostActionStrings.CREATING_LEASE_STORE on error
      */
-    public Void createLeaseStoreIfNotExists() throws ExceptionWithAction;
+    public CompletableFuture<Void> createLeaseStoreIfNotExists();
     
     /**
      * Not used by EventProcessorHost, but a convenient function to have for testing.
      * 
      * @return true if the lease store was deleted successfully, false if not
      */
-    public boolean deleteLeaseStore();
+    public CompletableFuture<Boolean> deleteLeaseStore();
 
     /**
      * Return the lease info for the specified partition. Can return null if no lease has been
@@ -69,7 +70,7 @@ public interface ILeaseManager
      * @return lease info for the partition, or null
      * @throws ExceptionWithAction with action EventProcessorHostActionStrings.GETTING_LEASE on error
      */
-    public Lease getLease(String partitionId) throws ExceptionWithAction;
+    public CompletableFuture<Lease> getLease(String partitionId);
     
     /**
      * Return the lease info for all partitions.
@@ -78,7 +79,7 @@ public interface ILeaseManager
      * 
      * @return  List of lease info.
      */
-    public ArrayList<CompletableFuture<Lease>> getAllLeases() throws ExceptionWithAction;
+    public List<CompletableFuture<Lease>> getAllLeases(String[] partitionIds);
 
     /**
      * Create in the store the lease info for the given partition, if it does not exist. Do nothing if it does exist
@@ -88,7 +89,7 @@ public interface ILeaseManager
      * @return the existing or newly-created lease info for the partition
      * @throws ExceptionWithAction with action EventProcessorHostActionString.CREATING_LEASE on error 
      */
-    public Lease createLeaseIfNotExists(String partitionId) throws ExceptionWithAction;
+    public CompletableFuture<Lease> createLeaseIfNotExists(String partitionId);
 
     /**
      * Delete the lease info for the given partition from the store. If there is no stored lease for the given partition,
@@ -98,7 +99,7 @@ public interface ILeaseManager
      * @return void
      * @throws ExceptionWithAction with action EventProcessorHostActionString.DELETING_LEASE on error 
      */
-    public void deleteLease(Lease lease) throws ExceptionWithAction;
+    public CompletableFuture<Void> deleteLease(Lease lease);
 
     /**
      * Acquire the lease on the desired partition for this EventProcessorHost.
@@ -110,7 +111,7 @@ public interface ILeaseManager
      * @return  true if the lease was acquired successfully, false if it failed because another host acquired it.
      * @throws ExceptionWithAction with action EventProcessorHostActionStrings.ACQUIRING_LEASE on error
      */
-    public boolean acquireLease(Lease lease) throws ExceptionWithAction;
+    public CompletableFuture<Boolean> acquireLease(Lease lease);
 
     /**
      * Renew a lease currently held by this host.
@@ -124,7 +125,7 @@ public interface ILeaseManager
      * @return  true if the lease was renewed, false if the lease was lost and could not renewed
      * @throws ExceptionWithAction with action EventProcessorHostActionString.RENEWING_LEASE on error
      */
-    public boolean renewLease(Lease lease) throws ExceptionWithAction;
+    public CompletableFuture<Boolean> renewLease(Lease lease);
 
     /**
      * Give up a lease currently held by this host.
@@ -135,7 +136,7 @@ public interface ILeaseManager
      * @return  true if the lease was released, false if the lease could not be released
      * @throws ExceptionWithAction with action EventProcessorHostActionString.RELEASING_LEASE on error
      */
-    public boolean releaseLease(Lease lease) throws ExceptionWithAction;
+    public CompletableFuture<Boolean> releaseLease(Lease lease);
 
     /**
      * Update the store with the information in the provided lease.
@@ -148,5 +149,5 @@ public interface ILeaseManager
      * @return  true if the updated was performed successfully, false if lease was lost and could not be updated
      * @throws ExceptionWithAction with action EventProcessorHostActionStrings.UPDATING_LEASE on error
      */
-    public boolean updateLease(Lease lease) throws ExceptionWithAction;
+    public CompletableFuture<Boolean> updateLease(Lease lease);
 }

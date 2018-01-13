@@ -34,10 +34,15 @@ public final class LoggingUtils {
     	return LoggingUtils.withHostAndPartition(host, lease.getPartitionId(), logMessage);
     }
     
-    // outAction can be null if you don't care about any action string
-    static Exception unwrapException(Exception wrapped, StringBuilder outAction)
+    static CompletionException wrapException(Exception e, String action)
     {
-    	Exception unwrapped = wrapped;
+    	return new CompletionException(new ExceptionWithAction(e, action));
+    }
+    
+    // outAction can be null if you don't care about any action string
+    static Throwable unwrapException(Throwable wrapped, StringBuilder outAction)
+    {
+    	Throwable unwrapped = wrapped;
     	
     	while ((unwrapped instanceof ExecutionException) || (unwrapped instanceof CompletionException) ||
     			(unwrapped instanceof ExceptionWithAction))
