@@ -385,7 +385,7 @@ public class InMemoryLeaseManager implements ILeaseManager
         synchronized void notifyOnSteal(String expectedOwner, String partitionId, Callable<?> notifier)
         {
         	InMemoryLease leaseInStore = getLease(partitionId);
-        	if ((leaseInStore.getOwner() != null) && (expectedOwner.compareTo(leaseInStore.getOwner()) != 0))
+        	if (!leaseInStore.isOwnedBy(expectedOwner))
         	{
         		// Already stolen.
         		try

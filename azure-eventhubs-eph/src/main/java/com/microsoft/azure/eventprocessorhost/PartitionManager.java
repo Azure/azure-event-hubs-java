@@ -30,8 +30,7 @@ class PartitionManager
 	// Protected instead of private for testability
     protected final EventProcessorHost host;
     protected Pump pump;
-
-    private String partitionIds[] = null;
+    protected String partitionIds[] = null;
     
     private ScheduledFuture<?> scanFuture = null;
 
@@ -48,7 +47,7 @@ class PartitionManager
     	
     	if (this.partitionIds != null)
     	{
-    		retval = new CompletableFuture<>().completedFuture(this.partitionIds);
+    		retval = CompletableFuture.completedFuture(this.partitionIds);
     	}
     	else
         {
@@ -149,25 +148,6 @@ class PartitionManager
     public CompletableFuture<Void> initialize()
     {
     	this.pump = createPumpTestHook();
-    	
-    	/*
-    	try
-    	{
-    		initializeStores();
-    	}
-    	catch (ExceptionWithAction e)
-    	{
-    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host,
-                    "Exception while initializing stores (" + e.getAction() + "), not starting partition manager"), e.getCause());
-    		throw new CompletionException(e);
-    	}
-    	catch (Exception e)
-    	{
-    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host,
-                    "Exception while initializing stores, not starting partition manager"), e);
-    		throw new CompletionException(e);
-    	}
-    	*/
     	
     	return getPartitionIds()
     	.thenComposeAsync((unused) -> initializeStores(), this.host.getExecutorService()) 
@@ -313,14 +293,10 @@ class PartitionManager
     private Void scan()
     {
     	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Starting lease scan"));
-    	
-    	// Theoretically, if the future is cancelled then this method should never fire, but
-    	// there's no harm in being sure.
-    	if (this.scanFuture.isCancelled())
-    	{
-    		return null;
-    	}
-    	
+
+    	// DO NOT check whether this.scanFuture is cancelled. The first execution of this method is scheduled
+    	// with 0 delay and can occur before this.scanFuture is set to the result of the schedule() call.
+
     	try
     	{
             List<CompletableFuture<Lease>> gettingAllLeases = this.host.getLeaseManager().getAllLeases(this.partitionIds);
@@ -379,6 +355,7 @@ class PartitionManager
             				partitionId);
             	}
             }
+            TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Our leases: " + ourLeasesCount + "   other leases: " + leasesOwnedByOthers.size()));
             
             // Grab more leases if available and needed for load balancing, but only if all leases were checked OK.
             // Don't try to steal if numbers are in doubt due to errors in the previous stage. 
@@ -434,8 +411,9 @@ class PartitionManager
     	// Schedule the next scan unless the future has been cancelled.
     	if (!this.scanFuture.isCancelled())
     	{
-	    	this.scanFuture = this.host.getExecutorService().schedule(() -> scan(),
-	    			this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(), TimeUnit.SECONDS);
+    		int seconds = this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds();
+	    	this.scanFuture = this.host.getExecutorService().schedule(() -> scan(), seconds, TimeUnit.SECONDS);
+	    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Scheduling lease scanner in " + seconds));
     	}
     	
     	return null;

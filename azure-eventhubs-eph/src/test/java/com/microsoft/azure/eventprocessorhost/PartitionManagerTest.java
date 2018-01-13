@@ -456,12 +456,12 @@ public class PartitionManagerTest
 		@Override
 	    CompletableFuture<String[]> getPartitionIds()
 	    {
-			String ids[] = new String[this.partitionCount];
+			this.partitionIds = new String[this.partitionCount];
 			for (int i = 0; i < this.partitionCount; i++)
 			{
-				ids[i] = String.valueOf(i);
+				this.partitionIds[i] = String.valueOf(i);
 			}
-			return CompletableFuture.completedFuture(ids);
+			return CompletableFuture.completedFuture(this.partitionIds);
 	    }
 	    
 		@Override

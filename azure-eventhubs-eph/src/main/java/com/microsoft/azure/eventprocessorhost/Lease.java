@@ -129,7 +129,12 @@ public class Lease
      */
     public boolean isOwnedBy(String possibleOwner)
     {
-    	return (this.owner.compareTo(possibleOwner) == 0);
+    	boolean retval = false;
+    	if (this.owner != null)
+    	{
+        	retval = (this.owner.compareTo(possibleOwner) == 0);
+    	}
+    	return retval;
     }
 
     /**
