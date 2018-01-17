@@ -11,7 +11,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.function.BiConsumer;
@@ -59,7 +59,6 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
     private final Object mgmtChannelCreateLock;
     private final SharedAccessSignatureTokenProvider tokenProvider;
     private final ReactorFactory reactorFactory;
-    private final ExecutorService executorService;
 
     private Reactor reactor;
     private ReactorDispatcher reactorScheduler;
@@ -75,14 +74,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
     MessagingFactory(final ConnectionStringBuilder builder,
                      final RetryPolicy retryPolicy,
-                     final ExecutorService executorService,
+                     final Executor executor,
                      final ReactorFactory reactorFactory) {
-        super("MessagingFactory".concat(StringUtil.getRandomString()), null);
+        super("MessagingFactory".concat(StringUtil.getRandomString()), null, executor);
 
         Timer.register(this.getClientId());
         this.hostName = builder.getEndpoint().getHost();
         this.reactorFactory = reactorFactory;
-        this.executorService = executorService;
 
         this.operationTimeout = builder.getOperationTimeout();
         this.retryPolicy = retryPolicy;
@@ -101,7 +99,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             public void accept(Void arg0) {
                 Timer.unregister(getClientId());
             }
-        });
+        }, this.executor);
     }
 
     public String getHostName() {
@@ -145,7 +143,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
             reactorHandler.unsafeSetReactorDispatcher(this.reactorScheduler);
         }
 
-        executorService.submit(new RunReactor(newReactor, executorService));
+        executor.execute(new RunReactor(newReactor, executor));
     }
 
     public CBSChannel getCBSChannel() {
@@ -195,26 +193,26 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
         return this.retryPolicy;
     }
 
-    public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString, final ExecutorService executorService) throws IOException {
-        return createFromConnectionString(connectionString, RetryPolicy.getDefault(), executorService);
+    public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString, final Executor executor) throws IOException {
+        return createFromConnectionString(connectionString, RetryPolicy.getDefault(), executor);
     }
 
     public static CompletableFuture<MessagingFactory> createFromConnectionString(
             final String connectionString,
             final RetryPolicy retryPolicy,
-            final ExecutorService executorService) throws IOException {
-        return createFromConnectionString(connectionString, retryPolicy, executorService, new ReactorFactory());
+            final Executor executor) throws IOException {
+        return createFromConnectionString(connectionString, retryPolicy, executor, new ReactorFactory());
     }
 
     public static CompletableFuture<MessagingFactory> createFromConnectionString(
             final String connectionString,
             final RetryPolicy retryPolicy,
-            final ExecutorService executorService,
+            final Executor executor,
             final ReactorFactory reactorFactory) throws IOException {
         final ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString);
         final MessagingFactory messagingFactory = new MessagingFactory(builder,
                 (retryPolicy != null) ? retryPolicy : RetryPolicy.getDefault(),
-                executorService,
+                executor,
                 reactorFactory);
         messagingFactory.openTimer = Timer.schedule(new Runnable() {
                                                         @Override
@@ -424,13 +422,13 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
     private class RunReactor implements Runnable {
         final private Reactor rctr;
-        final private ExecutorService executorService;
+        final private Executor executor;
 
         volatile boolean hasStarted;
 
-        public RunReactor(final Reactor reactor, final ExecutorService executorService) {
+        public RunReactor(final Reactor reactor, final Executor executor) {
             this.rctr = reactor;
-            this.executorService = executorService;
+            this.executor = executor;
             this.hasStarted = false;
         }
 
@@ -453,7 +451,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
                 if (!Thread.interrupted() && this.rctr.process()) {
                     try {
-                        this.executorService.submit(this);
+                        this.executor.execute(this);
                         yieldedReactor = true;
                     } catch (RejectedExecutionException exception) {
                         if (TRACE_LOGGER.isWarnEnabled()) {
