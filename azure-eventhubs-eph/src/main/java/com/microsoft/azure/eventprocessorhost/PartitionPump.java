@@ -189,7 +189,7 @@ class PartitionPump extends PartitionReceiveHandler
     	// Create new client
         TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionContext, "Opening EH client"));
 		this.internalOperationFuture = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString());
-		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get();
+		this.eventHubClient = (EventHubClient) this.internalOperationFuture.get(); // FIX
 		this.internalOperationFuture = null;
 		
 	    // Create new receiver and set options
@@ -231,7 +231,7 @@ class PartitionPump extends PartitionReceiveHandler
         	return retval;
     	}, this.host.getExecutorService());
     	
-		this.partitionReceiver = (PartitionReceiver) this.internalOperationFuture.get();
+		this.partitionReceiver = (PartitionReceiver) this.internalOperationFuture.get(); // FIX
 		this.internalOperationFuture = null;
 		this.partitionReceiver.setPrefetchCount(this.host.getEventProcessorOptions().getPrefetchCount());
 		this.partitionReceiver.setReceiveTimeout(this.host.getEventProcessorOptions().getReceiveTimeOut());
@@ -280,7 +280,7 @@ class PartitionPump extends PartitionReceiveHandler
                     "Setting receive handler to null"));
 			try
 			{
-				this.partitionReceiver.setReceiveHandler(null).get();
+				this.partitionReceiver.setReceiveHandler(null).get(); // FIX
 			}
 			catch (InterruptedException | ExecutionException e)
 			{
@@ -365,7 +365,7 @@ class PartitionPump extends PartitionReceiveHandler
         	// that the lease eventually expires, since the lease renewer has been cancelled.
 	        try
 	        {
-				PartitionPump.this.host.getLeaseManager().releaseLease(this.partitionContext.getLease()).get();
+				PartitionPump.this.host.getLeaseManager().releaseLease(this.partitionContext.getLease()).get(); // FIX
 			}
 	        catch (InterruptedException | ExecutionException e)
 	        {
@@ -413,7 +413,7 @@ class PartitionPump extends PartitionReceiveHandler
     	try
     	{
         	Lease captured = this.lease;
-			if (!this.host.getLeaseManager().renewLease(captured).get())
+			if (!this.host.getLeaseManager().renewLease(captured).get()) // FIX
 			{
 				// False return from renewLease means that lease was lost.
 				// Start pump shutdown process and do not schedule another call to leaseRenewer.

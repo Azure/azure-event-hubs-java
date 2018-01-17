@@ -108,7 +108,7 @@ class PartitionManager
     {
     }
     
-    void stopPartitions()
+    CompletableFuture<Void> stopPartitions()
     {
     	// Stop the lease scanner.
     	ScheduledFuture<?> captured = this.scanFuture;
@@ -119,30 +119,22 @@ class PartitionManager
 
     	// Stop any partition pumps that are running.
     	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Shutting down all pumps"));
-    	Iterable<CompletableFuture<Void>> pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
-    	for (Future<?> removal : pumpRemovals)
+    	CompletableFuture<Void>[] pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
+    	return CompletableFuture.allOf(pumpRemovals).whenCompleteAsync((empty, e) ->
     	{
-    		try
+    		if (e != null)
     		{
-				removal.get();
-			}
-    		catch (InterruptedException | ExecutionException e)
-    		{
-    			TRACE_LOGGER.warn(LoggingUtils.withHost(this.host, "Failure during shutdown"), e);
-    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), e, EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
-    			
-    			// By convention, bail immediately on interrupt, even though we're just cleaning
-    			// up on the way out. Fortunately, we ARE just cleaning up on the way out, so we're
-    			// free to bail without serious side effects.
-    			if (e instanceof InterruptedException)
+    			Throwable notifyWith = LoggingUtils.unwrapException(e, null);
+    			TRACE_LOGGER.warn(LoggingUtils.withHost(this.host, "Failure during shutdown"), notifyWith);
+    			if (notifyWith instanceof Exception)
     			{
-    				Thread.currentThread().interrupt();
-    				throw new RuntimeException(e);
-    			}
-			}
-    	}
+    				this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), (Exception) notifyWith,
+    						EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
 
-        TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Partition manager exiting"));
+    		        TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Partition manager exiting"));
+    			}
+    		}
+    	}, this.host.getExecutorService());
     }
     
     public CompletableFuture<Void> initialize()
@@ -258,7 +250,7 @@ class PartitionManager
     	{
     		try
     		{
-    			lambda.call().get();
+    			lambda.call().get(); // FIX
     			createdOK = true;
     		}
     		catch (Exception e)
@@ -288,6 +280,20 @@ class PartitionManager
         }
     }
     
+    private class LeaseContext
+    {
+    	public LeaseContext(boolean should, Lease l) { this.shouldDoNextStep = should; this.lease = l; }
+    	public boolean shouldDoNextStep;
+    	public Lease lease;
+    }
+    
+    private class AllLeasesContext
+    {
+    	public boolean resultsAreComplete;
+    	public int ourLeasesCount;
+    	ArrayList<Lease> leasesOwnedByOthers;
+    }
+    
     // Return Void so it can be called from a lambda.
     // throwOnFailure is true 
     private Void scan()
@@ -297,60 +303,59 @@ class PartitionManager
     	// DO NOT check whether this.scanFuture is cancelled. The first execution of this method is scheduled
     	// with 0 delay and can occur before this.scanFuture is set to the result of the schedule() call.
 
-    	try
-    	{
-            List<CompletableFuture<Lease>> gettingAllLeases = this.host.getLeaseManager().getAllLeases(this.partitionIds);
+        List<CompletableFuture<Lease>> gettingAllLeases = this.host.getLeaseManager().getAllLeases(this.partitionIds);
 
-            ArrayList<CompletableFuture<Lease>> allLeasesResults = new ArrayList<CompletableFuture<Lease>>();
-            for (CompletableFuture<Lease> leaseFuture : gettingAllLeases)
-            {
-            	CompletableFuture<Lease> oneResult = leaseFuture.thenApplyAsync((Lease possibleLease) ->
+        ArrayList<CompletableFuture<Lease>> allLeasesResults = new ArrayList<CompletableFuture<Lease>>();
+        for (CompletableFuture<Lease> leaseFuture : gettingAllLeases)
+        {
+        	CompletableFuture<Lease> oneResult = leaseFuture
+        	.thenComposeAsync((l) -> l.isExpired(), this.host.getExecutorService())
+        	.thenCombineAsync(leaseFuture, (exists, lease) ->
+        	{
+        		return new LeaseContext(exists, lease);
+        	}, this.host.getExecutorService())
+        	.thenComposeAsync((lc) ->
+        	{
+        		return lc.shouldDoNextStep ? this.host.getLeaseManager().acquireLease(lc.lease) : CompletableFuture.completedFuture(false);
+        	}, this.host.getExecutorService())
+        	.thenCombineAsync(leaseFuture, (acquired, lease) ->
+        	{
+        		if (acquired)
         		{
-					try
-					{
-		            	if (possibleLease == null)
-		            	{
-		            		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host, "possibleLease is null"));
-		            	}
-						if (possibleLease.isExpired().get())
-						{
-							if (this.host.getLeaseManager().acquireLease(possibleLease).get())
-							{
-								this.pump.addPump(possibleLease);
-							}
-						}
-					}
-					catch (Exception e)
-					{
-						throw new CompletionException(e);
-					}
-                    return possibleLease;
-        		}, this.host.getExecutorService());
-            	allLeasesResults.add(oneResult);
-            }
-            
-            ArrayList<Lease> leasesOwnedByOthers = new ArrayList<Lease>();
-            int ourLeasesCount = 0;
-            boolean completeResults = true;
+        			this.pump.addPump(lease);
+        		}
+        		return lease;
+        	}, this.host.getExecutorService());
+        	allLeasesResults.add(oneResult);
+        }
+
+        CompletableFuture<Lease> leaseToStealFuture = CompletableFuture.allOf((CompletableFuture<?>[])allLeasesResults.toArray())
+        .thenApplyAsync((empty) ->
+        {
+        	AllLeasesContext alc = new AllLeasesContext();
+        	alc.resultsAreComplete = true;
+        	alc.ourLeasesCount = 0;
+        	alc.leasesOwnedByOthers = new ArrayList<Lease>();
+        	
             for (CompletableFuture<Lease> leaseResult : allLeasesResults)
             {
             	Lease result = null;
             	try
             	{
-	            	result = leaseResult.get();
+	            	result = leaseResult.get(); // NON-BLOCKING, KNOWN TO BE COMPLETED DUE TO allOf()
 	            	if (result.isOwnedBy(this.host.getHostName()))
 	            	{
-	            		ourLeasesCount++;
+	            		alc.ourLeasesCount++;
 	            	}
 	            	else
 	            	{
-	            		leasesOwnedByOthers.add(result);
+	            		alc.leasesOwnedByOthers.add(result);
 	            	}
             	}
-            	// Catch exceptions from processing of individual leases here so that all leases are touched.
-            	catch (CompletionException|ExecutionException e)
+            	// Catch exceptions from processing of individual leases inside the loop so that all leases are touched.
+            	catch (CompletionException|ExecutionException|InterruptedException e)
             	{
-            		completeResults = false;
+            		alc.resultsAreComplete = false;
             		Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
             		String partitionId = (result != null) ? result.getPartitionId() : ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION;
             		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, partitionId, "Failure getting/acquiring lease, skipping"),
@@ -359,67 +364,66 @@ class PartitionManager
             				partitionId);
             	}
             }
-            TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Our leases: " + ourLeasesCount + "   other leases: " + leasesOwnedByOthers.size()));
-            
+            TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Our leases: " + alc.ourLeasesCount + "   other leases: " + alc.leasesOwnedByOthers.size()));
+            return alc;
+        }, this.host.getExecutorService())
+        .thenApplyAsync((alc) ->
+        {
             // Grab more leases if available and needed for load balancing, but only if all leases were checked OK.
             // Don't try to steal if numbers are in doubt due to errors in the previous stage. 
-            if ((leasesOwnedByOthers.size() > 0) && completeResults)
+        	Lease stealThisLease = null;
+            if ((alc.leasesOwnedByOthers.size() > 0) && alc.resultsAreComplete)
             {
-	            Lease stealThisLease = whichLeaseToSteal(leasesOwnedByOthers, ourLeasesCount);
-	            if (stealThisLease != null)
-	            {
-            		try
-            		{
-	                	if (this.host.getLeaseManager().acquireLease(stealThisLease).get())
-	                	{
-	                		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, stealThisLease, "Stole lease"));
-	                		ourLeasesCount++;
-                    		this.pump.addPump(stealThisLease);
-	                	}
-	                	else
-	                	{
-	                		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host,
-                                    "Failed to steal lease for partition " + stealThisLease.getPartitionId()));
-	                	}
-            		}
-            		// Catch stealing exceptions here to give a better error message
-            		catch (Exception e)
-            		{
-            			Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
-            			TRACE_LOGGER.warn(LoggingUtils.withHost(this.host,
-                                "Exception stealing lease for partition " + stealThisLease.getPartitionId()), notifyWith);
-            			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith,
-            					EventProcessorHostActionStrings.STEALING_LEASE, stealThisLease.getPartitionId());
-            		}
-	            }
+	            stealThisLease = whichLeaseToSteal(alc.leasesOwnedByOthers, alc.ourLeasesCount);
             }
-
+        	return stealThisLease;
+        }, this.host.getExecutorService());
+        
+        
+        leaseToStealFuture.thenComposeAsync((stealThisLease) ->
+        {
+        	return (stealThisLease != null) ? this.host.getLeaseManager().acquireLease(stealThisLease) : CompletableFuture.completedFuture(false);
+        }, this.host.getExecutorService())
+        .thenCombineAsync(leaseToStealFuture, (stealSucceeded, lease) ->
+        {
+            if (stealSucceeded)
+            {
+        		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, lease, "Stole lease"));
+        		this.pump.addPump(lease);
+            }
+            return lease;
+        }, this.host.getExecutorService())
+        .whenCompleteAsync((lease, e) -> // always run the last stage regardless of exceptions
+        {
+        	if (e != null)
+        	{
+    			Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
+    			if (lease != null)
+    			{
+	    			TRACE_LOGGER.warn(LoggingUtils.withHost(this.host,
+	                        "Exception stealing lease for partition " + lease.getPartitionId()), notifyWith);
+	    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith,
+	    					EventProcessorHostActionStrings.STEALING_LEASE, lease.getPartitionId());
+    			}
+    			else
+    			{
+	    			TRACE_LOGGER.warn(LoggingUtils.withHost(this.host, "Exception stealing lease"), notifyWith);
+	    			this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith,
+	    					EventProcessorHostActionStrings.STEALING_LEASE, ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION);
+    			}
+        	}
+        	
             onPartitionCheckCompleteTestHook();
-    	}
-    	// Catch top-level errors, which mean we have to give up on processing any leases this time around.
-    	catch (InterruptedException ie)
-    	{
-    		// Shutdown time. Make sure the future is cancelled.
-    		this.scanFuture.cancel(false);
-    		Thread.currentThread().interrupt();
-    	}
-    	catch (CompletionException e)
-    	{
-    		StringBuilder action = new StringBuilder();
-    		Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, action);
-    		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host, "Failure checking leases"), notifyWith);
-    		this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), notifyWith,
-    				(action.length() > 0) ? action.toString() : EventProcessorHostActionStrings.CHECKING_LEASES);
-    	}
+            
+        	// Schedule the next scan unless the future has been cancelled.
+        	if (!this.scanFuture.isCancelled())
+        	{
+        		int seconds = this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds();
+    	    	this.scanFuture = this.host.getExecutorService().schedule(() -> scan(), seconds, TimeUnit.SECONDS);
+    	    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Scheduling lease scanner in " + seconds));
+        	}
+        }, this.host.getExecutorService());
 
-    	// Schedule the next scan unless the future has been cancelled.
-    	if (!this.scanFuture.isCancelled())
-    	{
-    		int seconds = this.host.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds();
-	    	this.scanFuture = this.host.getExecutorService().schedule(() -> scan(), seconds, TimeUnit.SECONDS);
-	    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Scheduling lease scanner in " + seconds));
-    	}
-    	
     	return null;
     }
 
@@ -427,7 +431,7 @@ class PartitionManager
     {
     	HashMap<String, Integer> countsByOwner = countLeasesByOwner(stealableLeases);
     	String biggestOwner = findBiggestOwner(countsByOwner);
-    	int biggestCount = countsByOwner.get(biggestOwner);
+    	int biggestCount = countsByOwner.get(biggestOwner); // HASHMAP
     	Lease stealThisLease = null;
     	
     	// If the number of leases is a multiple of the number of hosts, then the desired configuration is
@@ -471,9 +475,9 @@ class PartitionManager
     	String biggestOwner = null;
     	for (String owner : countsByOwner.keySet())
     	{
-    		if (countsByOwner.get(owner) > biggestCount)
+    		if (countsByOwner.get(owner) > biggestCount) // HASHMAP
     		{
-    			biggestCount = countsByOwner.get(owner);
+    			biggestCount = countsByOwner.get(owner); // HASHMAP
     			biggestOwner = owner;
     		}
     	}
@@ -487,7 +491,7 @@ class PartitionManager
     	{
     		if (counts.containsKey(l.getOwner()))
     		{
-    			Integer oldCount = counts.get(l.getOwner());
+    			Integer oldCount = counts.get(l.getOwner()); // HASHMAP
     			counts.put(l.getOwner(), oldCount + 1);
     		}
     		else
@@ -497,7 +501,7 @@ class PartitionManager
     	}
     	for (String owner : counts.keySet())
     	{
-    		TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "host " + owner + " owns " + counts.get(owner) + " leases"));
+    		TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "host " + owner + " owns " + counts.get(owner) + " leases")); // HASHMAP
     	}
     	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "total hosts in sorted list: " + counts.size()));
     	

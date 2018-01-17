@@ -30,7 +30,7 @@ class Pump
     
     public void addPump(Lease lease)
     {
-    	PartitionPump capturedPump = this.pumpStates.get(lease.getPartitionId());
+    	PartitionPump capturedPump = this.pumpStates.get(lease.getPartitionId()); // CONCURRENTHASHTABLE
     	if (capturedPump == null)
     	{
     		// No existing pump, create a new one.
@@ -61,7 +61,7 @@ class Pump
     public CompletableFuture<Void> removePump(String partitionId, final CloseReason reason)
     {
     	CompletableFuture<Void> retval = CompletableFuture.completedFuture(null);
-    	PartitionPump capturedPump = this.pumpStates.get(partitionId);
+    	PartitionPump capturedPump = this.pumpStates.get(partitionId); // CONCURRENTHASHTABLE
     	if (capturedPump != null)
     	{
             TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId,
@@ -77,12 +77,14 @@ class Pump
     	return retval;
     }
 
-    public Iterable<CompletableFuture<Void>> removeAllPumps(CloseReason reason)
+    public CompletableFuture<Void>[] removeAllPumps(CloseReason reason)
     {
-    	ArrayList<CompletableFuture<Void>> futures = new ArrayList<CompletableFuture<Void>>();
+    	// Java won't new an array of CompletableFuture<Void>.
+    	CompletableFuture<Void>[] futures = (CompletableFuture<Void>[]) new Object[this.pumpStates.size()];
+    	int i = 0;
     	for (String partitionId : this.pumpStates.keySet())
     	{
-    		futures.add(removePump(partitionId, reason));
+    		futures[i++] = removePump(partitionId, reason);
     	}
     	return futures;
     }

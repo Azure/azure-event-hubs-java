@@ -739,7 +739,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		// are separate -- which they can be in other implementations -- even though they are completely intertwined
     		// in this implementation. To prevent writing stale checkpoint data to the store, merge the checkpoint data
     		// from the most recently written checkpoint into this write, if needed.
-    		Checkpoint cached = this.latestCheckpoint.get(lease.getPartitionId());
+    		Checkpoint cached = this.latestCheckpoint.get(lease.getPartitionId()); // HASHTABLE
     		if ((cached != null) && ((cached.getSequenceNumber() > lease.getSequenceNumber()) || (lease.getOffset() == null)))
     		{
 				lease.setOffset(cached.getOffset());
