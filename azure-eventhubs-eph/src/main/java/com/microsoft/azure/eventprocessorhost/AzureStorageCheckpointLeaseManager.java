@@ -323,6 +323,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		{
 		    	// returns true if the container was created, false if it already existed -- we don't care
 				this.eventHubContainer.createIfNotExists(options, null);
+				TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Created lease store OK"));
     		}
     		catch (StorageException e)
     		{
@@ -447,7 +448,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 	    	{
 	            TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, partitionId,
 					"CreateLeaseIfNotExist exception - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
-					"storageBlobPrefix: " + this.storageBlobPrefix), e);
+					" storageBlobPrefix: " + this.storageBlobPrefix), e);
 	            throw LoggingUtils.wrapException(e, EventProcessorHostActionStrings.CREATING_LEASE);
 	    	}
 	    	return returnLease;
@@ -461,10 +462,10 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	{
     		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId); // getBlockBlobReference does not take options
     		returnLease = new AzureBlobLease(partitionId, leaseBlob, this.leaseOperationOptions);
-            TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId,
-                    "CreateLeaseIfNotExist - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
-                            "storageBlobPrefix: " + this.storageBlobPrefix));
     		uploadLease(returnLease, leaseBlob, AccessCondition.generateIfNoneMatchCondition("*"), UploadActivity.Create, options);
+            TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId,
+                    "CreateLeaseIfNotExist OK - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.host.getConsumerGroupName() +
+                            " storageBlobPrefix: " + this.storageBlobPrefix));
     	}
     	catch (StorageException se)
     	{

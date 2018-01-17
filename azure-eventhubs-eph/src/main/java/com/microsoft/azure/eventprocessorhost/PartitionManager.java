@@ -55,7 +55,7 @@ class PartitionManager
     		{
 				retval = EventHubClient.createFromConnectionString(this.host.getEventHubConnectionString())
 				.thenComposeAsync((ehClient) -> ehClient.getRuntimeInformation(), this.host.getExecutorService())
-				.thenAccept((ehInfo) ->
+				.thenAccept((EventHubRuntimeInformation ehInfo) ->
 				{
 					if (ehInfo != null)
 					{
@@ -250,7 +250,7 @@ class PartitionManager
     }
     
     // Throws if it runs out of retries. If it returns, action succeeded.
-    private void retryWrapper(Callable<?> lambda, String partitionId, String retryMessage, String finalFailureMessage, String action, int maxRetries) throws ExceptionWithAction
+    private void retryWrapper(Callable<CompletableFuture<?>> lambda, String partitionId, String retryMessage, String finalFailureMessage, String action, int maxRetries) throws ExceptionWithAction
     {
     	boolean createdOK = false;
     	int retryCount = 0;
@@ -258,7 +258,7 @@ class PartitionManager
     	{
     		try
     		{
-    			lambda.call();
+    			lambda.call().get();
     			createdOK = true;
     		}
     		catch (Exception e)
@@ -308,6 +308,10 @@ class PartitionManager
         		{
 					try
 					{
+		            	if (possibleLease == null)
+		            	{
+		            		TRACE_LOGGER.warn(LoggingUtils.withHost(this.host, "possibleLease is null"));
+		            	}
 						if (possibleLease.isExpired().get())
 						{
 							if (this.host.getLeaseManager().acquireLease(possibleLease).get())

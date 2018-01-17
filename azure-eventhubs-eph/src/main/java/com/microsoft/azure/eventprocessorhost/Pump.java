@@ -39,7 +39,9 @@ class Pump
     		this.pumpStates.put(lease.getPartitionId(), newPartitionPump);
     		
     		final String capturedPartitionId = lease.getPartitionId();
-    		newPartitionPump.startPump().whenCompleteAsync((r,e) -> this.pumpStates.remove(capturedPartitionId), this.host.getExecutorService())
+    		// These are fast, non-blocking actions, so it is OK to run on the same thread that was running pump shutdown.
+    		// Also, do not run async because otherwise there can be a race with executor being shut down.
+    		newPartitionPump.startPump().whenComplete((r,e) -> this.pumpStates.remove(capturedPartitionId))
     			.whenComplete((r,e) -> removingPumpTestHook(capturedPartitionId, e));
     	}
     	else
