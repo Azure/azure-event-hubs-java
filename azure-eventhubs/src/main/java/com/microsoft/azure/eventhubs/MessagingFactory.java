@@ -440,11 +440,10 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                         "starting reactor instance.");
             }
 
-            boolean yieldedReactor = false;
+            boolean reScheduledReactor = false;
 
             try {
                 if (!this.hasStarted) {
-                    this.rctr.setTimeout(3141);
                     this.rctr.start();
                     this.hasStarted = true;
                 }
@@ -452,7 +451,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
                 if (!Thread.interrupted() && this.rctr.process()) {
                     try {
                         this.executor.execute(this);
-                        yieldedReactor = true;
+                        reScheduledReactor = true;
                     } catch (RejectedExecutionException exception) {
                         if (TRACE_LOGGER.isWarnEnabled()) {
                             TRACE_LOGGER.warn("messagingFactory[%s], hostName[%s], error[%s]",
@@ -500,7 +499,7 @@ public class MessagingFactory extends ClientEntity implements IAmqpConnection, I
 
                 MessagingFactory.this.onReactorError(sbException);
             } finally {
-                if (yieldedReactor) {
+                if (reScheduledReactor) {
                     return;
                 }
 

@@ -110,4 +110,18 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
                 TestContext.getConnectionString().toString(),
                 testClosed);
     }
+
+    @Test(expected = RejectedExecutionException.class)
+    public void SupplyClosedExecutorServiceToSendOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final EventHubClient temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed);
+        temp.sendSync(new EventData("test data - string".getBytes()));
+
+        testClosed.shutdown();
+
+        temp.sendSync(new EventData("test data - string".getBytes()));
+    }
 }
