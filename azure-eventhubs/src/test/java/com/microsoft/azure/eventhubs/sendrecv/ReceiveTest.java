@@ -109,6 +109,37 @@ public class ReceiveTest extends ApiTestBase
 		
 		Assert.assertTrue(eventReturnedByOffsetReceiver.getSystemProperties().getSequenceNumber() == event.getSystemProperties().getSequenceNumber() + 1);
 	}
+
+	@Test()
+	public void testReceiverSequenceNumberInclusiveFilter() throws EventHubException
+	{
+		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, EventPosition.fromEnqueuedTime(Instant.EPOCH));
+		Iterable<EventData> events = datetimeReceiver.receiveSync(100);
+
+		Assert.assertTrue(events != null && events.iterator().hasNext());
+		EventData event = events.iterator().next();
+
+		offsetReceiver = ehClient.createReceiverSync(cgName, partitionId, EventPosition.fromSequenceNumber(event.getSystemProperties().getSequenceNumber(), true));
+		EventData eventReturnedByOffsetReceiver = offsetReceiver.receiveSync(10).iterator().next();
+
+		Assert.assertTrue(eventReturnedByOffsetReceiver.getSystemProperties().getOffset().equals(event.getSystemProperties().getOffset()));
+		Assert.assertTrue(eventReturnedByOffsetReceiver.getSystemProperties().getSequenceNumber() == event.getSystemProperties().getSequenceNumber());
+	}
+
+	@Test()
+	public void testReceiverSequenceNumberNonInclusiveFilter() throws EventHubException
+	{
+		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, EventPosition.fromEnqueuedTime(Instant.EPOCH));
+		Iterable<EventData> events = datetimeReceiver.receiveSync(100);
+
+		Assert.assertTrue(events != null && events.iterator().hasNext());
+
+		EventData event = events.iterator().next();
+		offsetReceiver = ehClient.createReceiverSync(cgName, partitionId, EventPosition.fromSequenceNumber(event.getSystemProperties().getSequenceNumber(), false));
+		EventData eventReturnedByOffsetReceiver= offsetReceiver.receiveSync(10).iterator().next();
+
+		Assert.assertTrue(eventReturnedByOffsetReceiver.getSystemProperties().getSequenceNumber() == event.getSystemProperties().getSequenceNumber() + 1);
+	}
 	
 	@Test()
 	public void testReceivedBodyAndProperties() throws EventHubException
