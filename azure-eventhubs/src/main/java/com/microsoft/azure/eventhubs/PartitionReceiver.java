@@ -388,43 +388,12 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 
     @Override
     public Map<Symbol, UnknownDescribedType> getFilter(final Message lastReceivedMessage) {
-        String annotationType = null;
-        String lastValue = null;
-        String equalToStr = null;
+        String expression;
         if (lastReceivedMessage != null) {
-            annotationType = AmqpConstants.OFFSET_ANNOTATION_NAME;
-            lastValue = lastReceivedMessage.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
-            equalToStr = StringUtil.EMPTY;
+            String lastReceivedOffset = lastReceivedMessage.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
+            expression = String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.OFFSET_ANNOTATION_NAME, StringUtil.EMPTY, lastReceivedOffset);
         } else {
-            switch(this.eventPosition.getFilterType()) {
-                case "offset":
-                    annotationType = AmqpConstants.OFFSET_ANNOTATION_NAME;
-                    lastValue = this.eventPosition.getOffset();
-                    final boolean offsetInclusiveFlag = this.eventPosition.getInclusiveFlag();
-                    equalToStr = offsetInclusiveFlag ? "=" : StringUtil.EMPTY;
-                    break;
-
-                case "sequenceNumber":
-                    annotationType = AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME;
-                    lastValue = this.eventPosition.getSequenceNumber().toString();
-                    final boolean seqNumberInclusiveFlag = this.eventPosition.getInclusiveFlag();
-                    equalToStr = seqNumberInclusiveFlag ? "=" : StringUtil.EMPTY;
-                    break;
-
-                case "enqueuedTime":
-                    annotationType = AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME;
-                    try {
-                        lastValue = Long.toString(this.eventPosition.getEnqueuedTime().toEpochMilli());
-                    } catch (ArithmeticException ex) {
-                        lastValue = Long.toString(Long.MAX_VALUE);
-                        if (TRACE_LOGGER.isWarnEnabled()) {
-                            TRACE_LOGGER.warn(
-                                    "receiver not yet created, action[createReceiveLink], warning[starting receiver from epoch+Long.Max]");
-                        }
-                    }
-                    equalToStr = StringUtil.EMPTY;
-                    break;
-            }
+            expression = this.eventPosition.getExpression();
         }
 
         if (TRACE_LOGGER.isInfoEnabled()) {
@@ -439,10 +408,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
             TRACE_LOGGER.info(String.format("%s, action[createReceiveLink], %s", logReceivePath, this.eventPosition));
         }
 
-        final UnknownDescribedType filter = new UnknownDescribedType(
-                AmqpConstants.STRING_FILTER, String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, annotationType, equalToStr, lastValue));
-
-        return Collections.singletonMap(AmqpConstants.STRING_FILTER, filter);
+        return Collections.singletonMap(AmqpConstants.STRING_FILTER, new UnknownDescribedType(AmqpConstants.STRING_FILTER, expression));
     }
 
     @Override

@@ -4,6 +4,10 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.time.Instant;
 
 /**
@@ -11,6 +15,8 @@ import java.time.Instant;
  * The position can be an Offset, Sequence Number, or EnqueuedTime.
  */
 public class EventPosition {
+
+    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(EventPosition.class);
 
     private final String offset;
     private final Long sequenceNumber;
@@ -131,17 +137,32 @@ public class EventPosition {
         return this.dateTime;
     }
 
-    String getFilterType() {
+    String getExpression() {
+        // order of preference
         if (this.offset != null) {
-            return "offset";
+            return this.inclusiveFlag ?
+                    String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.OFFSET_ANNOTATION_NAME, "=", this.offset) :
+                    String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.OFFSET_ANNOTATION_NAME, StringUtil.EMPTY, this.offset);
         }
 
         if (this.sequenceNumber != null) {
-            return "sequenceNumber";
+            return this.inclusiveFlag ?
+                    String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME, "=", this.sequenceNumber) :
+                    String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME, StringUtil.EMPTY, this.sequenceNumber);
         }
 
         if (this.dateTime != null) {
-            return "enqueuedTime";
+            String ms;
+            try {
+                ms = Long.toString(this.dateTime.toEpochMilli());
+            } catch (ArithmeticException ex) {
+                ms = Long.toString(Long.MAX_VALUE);
+                if (TRACE_LOGGER.isWarnEnabled()) {
+                    TRACE_LOGGER.warn(
+                            "receiver not yet created, action[createReceiveLink], warning[starting receiver from epoch+Long.Max]");
+                }
+            }
+            return String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME, StringUtil.EMPTY, ms);
         }
 
         throw new IllegalArgumentException("No starting position was set.");
