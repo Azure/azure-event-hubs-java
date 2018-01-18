@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -387,76 +388,59 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 
     @Override
     public Map<Symbol, UnknownDescribedType> getFilter(final Message lastReceivedMessage) {
-        BiConsumer<String, Boolean> getFilterLogging = (lastReceived, inclusiveFlag) -> {
-            if (TRACE_LOGGER.isInfoEnabled()) {
-                String logReceivePath = "";
-                if (this.internalReceiver == null) {
-                    // During startup, internalReceiver is still null. Need to handle this special case when logging during startup
-                    // or the reactor thread crashes with NPE when calling internalReceiver.getReceivePath() and no receiving occurs.
-                    logReceivePath = "receiverPath[RECEIVER IS NULL]";
-                } else {
-                    logReceivePath = "receiverPath[" + this.internalReceiver.getReceivePath() + "]";
-                }
-                TRACE_LOGGER.info(String.format("%s, action[createReceiveLink], offset[%s], offsetInclusive[%s]", logReceivePath, lastReceived, inclusiveFlag));
-            }
-        };
-
-        final UnknownDescribedType filter;
+        String annotationType = null;
+        String lastValue = null;
+        String equalToStr = null;
         if (lastReceivedMessage != null) {
-            final String lastReceivedOffset = lastReceivedMessage.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
-            final boolean offsetInclusiveFlag = false;
-            getFilterLogging.accept(lastReceivedOffset, offsetInclusiveFlag);
-
-            filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
-                    String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT,
-                            AmqpConstants.OFFSET_ANNOTATION_NAME,
-                            offsetInclusiveFlag ? "=" : StringUtil.EMPTY,
-                            lastReceivedOffset));
+            annotationType = AmqpConstants.OFFSET_ANNOTATION_NAME;
+            lastValue = lastReceivedMessage.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
+            equalToStr = StringUtil.EMPTY;
         } else {
             switch(this.eventPosition.getFilterType()) {
                 case "offset":
-                    final String lastReceivedOffset = this.eventPosition.getOffset();
-                    final boolean offsetInclusiveFlag = this.eventPosition.getInclusive();
-                    getFilterLogging.accept(lastReceivedOffset, offsetInclusiveFlag);
-
-                    filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
-                            String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT,
-                                    AmqpConstants.OFFSET_ANNOTATION_NAME,
-                                    offsetInclusiveFlag ? "=" : StringUtil.EMPTY,
-                                    lastReceivedOffset));
+                    annotationType = AmqpConstants.OFFSET_ANNOTATION_NAME;
+                    lastValue = this.eventPosition.getOffset();
+                    final boolean offsetInclusiveFlag = this.eventPosition.getInclusiveFlag();
+                    equalToStr = offsetInclusiveFlag ? "=" : StringUtil.EMPTY;
                     break;
 
                 case "sequenceNumber":
-                    final String lastReceivedSequenceNumber = this.eventPosition.getSequenceNumber().toString();
-                    final boolean sequenceNumberInclusiveFlag = this.eventPosition.getInclusive();
-                    getFilterLogging.accept(lastReceivedSequenceNumber, sequenceNumberInclusiveFlag);
-
-                    filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
-                            String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT,
-                                    AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME,
-                                    sequenceNumberInclusiveFlag ? "=" : StringUtil.EMPTY,
-                                    lastReceivedSequenceNumber));
+                    annotationType = AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME;
+                    lastValue = this.eventPosition.getSequenceNumber().toString();
+                    final boolean seqNumberInclusiveFlag = this.eventPosition.getInclusiveFlag();
+                    equalToStr = seqNumberInclusiveFlag ? "=" : StringUtil.EMPTY;
                     break;
 
                 case "enqueuedTime":
-                    long totalMilliSeconds;
+                    annotationType = AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME;
                     try {
-                        totalMilliSeconds = this.eventPosition.getEnqueuedTime().toEpochMilli();
+                        lastValue = Long.toString(this.eventPosition.getEnqueuedTime().toEpochMilli());
                     } catch (ArithmeticException ex) {
-                        totalMilliSeconds = Long.MAX_VALUE;
+                        lastValue = Long.toString(Long.MAX_VALUE);
                         if (TRACE_LOGGER.isWarnEnabled()) {
                             TRACE_LOGGER.warn(
                                     "receiver not yet created, action[createReceiveLink], warning[starting receiver from epoch+Long.Max]");
                         }
                     }
-                    filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
-                            String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME, StringUtil.EMPTY, totalMilliSeconds));
+                    equalToStr = StringUtil.EMPTY;
                     break;
-                default:
-                    // This should never happen.
-                    throw new IllegalStateException("EventPosition filter type has not been set.");
             }
         }
+
+        if (TRACE_LOGGER.isInfoEnabled()) {
+            String logReceivePath = "";
+            if (this.internalReceiver == null) {
+                // During startup, internalReceiver is still null. Need to handle this special case when logging during startup
+                // or the reactor thread crashes with NPE when calling internalReceiver.getReceivePath() and no receiving occurs.
+                logReceivePath = "receiverPath[RECEIVER IS NULL]";
+            } else {
+                logReceivePath = "receiverPath[" + this.internalReceiver.getReceivePath() + "]";
+            }
+            TRACE_LOGGER.info(String.format("%s, action[createReceiveLink], %s", logReceivePath, this.eventPosition));
+        }
+
+        final UnknownDescribedType filter = new UnknownDescribedType(
+                AmqpConstants.STRING_FILTER, String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, annotationType, equalToStr, lastValue));
 
         return Collections.singletonMap(AmqpConstants.STRING_FILTER, filter);
     }

@@ -15,13 +15,13 @@ public class EventPosition {
     private final String offset;
     private final Long sequenceNumber;
     private final Instant dateTime;
-    private final Boolean inclusive;
+    private final Boolean inclusiveFlag;
 
     private EventPosition(String o, Long s, Instant d, Boolean i) {
         this.offset = o;
         this.sequenceNumber = s;
         this.dateTime = d;
-        this.inclusive = i;
+        this.inclusiveFlag = i;
     }
 
     /**
@@ -37,11 +37,11 @@ public class EventPosition {
     /**
      * Creates a position at the given offset.
      * @param offset    is the byte offset of the event.
-     * @param inclusive will include the specified event when set to true; otherwise, the next event is returned.
+     * @param inclusiveFlag will include the specified event when set to true; otherwise, the next event is returned.
      * @return An {@link EventPosition} object.
      */
-    public static EventPosition fromOffset(String offset, boolean inclusive) {
-        return new EventPosition(offset, null, null, inclusive);
+    public static EventPosition fromOffset(String offset, boolean inclusiveFlag) {
+        return new EventPosition(offset, null, null, inclusiveFlag);
     }
 
     /**
@@ -58,11 +58,11 @@ public class EventPosition {
      * Creates a position at the given sequence number. The specified event will not be included.
      * Instead, the next event is returned.
      * @param sequenceNumber    is the sequence number of the event.
-     * @param inclusive         will include the specified event when set to true; otherwise, the next event is returned.
+     * @param inclusiveFlag         will include the specified event when set to true; otherwise, the next event is returned.
      * @return An {@link EventPosition} object.
      */
-    public static EventPosition fromSequenceNumber(Long sequenceNumber, boolean inclusive) {
-        return new EventPosition(null, sequenceNumber, null, inclusive);
+    public static EventPosition fromSequenceNumber(Long sequenceNumber, boolean inclusiveFlag) {
+        return new EventPosition(null, sequenceNumber, null, inclusiveFlag);
     }
 
     /**
@@ -82,15 +82,18 @@ public class EventPosition {
     }
 
     /**
-     * @param inclusive When true, the last event in the partition will be sent. When false,
+     * @param inclusiveFlag When true, the last event in the partition will be sent. When false,
      *                  the last event will be skipped, and only new events will be received.
      * @return An {@link EventPosition} with position set to the end of the Event Hubs stream.
      */
-    public static EventPosition fromEndOfStream(boolean inclusive) {
-        return new EventPosition(PartitionReceiver.END_OF_STREAM, null, null, inclusive);
+    public static EventPosition fromEndOfStream(boolean inclusiveFlag) {
+        return new EventPosition(PartitionReceiver.END_OF_STREAM, null, null, inclusiveFlag);
     }
 
     /**
+     * Gets the offset of the event at the position. It can be null if the position is created
+     * from a sequence number or enqueued time.
+     *
      * @return the byte offset of the event.
      */
     public String getOffset() {
@@ -98,13 +101,20 @@ public class EventPosition {
     }
 
     /**
-     * @return true if the current event will be included. false if the current event will not be included.
+     * Indicates if the current event at the specified offset is included or not.
+     * It is only applicable if offset or sequence number is set. If offset or
+     * sequence number is not set, this will return null.
+     *
+     * @return the inclusive flag
      */
-    public Boolean getInclusive() {
-        return this.inclusive;
+    public Boolean getInclusiveFlag() {
+        return this.inclusiveFlag;
     }
 
     /**
+     * Gets the sequence number of the event at the position. It can be null if the position is created
+     * from an offset or enqueued time.
+     *
      * @return the sequence number of the event.
      */
     public Long getSequenceNumber() {
@@ -112,6 +122,9 @@ public class EventPosition {
     }
 
     /**
+     * Gets the enqueued time of the event at the position. It can be null if the position is created
+     * from an offset or a sequence number.
+     *
      * @return the enqueued time of the event.
      */
     public Instant getEnqueuedTime() {
@@ -132,5 +145,11 @@ public class EventPosition {
         }
 
         throw new IllegalArgumentException("No starting position was set.");
+    }
+
+    @Override
+    public String toString() {
+        return String.format("offset[%s], sequenceNumber[%s], enqueuedTime[%s], inclusiveFlag[%s]",
+                this.offset, this.sequenceNumber, this.dateTime.toEpochMilli(), this.inclusiveFlag);
     }
 }
