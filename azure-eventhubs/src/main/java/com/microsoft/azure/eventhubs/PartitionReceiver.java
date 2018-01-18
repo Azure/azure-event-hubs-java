@@ -5,7 +5,6 @@
 package com.microsoft.azure.eventhubs;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -15,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -66,9 +66,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
     private final String consumerGroupName;
     private final Object receiveHandlerLock;
 
-    private String startingOffset;
-    private boolean offsetInclusive;
-    private Instant startingDateTime;
+    private EventPosition eventPosition;
     private MessageReceiver internalReceiver;
     private Long epoch;
     private boolean isEpochReceiver;
@@ -80,9 +78,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                               final String eventHubName,
                               final String consumerGroupName,
                               final String partitionId,
-                              final String startingOffset,
-                              final boolean offsetInclusive,
-                              final Instant dateTime,
+                              final EventPosition eventPosition,
                               final Long epoch,
                               final boolean isEpochReceiver,
                               final ReceiverOptions receiverOptions,
@@ -94,9 +90,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
         this.eventHubName = eventHubName;
         this.consumerGroupName = consumerGroupName;
         this.partitionId = partitionId;
-        this.startingOffset = startingOffset;
-        this.offsetInclusive = offsetInclusive;
-        this.startingDateTime = dateTime;
+        this.eventPosition = eventPosition;
         this.epoch = epoch;
         this.isEpochReceiver = isEpochReceiver;
         this.receiveHandlerLock = new Object();
@@ -110,9 +104,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                                                        final String eventHubName,
                                                        final String consumerGroupName,
                                                        final String partitionId,
-                                                       final String startingOffset,
-                                                       final boolean offsetInclusive,
-                                                       final Instant dateTime,
+                                                       final EventPosition eventPosition,
                                                        final long epoch,
                                                        final boolean isEpochReceiver,
                                                        final ReceiverOptions receiverOptions,
@@ -126,7 +118,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
             throw new IllegalArgumentException("specify valid string for argument - 'consumerGroupName'");
         }
 
-        final PartitionReceiver receiver = new PartitionReceiver(factory, eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, dateTime, epoch, isEpochReceiver, receiverOptions, executor);
+        final PartitionReceiver receiver = new PartitionReceiver(factory, eventHubName, consumerGroupName, partitionId, eventPosition, epoch, isEpochReceiver, receiverOptions, executor);
         return receiver.createInternalReceiver().thenApplyAsync(new Function<Void, PartitionReceiver>() {
             public PartitionReceiver apply(Void a) {
                 return receiver;
@@ -149,12 +141,8 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
     /**
      * @return The Cursor from which this Receiver started receiving from
      */
-    final String getStartingOffset() {
-        return this.startingOffset;
-    }
-
-    final boolean getOffsetInclusive() {
-        return this.offsetInclusive;
+    final EventPosition getStartingPosition() {
+        return this.eventPosition;
     }
 
     /**
@@ -399,32 +387,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 
     @Override
     public Map<Symbol, UnknownDescribedType> getFilter(final Message lastReceivedMessage) {
-        final UnknownDescribedType filter;
-        if (lastReceivedMessage == null && this.startingOffset == null) {
-            long totalMilliSeconds;
-            try {
-                totalMilliSeconds = this.startingDateTime.toEpochMilli();
-            } catch (ArithmeticException ex) {
-                totalMilliSeconds = Long.MAX_VALUE;
-                if (TRACE_LOGGER.isWarnEnabled()) {
-                    TRACE_LOGGER.warn(
-                            "receiver not yet created, action[createReceiveLink], warning[starting receiver from epoch+Long.Max]");
-                }
-            }
-
-            filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
-                    String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME, StringUtil.EMPTY, totalMilliSeconds));
-        } else {
-            final String lastReceivedOffset;
-            final boolean offsetInclusiveFlag;
-            if (lastReceivedMessage != null) {
-                offsetInclusiveFlag = false;
-                lastReceivedOffset = lastReceivedMessage.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
-            } else {
-                offsetInclusiveFlag = this.offsetInclusive;
-                lastReceivedOffset = this.startingOffset;
-            }
-
+        BiConsumer<String, Boolean> getFilterLogging = (lastReceived, inclusiveFlag) -> {
             if (TRACE_LOGGER.isInfoEnabled()) {
                 String logReceivePath = "";
                 if (this.internalReceiver == null) {
@@ -434,14 +397,65 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                 } else {
                     logReceivePath = "receiverPath[" + this.internalReceiver.getReceivePath() + "]";
                 }
-                TRACE_LOGGER.info(String.format("%s, action[createReceiveLink], offset[%s], offsetInclusive[%s]", logReceivePath, lastReceivedOffset, offsetInclusiveFlag));
+                TRACE_LOGGER.info(String.format("%s, action[createReceiveLink], offset[%s], offsetInclusive[%s]", logReceivePath, lastReceived, inclusiveFlag));
             }
+        };
+
+        final UnknownDescribedType filter;
+        if (lastReceivedMessage != null) {
+            final String lastReceivedOffset = lastReceivedMessage.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
+            final boolean offsetInclusiveFlag = false;
+            getFilterLogging.accept(lastReceivedOffset, offsetInclusiveFlag);
 
             filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
                     String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT,
                             AmqpConstants.OFFSET_ANNOTATION_NAME,
                             offsetInclusiveFlag ? "=" : StringUtil.EMPTY,
                             lastReceivedOffset));
+        } else {
+            switch(this.eventPosition.getFilterType()) {
+                case "offset":
+                    final String lastReceivedOffset = this.eventPosition.getOffset();
+                    final boolean offsetInclusiveFlag = this.eventPosition.getInclusive();
+                    getFilterLogging.accept(lastReceivedOffset, offsetInclusiveFlag);
+
+                    filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
+                            String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT,
+                                    AmqpConstants.OFFSET_ANNOTATION_NAME,
+                                    offsetInclusiveFlag ? "=" : StringUtil.EMPTY,
+                                    lastReceivedOffset));
+                    break;
+
+                case "sequenceNumber":
+                    final String lastReceivedSequenceNumber = this.eventPosition.getSequenceNumber().toString();
+                    final boolean sequenceNumberInclusiveFlag = this.eventPosition.getInclusive();
+                    getFilterLogging.accept(lastReceivedSequenceNumber, sequenceNumberInclusiveFlag);
+
+                    filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
+                            String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT,
+                                    AmqpConstants.SEQUENCE_NUMBER_ANNOTATION_NAME,
+                                    sequenceNumberInclusiveFlag ? "=" : StringUtil.EMPTY,
+                                    lastReceivedSequenceNumber));
+                    break;
+
+                case "enqueuedTime":
+                    long totalMilliSeconds;
+                    try {
+                        totalMilliSeconds = this.eventPosition.getEnqueuedTime().toEpochMilli();
+                    } catch (ArithmeticException ex) {
+                        totalMilliSeconds = Long.MAX_VALUE;
+                        if (TRACE_LOGGER.isWarnEnabled()) {
+                            TRACE_LOGGER.warn(
+                                    "receiver not yet created, action[createReceiveLink], warning[starting receiver from epoch+Long.Max]");
+                        }
+                    }
+                    filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
+                            String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME, StringUtil.EMPTY, totalMilliSeconds));
+                    break;
+                default:
+                    // This should never happen.
+                    throw new IllegalStateException("EventPosition filter type has not been set.");
+            }
         }
 
         return Collections.singletonMap(AmqpConstants.STRING_FILTER, filter);
