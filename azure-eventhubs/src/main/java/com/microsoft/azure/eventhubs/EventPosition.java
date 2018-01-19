@@ -105,7 +105,7 @@ public class EventPosition {
      *
      * @return the byte offset of the event.
      */
-    public String getOffset() {
+    String getOffset() {
         return this.offset;
     }
 
@@ -116,7 +116,7 @@ public class EventPosition {
      *
      * @return the inclusive flag
      */
-    public Boolean getInclusiveFlag() {
+    Boolean getInclusiveFlag() {
         return this.inclusiveFlag;
     }
 
@@ -126,7 +126,7 @@ public class EventPosition {
      *
      * @return the sequence number of the event.
      */
-    public Long getSequenceNumber() {
+    Long getSequenceNumber() {
         return this.sequenceNumber;
     }
 
@@ -136,7 +136,7 @@ public class EventPosition {
      *
      * @return the enqueued time of the event.
      */
-    public Instant getEnqueuedTime() {
+    Instant getEnqueuedTime() {
         return this.dateTime;
     }
 
