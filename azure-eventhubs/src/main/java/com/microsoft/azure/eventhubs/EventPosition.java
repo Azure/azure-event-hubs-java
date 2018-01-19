@@ -81,19 +81,22 @@ public class EventPosition {
     }
 
     /**
+     * This will return an EventPosition that includes the first event in the Event Hubs partition.
+     *
      * @return An {@link EventPosition} with position set to the start of the Event Hubs stream.
      */
     public static EventPosition fromStartOfStream() {
-        return new EventPosition(PartitionReceiver.START_OF_STREAM, null, null, false);
+        return new EventPosition(PartitionReceiver.START_OF_STREAM, null, null, true);
     }
 
     /**
-     * @param inclusiveFlag When true, the last event in the partition will be sent. When false,
-     *                  the last event will be skipped, and only new events will be received.
+     * The last event in the Event Hubs partition is not included. The returned EventPosition will
+     * future events that arrive to this EventHubs partition.
+     *
      * @return An {@link EventPosition} with position set to the end of the Event Hubs stream.
      */
-    public static EventPosition fromEndOfStream(boolean inclusiveFlag) {
-        return new EventPosition(PartitionReceiver.END_OF_STREAM, null, null, inclusiveFlag);
+    public static EventPosition fromEndOfStream() {
+        return new EventPosition(PartitionReceiver.END_OF_STREAM, null, null, false);
     }
 
     /**
