@@ -62,7 +62,7 @@ public class CheckpointManagerTest
 		assertFalse("checkpoint store should not exist yet", boolret);
 		
 		TestUtilities.log("Create checkpoint store");
-		this.checkpointManagers[0].createCheckpointStoreIfNotExists();
+		this.checkpointManagers[0].createCheckpointStoreIfNotExists().get();
 
 		TestUtilities.log("Check whether checkpoint store exists after create");
 		boolret = this.checkpointManagers[0].checkpointStoreExists().get();
@@ -106,7 +106,7 @@ public class CheckpointManagerTest
 			checkpoints[i] = new Checkpoint(String.valueOf(i));
 			checkpoints[i].setOffset(String.valueOf(i * 234));
 			checkpoints[i].setSequenceNumber(i + 77);
-			this.checkpointManagers[0].updateCheckpoint(leases[i], checkpoints[i]);
+			this.checkpointManagers[0].updateCheckpoint(leases[i], checkpoints[i]).get();
 		}
 		
 		TestUtilities.log("Getting checkpoints for all partitions and verifying");
@@ -154,7 +154,7 @@ public class CheckpointManagerTest
 		assertFalse("checkpoint store should not exist yet", boolret);
 		
 		TestUtilities.log("Second manager create checkpoint store");
-		this.checkpointManagers[1].createCheckpointStoreIfNotExists();
+		this.checkpointManagers[1].createCheckpointStoreIfNotExists().get();
 
 		TestUtilities.log("First mananger check whether checkpoint store exists after create");
 		boolret = this.checkpointManagers[0].checkpointStoreExists().get();
@@ -198,7 +198,7 @@ public class CheckpointManagerTest
 			checkpoints[i] = new Checkpoint(String.valueOf(i));
 			checkpoints[i].setOffset(String.valueOf(i * 234));
 			checkpoints[i].setSequenceNumber(i + 77);
-			this.checkpointManagers[1].updateCheckpoint(leases[i], checkpoints[i]);
+			this.checkpointManagers[1].updateCheckpoint(leases[i], checkpoints[i]).get();
 		}
 		
 		TestUtilities.log("First manager get and verify checkpoints for all partitions");

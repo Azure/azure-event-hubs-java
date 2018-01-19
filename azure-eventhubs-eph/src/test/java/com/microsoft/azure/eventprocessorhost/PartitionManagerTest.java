@@ -394,7 +394,7 @@ public class PartitionManagerTest
 	{
 		try
 		{
-			this.hosts[index].getExecutorService().submit(() -> this.partitionManagers[index].initialize()).get();
+			this.partitionManagers[index].initialize().get();
 			this.running[index] = true;
 		}
 		catch (Exception e)
@@ -412,7 +412,7 @@ public class PartitionManagerTest
 		{
 			if (this.running[i])
 			{
-				this.partitionManagers[i].stopPartitions();
+				this.partitionManagers[i].stopPartitions().get();
 				TestUtilities.log("Host " + i + " stopped");
 			}
 		}
@@ -422,7 +422,7 @@ public class PartitionManagerTest
 	{
 		if (this.running[index])
 		{
-			this.partitionManagers[index].stopPartitions();
+			this.partitionManagers[index].stopPartitions().get();
 			TestUtilities.log("Host " + index + " stopped");
 			this.running[index] = false;
 		}

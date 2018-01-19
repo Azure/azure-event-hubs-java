@@ -8,7 +8,6 @@ package com.microsoft.azure.eventprocessorhost;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -77,10 +76,9 @@ class Pump
     	return retval;
     }
 
-    public CompletableFuture<Void>[] removeAllPumps(CloseReason reason)
+    public CompletableFuture<?>[] removeAllPumps(CloseReason reason)
     {
-    	// Java won't new an array of CompletableFuture<Void>.
-    	CompletableFuture<Void>[] futures = (CompletableFuture<Void>[]) new Object[this.pumpStates.size()];
+    	CompletableFuture<?>[] futures = new CompletableFuture<?>[this.pumpStates.size()];
     	int i = 0;
     	for (String partitionId : this.pumpStates.keySet())
     	{

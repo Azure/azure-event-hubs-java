@@ -59,7 +59,7 @@ public class LeaseManagerTest
 		assertFalse("lease store should not exist yet", boolret);
 		
 		TestUtilities.log("Creating lease store");
-		this.leaseManagers[0].createLeaseStoreIfNotExists();
+		this.leaseManagers[0].createLeaseStoreIfNotExists().get();
 
 		TestUtilities.log("Checking whether lease store exists after create");
 		boolret = this.leaseManagers[0].leaseStoreExists().get();
@@ -177,7 +177,7 @@ public class LeaseManagerTest
 		assertFalse("lease store should not exist yet", boolret);
 		
 		TestUtilities.log("Creating lease store");
-		this.leaseManagers[0].createLeaseStoreIfNotExists();
+		this.leaseManagers[0].createLeaseStoreIfNotExists().get();
 
 		TestUtilities.log("Check whether lease store exists after create");
 		boolret = this.leaseManagers[0].leaseStoreExists().get();

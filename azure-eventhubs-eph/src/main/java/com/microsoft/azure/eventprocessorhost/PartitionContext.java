@@ -7,7 +7,6 @@ package com.microsoft.azure.eventprocessorhost;
 
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 
 import com.microsoft.azure.eventhubs.EventData;
@@ -99,8 +98,6 @@ public class PartitionContext
     // Returns a String (offset) or Instant (timestamp).
     CompletableFuture<Object> getInitialOffset()
     {
-    	Object startAt = null;
-    	
     	TRACE_LOGGER.info(LoggingUtils.threadPoolStatusReport(this.host.getHostName(), this.host.getExecutorService()));
     	return this.host.getCheckpointManager().getCheckpoint(this.partitionId)
     	.thenApply((startingCheckpoint) ->

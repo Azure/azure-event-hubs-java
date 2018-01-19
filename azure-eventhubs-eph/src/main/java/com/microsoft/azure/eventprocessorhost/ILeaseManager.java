@@ -5,7 +5,6 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
