@@ -10,6 +10,7 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import java.util.concurrent.Executor;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -137,7 +138,7 @@ public class EventData implements Serializable {
      * </pre>
      *
      * @param data the actual payload of data in bytes to be Sent to EventHubs.
-     * @see EventHubClient#createFromConnectionString(String)
+     * @see EventHubClient#createFromConnectionString(String, Executor)
      */
     public EventData(byte[] data) {
         this();
@@ -166,7 +167,7 @@ public class EventData implements Serializable {
      * @param data   the byte[] where the payload of the Event to be sent to EventHubs is present
      * @param offset Offset in the byte[] to read from ; inclusive index
      * @param length length of the byte[] to be read, starting from offset
-     * @see EventHubClient#createFromConnectionString(String)
+     * @see EventHubClient#createFromConnectionString(String, Executor)
      */
     public EventData(byte[] data, final int offset, final int length) {
         this();
@@ -193,7 +194,7 @@ public class EventData implements Serializable {
      *  }</pre>
      *
      * @param buffer ByteBuffer which references the payload of the Event to be sent to EventHubs
-     * @see EventHubClient#createFromConnectionString(String)
+     * @see EventHubClient#createFromConnectionString(String, Executor)
      */
     public EventData(ByteBuffer buffer) {
         this();
@@ -222,44 +223,6 @@ public class EventData implements Serializable {
 
     /**
      * Get Actual Payload/Data wrapped by EventData.
-     * This is the underlying array and should be used in conjunction with {@link #getBodyOffset()} and {@link #getBodyLength()}.
-     *
-     * @return byte[] of the actual data <p>null if the body of the AMQP message doesn't have Data section
-     * @deprecated use {@link #getBytes()}
-     */
-    @Deprecated
-    public byte[] getBody() {
-        return this.bodyData == null ? null : this.bodyData.getArray();
-    }
-
-    /**
-     * Get the offset of the current Payload/Data in the byte array returned by {@link #getBody()}.
-     *
-     * @return returns the byte[] of the actual data
-     * @see #getBodyLength()
-     * @see #getBody()
-     * @deprecated use {@link #getBytes()}
-     */
-    @Deprecated
-    public int getBodyOffset() {
-        return this.bodyData == null ? 0 : this.bodyData.getArrayOffset();
-    }
-
-    /**
-     * Get the length of the Actual Payload/Data in the byte array returned by {@link #getBody()}.
-     *
-     * @return returns the byte[] of the actual data
-     * @see #getBody()
-     * @see #getBodyOffset()
-     * @deprecated use {@link #getBytes()}
-     */
-    @Deprecated
-    public int getBodyLength() {
-        return this.bodyData == null ? 0 : this.bodyData.getLength();
-    }
-
-    /**
-     * Get Actual Payload/Data wrapped by EventData.
      *
      * @return byte[] of the actual data
      * <p>null if the body of the message has other inter-operable AMQP messages, whose body does not represent byte[].
@@ -284,17 +247,6 @@ public class EventData implements Serializable {
         }
 
         return this.properties;
-    }
-
-    /**
-     * Set Application Properties
-     *
-     * @param applicationProperties the Application Properties bag
-     * @deprecated use {@link #getProperties()} and add properties to the bag.
-     */
-    @Deprecated
-    public void setProperties(final Map<String, Object> applicationProperties) {
-        this.properties = applicationProperties;
     }
 
     /**
