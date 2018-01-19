@@ -296,7 +296,14 @@ class PartitionPump extends PartitionReceiveHandler
 			}
 			else if (this.eventHubClient != null)
 			{
-				TRACE_LOGGER.error(LoggingUtils.withHostAndPartition(this.host, this.partitionContext, "PartitionReceiver creation failed"), e);
+				if (e instanceof ReceiverDisconnectedException)
+				{
+					TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionContext, "PartitionReceiver disconnected during startup"));
+				}
+				else
+				{
+					TRACE_LOGGER.error(LoggingUtils.withHostAndPartition(this.host, this.partitionContext, "PartitionReceiver creation failed"), e);
+				}
 			}
 			// else if this.eventHubClient is null then we failed in stage 0 and already traced in stage 1
 			
@@ -386,7 +393,7 @@ class PartitionPump extends PartitionReceiveHandler
     	{
             TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionContext, "Closing EH receiver"));
     		PartitionReceiver partitionReceiverTemp = this.partitionReceiver;
-    		this.partitionContext = null;
+    		this.partitionReceiver = null;
     		return partitionReceiverTemp;
     	}, this.host.getExecutorService())
     	.thenComposeAsync((partitionReceiverTemp) -> 

@@ -147,7 +147,8 @@ public class TestBase
 	{
 		if (settings.outHost != null)
 		{
-			settings.outHost.unregisterEventProcessor();
+			settings.outHost.unregisterEventProcessor().get();
+			TestUtilities.log("Host unregistered");
 		}
 		
 		if (expectedMessages != NO_CHECKS)

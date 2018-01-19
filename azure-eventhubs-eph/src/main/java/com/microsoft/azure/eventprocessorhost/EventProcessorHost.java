@@ -493,8 +493,11 @@ public final class EventProcessorHost
         CompletableFuture<Void> result = CompletableFuture.completedFuture(null);
     	if ((this.partitionManager != null) && this.weOwnExecutor)
     	{
-        	result = this.partitionManager.stopPartitions().thenRun(() ->
+        	result = this.partitionManager.stopPartitions().thenRunAsync(() ->
         	{
+        		// IMPORTANT: run this last stage in the default threadpool!
+        		// If a task running in a threadpool waits for that threadpool to terminate, it's going to wait a long time...
+        		
     			// It is OK to call shutdown() here even if threads are still running.
     			// Shutdown() causes the executor to stop accepting new tasks, but existing tasks will
     			// run to completion. The pool will terminate when all existing tasks finish.
@@ -509,7 +512,7 @@ public final class EventProcessorHost
                 {
                 	throw new CompletionException(e);
 				}
-        	});
+        	}, ForkJoinPool.commonPool());
     	}
     	
     	return result;

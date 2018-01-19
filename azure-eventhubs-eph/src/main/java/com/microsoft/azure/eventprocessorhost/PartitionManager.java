@@ -128,7 +128,7 @@ class PartitionManager
     	// Stop the lease scanner.
     	synchronized (this.scanFutureSynchronizer)
     	{
-    		this.scanFuture.cancel(false);
+    		this.scanFuture.cancel(true);
     	}
 
     	// Stop any partition pumps that are running.
@@ -145,9 +145,9 @@ class PartitionManager
     				this.host.getEventProcessorOptions().notifyOfException(this.host.getHostName(), (Exception) notifyWith,
     						EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
 
-    		        TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Partition manager exiting"));
     			}
     		}
+	        TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "Partition manager exiting"));
     	}, this.host.getExecutorService());
     }
     
