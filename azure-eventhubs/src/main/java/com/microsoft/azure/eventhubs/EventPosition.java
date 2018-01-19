@@ -93,19 +93,20 @@ public class EventPosition {
     }
 
     /**
-     * This will return an EventPosition that includes the first event in the Event Hubs partition.
+     * Returns the position for the start of a stream. Provide this position in receiver creation
+     * to start receiving from the first available event in the partition.
      *
-     * @return An {@link EventPosition} with position set to the start of the Event Hubs stream.
+     * @return An {@link EventPosition} set to the start of an Event Hubs stream.
      */
     public static EventPosition fromStartOfStream() {
         return new EventPosition(START_OF_STREAM, null, null, true);
     }
 
     /**
-     * The last event in the Event Hubs partition is not included. The returned EventPosition will
-     * future events that arrive to this EventHubs partition.
+     * Returns the position for the end of a stream. Provide this position in receiver creation
+     * to start receiving from the next available event in the partition after the receiver is created.
      *
-     * @return An {@link EventPosition} with position set to the end of the Event Hubs stream.
+     * @return An {@link EventPosition} set to the end of an Event Hubs stream.
      */
     public static EventPosition fromEndOfStream() {
         return new EventPosition(END_OF_STREAM, null, null, false);
