@@ -70,7 +70,7 @@ public class ReceiveTest extends ApiTestBase
 	@Test()
 	public void testReceiverLatestFilter() throws EventHubException, ExecutionException, InterruptedException
 	{
-		offsetReceiver = ehClient.createReceiverSync(cgName, partitionId, EventPosition.fromEndOfStream(false));
+		offsetReceiver = ehClient.createReceiverSync(cgName, partitionId, EventPosition.fromEndOfStream());
 		Iterable<EventData> events = offsetReceiver.receiveSync(100);
 		Assert.assertTrue(events == null);
 
@@ -144,7 +144,7 @@ public class ReceiveTest extends ApiTestBase
 	@Test()
 	public void testReceivedBodyAndProperties() throws EventHubException
 	{
-		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, EventPosition.fromEndOfStream(false));
+		datetimeReceiver = ehClient.createReceiverSync(cgName, partitionId, EventPosition.fromEndOfStream());
 		datetimeReceiver.setReceiveTimeout(Duration.ofSeconds(5));
 
 	 	Iterable<EventData> drainedEvents =	datetimeReceiver.receiveSync(100);
