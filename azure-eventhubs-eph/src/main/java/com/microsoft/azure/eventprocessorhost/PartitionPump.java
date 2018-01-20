@@ -33,8 +33,8 @@ class PartitionPump extends PartitionReceiveHandler
 	private EventHubClient eventHubClient = null;
 	private PartitionReceiver partitionReceiver = null;
 
-	private CompletableFuture<Void> shutdownTriggerFuture = null;
-	private CompletableFuture<Void> shutdownFinishedFuture = null;
+	final private CompletableFuture<Void> shutdownTriggerFuture;
+	final private CompletableFuture<Void> shutdownFinishedFuture;
 	private CloseReason shutdownReason;
 
     private CompletableFuture<?> internalOperationFuture = null;
@@ -55,6 +55,12 @@ class PartitionPump extends PartitionReceiveHandler
 		this.hostContext = hostContext;
 		this.lease = lease;
 		this.processingSynchronizer = new Object();
+		
+        // Set up the shutdown futures. The shutdown process can be triggered just by completing this.shutdownFuture.
+        this.shutdownTriggerFuture = new CompletableFuture<Void>();
+        this.shutdownFinishedFuture = this.shutdownTriggerFuture.whenCompleteAsync((r,e) -> cancelPendingOperations(), this.hostContext.getExecutor())
+        .thenComposeAsync((empty) -> cleanUpAll(this.shutdownReason), this.hostContext.getExecutor())
+        .thenComposeAsync((empty) -> releaseLeaseOnShutdown(), this.hostContext.getExecutor());
 	}
 	
 	void setLease(Lease newLease)
@@ -74,14 +80,7 @@ class PartitionPump extends PartitionReceiveHandler
     	// Fast, non-blocking actions.
     	setupPartitionContext();
         
-        // Set up the shutdown future. The shutdown process can be triggered just by completing this.shutdownFuture.
-        this.shutdownTriggerFuture = new CompletableFuture<Void>();
-        this.shutdownFinishedFuture = this.shutdownTriggerFuture.whenCompleteAsync((r,e) -> cancelPendingOperations(), this.hostContext.getExecutor())
-        .thenComposeAsync((empty) -> cleanUpAll(this.shutdownReason), this.hostContext.getExecutor())
-        .thenComposeAsync((empty) -> releaseLeaseOnShutdown(), this.hostContext.getExecutor());
-        
         // Do the slow startup stuff asynchronously.
-        // Use thenRun so that startup stages only execute if previous stages succeeded.
         // Use whenComplete to trigger cleanup on exception.
         CompletableFuture.runAsync(() -> openProcessor(), this.hostContext.getExecutor())
         .thenComposeAsync((empty) -> openClientsRetryWrapper(), this.hostContext.getExecutor())

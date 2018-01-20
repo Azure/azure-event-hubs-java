@@ -335,16 +335,6 @@ public final class EventProcessorHost
     void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
     HostContext getHostContext() { return this.hostContext; }
     
-    // All of these accessors are for internal use only.
-    //ScheduledExecutorService getExecutorService() { return this.executorService; }
-    //ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
-    //ILeaseManager getLeaseManager() { return this.leaseManager; }
-    //PartitionManager getPartitionManager() { return this.partitionManager; }
-    //IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
-    //String getEventHubPath() { return this.eventHubPath; }
-    //String getConsumerGroupName() { return this.consumerGroupName; }
-    //EventProcessorOptions getEventProcessorOptions() { return this.processorOptions; }
-    
     /**
      * Returns the existing partition manager options object. Unless you are providing implementations of
      * ILeaseManager and ICheckpointMananger, to change partition manager options, call this method to get
