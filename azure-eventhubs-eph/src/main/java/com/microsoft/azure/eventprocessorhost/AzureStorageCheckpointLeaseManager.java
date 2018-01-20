@@ -388,8 +388,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	}, this.host.getExecutorService());
     }
     
-    @Override
-    public CompletableFuture<Lease> getLease(String partitionId)
+    private CompletableFuture<Lease> getLease(String partitionId)
     {
     	return CompletableFuture.supplyAsync(() ->
     	{
@@ -616,15 +615,14 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
 
     @Override
-    public CompletableFuture<Boolean> releaseLease(Lease lease)
+    public CompletableFuture<Void> releaseLease(Lease lease)
     {
-    	return CompletableFuture.supplyAsync(() ->
+    	return CompletableFuture.runAsync(() ->
     	{
 	    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, lease, "Releasing lease"));
 	    	
 	    	AzureBlobLease inLease = (AzureBlobLease)lease;
 	    	CloudBlockBlob leaseBlob = inLease.getBlob();
-	    	boolean retval = true;
 	    	try
 	    	{
 	    		String leaseId = lease.getToken();
@@ -638,7 +636,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 	    	{
 	    		if (wasLeaseLost(se, lease.getPartitionId()))
 	    		{
-	    			retval = false;
+	    			// If the lease was already lost, then the intent of releasing it has been achieved.
 	    		}
 	    		else
 	    		{
@@ -649,8 +647,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 	    	{
 	    		throw LoggingUtils.wrapException(ie, EventProcessorHostActionStrings.RELEASING_LEASE);
 	    	}
-	    	
-	    	return retval;
     	}, this.host.getExecutorService());
     }
 

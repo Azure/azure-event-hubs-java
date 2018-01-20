@@ -60,16 +60,6 @@ public interface ILeaseManager
      * @return true if the lease store was deleted successfully, false if not
      */
     public CompletableFuture<Boolean> deleteLeaseStore();
-
-    /**
-     * Return the lease info for the specified partition. Can return null if no lease has been
-     * created in the store for the specified partition.
-     * 
-     * @param partitionId  id of partition to get lease for
-     * @return lease info for the partition, or null
-     * @throws ExceptionWithAction with action EventProcessorHostActionStrings.GETTING_LEASE on error
-     */
-    public CompletableFuture<Lease> getLease(String partitionId);
     
     /**
      * Return the lease info for all partitions.
@@ -132,10 +122,9 @@ public interface ILeaseManager
      * If the lease has expired or been taken by another host, releasing it is unnecessary, and will fail if attempted.
      * 
      * @param lease  Lease to be given up
-     * @return  true if the lease was released, false if the lease could not be released
-     * @throws ExceptionWithAction with action EventProcessorHostActionString.RELEASING_LEASE on error
+     * @return CompletableFuture  
      */
-    public CompletableFuture<Boolean> releaseLease(Lease lease);
+    public CompletableFuture<Void> releaseLease(Lease lease);
 
     /**
      * Update the store with the information in the provided lease.

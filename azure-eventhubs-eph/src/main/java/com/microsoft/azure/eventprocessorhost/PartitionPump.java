@@ -464,17 +464,13 @@ class PartitionPump extends PartitionReceiveHandler
 	        // Since this pump is dead, release the lease. Don't care about any errors that may occur. Worst case is
         	// that the lease eventually expires, since the lease renewer has been cancelled.
         	result = PartitionPump.this.host.getLeaseManager().releaseLease(this.partitionContext.getLease())
-        	.handleAsync((success, e) ->
+        	.handleAsync((empty, e) ->
         	{
         		if (e != null)
     	        {
     	        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionContext,
     	        			"Failure releasing lease on pump shutdown"), LoggingUtils.unwrapException(e, null));
     			}
-        		else if (!success)
-        		{
-        			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionContext, "releaseLease() returned false on pump shutdown"));
-        		}
         		return null; // stop propagation of exceptions
         	}, this.host.getExecutorService());
         }

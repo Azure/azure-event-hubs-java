@@ -454,14 +454,14 @@ public class PartitionManagerTest
 		}
 
 		@Override
-	    CompletableFuture<String[]> getPartitionIds()
+	    CompletableFuture<Void> cachePartitionIds()
 	    {
 			this.partitionIds = new String[this.partitionCount];
 			for (int i = 0; i < this.partitionCount; i++)
 			{
 				this.partitionIds[i] = String.valueOf(i);
 			}
-			return CompletableFuture.completedFuture(this.partitionIds);
+			return CompletableFuture.completedFuture(null);
 	    }
 	    
 		@Override

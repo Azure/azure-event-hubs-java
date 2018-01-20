@@ -5,13 +5,39 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.time.Instant;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 public class SmokeTest extends TestBase
 {
+	@Test
+	public void blah()
+	{
+		CompletableFuture<Void> cf1 = CompletableFuture.runAsync(() -> { throw new CompletionException(new Exception("first stage")); }, ForkJoinPool.commonPool());
+		CompletableFuture<Void> cf2 = cf1.thenAcceptAsync((unused) -> { TestUtilities.log("second stage"); }, ForkJoinPool.commonPool());
+		CompletableFuture<Void> cf3 = cf2.handleAsync((empty, e) ->
+		{
+			TestUtilities.log("third stage");
+			TestUtilities.log("e is " + e.toString());
+			return null;
+		}, ForkJoinPool.commonPool());
+		try
+		{
+			cf3.get();
+		}
+		catch (InterruptedException | ExecutionException e1)
+		{
+			TestUtilities.log("cf3.get() failed with " + e1.toString());
+		}
+	}
+	
+	
 	@Test
 	public void SendRecv1MsgTest() throws Exception
 	{
@@ -185,6 +211,7 @@ public class SmokeTest extends TestBase
 		testFinish(settings, (settings.outPartitionIds.size() * (maxGeneration + 1))); // +1 for the telltales
 	}
 	
+	/*
 	@Test
 	public void receiveAllPartitionsWithUserExecutorTest() throws Exception
 	{
@@ -217,4 +244,5 @@ public class SmokeTest extends TestBase
 		
 		testFinish(settings, (settings.outPartitionIds.size() * (maxGeneration + 1))); // +1 for the telltales
 	}
+	*/
 }

@@ -31,7 +31,7 @@ class PartitionManager
 	// Protected instead of private for testability
     protected final EventProcessorHost host;
     protected Pump pump;
-    protected String partitionIds[] = null;
+    protected volatile String partitionIds[] = null;
     
     final private Object scanFutureSynchronizer = new Object(); 
     private ScheduledFuture<?> scanFuture = null;
@@ -43,13 +43,13 @@ class PartitionManager
         this.host = host;
     }
     
-    CompletableFuture<String[]> getPartitionIds()
+    CompletableFuture<Void> cachePartitionIds()
     {
-    	CompletableFuture<String[]> retval = null;
+    	CompletableFuture<Void> retval = null;
     	
     	if (this.partitionIds != null)
     	{
-    		retval = CompletableFuture.completedFuture(this.partitionIds);
+    		retval = CompletableFuture.completedFuture(null);
     	}
     	else
         {
@@ -63,7 +63,7 @@ class PartitionManager
 				// Stage 1: use the client to get runtime info for the event hub 
 				.thenComposeAsync((ehClient) -> ehClient.getRuntimeInformation(), this.host.getExecutorService())
 				// Stage 2: extract the partition ids from the runtime info or throw on null (timeout)
-				.thenAccept((EventHubRuntimeInformation ehInfo) ->
+				.thenAcceptAsync((EventHubRuntimeInformation ehInfo) ->
 				{
 					if (ehInfo != null)
 					{
@@ -80,10 +80,9 @@ class PartitionManager
 					{
 						throw new CompletionException(new TimeoutException("getRuntimeInformation returned null"));
 					}
-				})
+				}, this.host.getExecutorService())
 				// Stage 3: RUN REGARDLESS OF EXCEPTIONS -- if there was an error, wrap it in IllegalEntityException and throw
-				// Otherwise pass the partition ids along.
-				.handleAsync((empty, e) ->
+				.whenCompleteAsync((empty, e) ->
 				{
 					if (e != null)
 					{
@@ -94,12 +93,11 @@ class PartitionManager
 						}
 						throw new CompletionException(new IllegalEntityException("Failure getting partition ids for event hub", notifyWith));
 					}
-					return this.partitionIds;
-				});
+				}, this.host.getExecutorService());
 			}
     		catch (EventHubException | IOException e)
     		{
-    			retval = new CompletableFuture<String[]>();
+    			retval = new CompletableFuture<Void>();
     			retval.completeExceptionally(new IllegalEntityException("Failure getting partition ids for event hub", e));
 			}
         }
@@ -156,7 +154,7 @@ class PartitionManager
     	this.pump = createPumpTestHook();
     	
     	// Stage 0: get partition ids and cache
-    	return getPartitionIds()
+    	return cachePartitionIds()
     	// Stage 1: initialize stores, if stage 0 succeeded
     	.thenComposeAsync((unused) -> initializeStores(), this.host.getExecutorService())
     	// Stage 2: RUN REGARDLESS OF EXCEPTIONS -- trace errors
@@ -196,85 +194,56 @@ class PartitionManager
         ILeaseManager leaseManager = this.host.getLeaseManager();
         ICheckpointManager checkpointManager = this.host.getCheckpointManager();
         
-        // Stage 0: does lease store exist?
-        CompletableFuture<?> initializeStoresFuture = leaseManager.leaseStoreExists()
-        // Stage 1: create lease store if it doesn't exist
-        .thenComposeAsync((exists) ->
-        {
-        	CompletableFuture<?> createLeaseStoreFuture = null;
-        	if (!exists)
-        	{
-        		createLeaseStoreFuture = retryWrapper(() -> leaseManager.createLeaseStoreIfNotExists(), null,
-        				"Failure creating lease store for this Event Hub, retrying",
-						"Out of retries creating lease store for this Event Hub", EventProcessorHostActionStrings.CREATING_LEASE_STORE, 5);
-        	}
-        	else
-        	{
-        		createLeaseStoreFuture = CompletableFuture.completedFuture(null);
-        	}
-        	return createLeaseStoreFuture;
-        }, this.host.getExecutorService())
-        // Stage 2: does checkpoint store exist?
-        .thenComposeAsync((unused) -> checkpointManager.checkpointStoreExists(), this.host.getExecutorService())
-        // Stage 3: create checkpoint store if it doesn't exist
-        .thenComposeAsync((exists) ->
-        {
-        	CompletableFuture<?> createCheckpointStoreFuture = null;
-        	if (!exists)
-        	{
-        		createCheckpointStoreFuture = retryWrapper(() -> checkpointManager.createCheckpointStoreIfNotExists(), null,
-        				"Failure creating checkpoint store for this Event Hub, retrying",
-            			"Out of retries creating checkpoint store for this Event Hub", EventProcessorHostActionStrings.CREATING_CHECKPOINT_STORE, 5);
-        	}
-        	else
-        	{
-        		createCheckpointStoreFuture = CompletableFuture.completedFuture(null);
-        	}
-        	return createCheckpointStoreFuture;
-        }, this.host.getExecutorService());
+        // Stages 0 to N: create lease store if it doesn't exist
+        CompletableFuture<?> initializeStoresFuture = buildRetries(CompletableFuture.completedFuture(null),
+        		() -> leaseManager.createLeaseStoreIfNotExists(), null, "Failure creating lease store for this Event Hub, retrying",
+				"Out of retries creating lease store for this Event Hub", EventProcessorHostActionStrings.CREATING_LEASE_STORE, 5);
         
-        // Stages 4-n: by now, either the stores exist (stages 0-3 succeeded) or one of them completed exceptionally and
+        // Stages N+1 to M: create checkpoint store if it doesn't exist
+        initializeStoresFuture = buildRetries(initializeStoresFuture, () -> checkpointManager.createCheckpointStoreIfNotExists(), null,
+				"Failure creating checkpoint store for this Event Hub, retrying", "Out of retries creating checkpoint store for this Event Hub",
+				EventProcessorHostActionStrings.CREATING_CHECKPOINT_STORE, 5);
+        
+        // Stages M to whatever: by now, either the stores exist or one of them completed exceptionally and
         // all these stages will be skipped
         for (String id : this.partitionIds)
         {
         	final String iterationId = id;
-        	initializeStoresFuture = initializeStoresFuture
-        	// Stage X: create lease for partition <iterationId>
-        	.thenComposeAsync((unused) ->
-        	{
-        		return retryWrapper(() -> leaseManager.createLeaseIfNotExists(iterationId), iterationId, "Failure creating lease for partition, retrying",
-					"Out of retries creating lease for partition", EventProcessorHostActionStrings.CREATING_LEASE, 5);
-        	}, this.host.getExecutorService())
-        	// Stage X+1: create checkpoint holder for partition <iterationId>
-        	.thenComposeAsync((unused) ->
-        	{
-        		return retryWrapper(() -> checkpointManager.createCheckpointIfNotExists(iterationId), iterationId, "Failure creating checkpoint for partition, retrying",
-            			"Out of retries creating checkpoint blob for partition", EventProcessorHostActionStrings.CREATING_CHECKPOINT, 5);
-        	}, this.host.getExecutorService());
+        	// Stages X to X+N: create lease for partition <iterationId>
+        	initializeStoresFuture = buildRetries(initializeStoresFuture, () -> leaseManager.createLeaseIfNotExists(iterationId), iterationId,
+        			"Failure creating lease for partition, retrying", "Out of retries creating lease for partition", EventProcessorHostActionStrings.CREATING_LEASE, 5);
+        	// Stages X+N+1 to X+N+M: create checkpoint holder for partition <iterationId>
+        	initializeStoresFuture = buildRetries(initializeStoresFuture, () -> checkpointManager.createCheckpointIfNotExists(iterationId), iterationId,
+        			"Failure creating checkpoint for partition, retrying", "Out of retries creating checkpoint blob for partition",
+        			EventProcessorHostActionStrings.CREATING_CHECKPOINT, 5);
         }
 
         return initializeStoresFuture;
     }
     
     // CompletableFuture will be completed exceptionally if it runs out of retries.
-    private CompletableFuture<?> retryWrapper(Callable<CompletableFuture<?>> lambda, String partitionId, String retryMessage, String finalFailureMessage, String action, int maxRetries)
+    // If the lambda succeeds, then it will not be invoked again by following stages.
+    private CompletableFuture<?> buildRetries(CompletableFuture<?> buildOnto, Callable<CompletableFuture<?>> lambda, String partitionId, String retryMessage,
+    		String finalFailureMessage, String action, int maxRetries)
     {
-    	CompletableFuture<?> retryResult = null;
-    	
     	// Stage 0: first attempt
-    	try
+    	CompletableFuture<?> retryChain = buildOnto.thenComposeAsync((unused) ->
     	{
-    		retryResult = lambda.call();
-    	}
-    	catch (Exception e)
-    	{
-    		retryResult = new CompletableFuture<Void>();
-    		retryResult.completeExceptionally(e);
-    	}
+    		CompletableFuture<?> newresult = CompletableFuture.completedFuture(null);
+    		try
+    		{
+				newresult = lambda.call();
+			}
+    		catch (Exception e1)
+    		{
+    			throw new CompletionException(e1);
+			}
+    		return newresult;
+    	}, this.host.getExecutorService());
     	
     	for (int i = 1; i < maxRetries; i++)
     	{
-    		retryResult = retryResult
+    		retryChain = retryChain
     		// Stages 1, 3, 5, etc: trace errors but stop exception propagation in order to keep going
     		// Either return null if we don't have a valid result, or pass the result along to the next stage.
     		.handleAsync((r,e) ->
@@ -293,7 +262,7 @@ class PartitionManager
     			return (e == null) ? r : null; // stop propagation of exceptions
     		}, this.host.getExecutorService())
     		// Stages 2, 4, 6, etc: if we already have a valid result, pass it along. Otherwise, make another attempt.
-    		// Once we have a valid result there will be no more exceptions.
+    		// Once we have a valid result there will be no more attempts or exceptions.
     		.thenComposeAsync((oldresult) ->
     		{
     			CompletableFuture<?> newresult = CompletableFuture.completedFuture(oldresult);
@@ -312,7 +281,7 @@ class PartitionManager
     		}, this.host.getExecutorService());
     	}
     	// Stage final: trace the exception with the final message, or pass along the valid result.
-    	retryResult = retryResult.handleAsync((r,e) ->
+    	retryChain = retryChain.handleAsync((r,e) ->
     	{
     		if (e != null)
     		{
@@ -329,7 +298,7 @@ class PartitionManager
     		return (e == null) ? r : null;
     	}, this.host.getExecutorService());
     	
-    	return retryResult;
+    	return retryChain;
     }
     
     private class LeaseContext

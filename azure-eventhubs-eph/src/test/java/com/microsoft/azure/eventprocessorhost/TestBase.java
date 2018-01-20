@@ -264,15 +264,14 @@ public class TestBase
 		}
 
 		@Override
-		public CompletableFuture<Lease> getLease(String partitionId)
-		{
-			return CompletableFuture.completedFuture(null);
-		}
-
-		@Override
 		public ArrayList<CompletableFuture<Lease>> getAllLeases(String[] partitionIds)
 		{
-			return null;
+			ArrayList<CompletableFuture<Lease>> retval = new ArrayList<CompletableFuture<Lease>>();
+			for (String id : partitionIds)
+			{
+				retval.add(CompletableFuture.completedFuture(null));
+			}
+			return retval;
 		}
 
 		@Override
@@ -300,9 +299,9 @@ public class TestBase
 		}
 
 		@Override
-		public CompletableFuture<Boolean> releaseLease(Lease lease)
+		public CompletableFuture<Void> releaseLease(Lease lease)
 		{
-			return CompletableFuture.completedFuture(true);
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override

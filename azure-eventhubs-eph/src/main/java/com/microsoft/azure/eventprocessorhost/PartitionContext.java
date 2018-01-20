@@ -98,7 +98,6 @@ public class PartitionContext
     // Returns a String (offset) or Instant (timestamp).
     CompletableFuture<Object> getInitialOffset()
     {
-    	TRACE_LOGGER.info(LoggingUtils.threadPoolStatusReport(this.host.getHostName(), this.host.getExecutorService()));
     	return this.host.getCheckpointManager().getCheckpoint(this.partitionId)
     	.thenApply((startingCheckpoint) ->
     	{

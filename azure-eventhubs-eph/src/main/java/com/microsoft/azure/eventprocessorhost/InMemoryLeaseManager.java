@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 
@@ -87,36 +88,17 @@ public class InMemoryLeaseManager implements ILeaseManager
     	InMemoryLeaseStore.singleton.deleteMap();
     	return CompletableFuture.completedFuture(true);
     }
-    
-    @Override
-    public CompletableFuture<Lease> getLease(String partitionId)
-    {
-    	InMemoryLease returnLease = null;
-    	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(partitionId);
-        if (leaseInStore == null)
-        {
-        	TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, partitionId, "getLease() no existing lease"));
-        	returnLease = null;
-        }
-        else
-        {
-        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId, "getLease() found"));
-        	returnLease = new InMemoryLease(leaseInStore);
-        }
-        return CompletableFuture.completedFuture(returnLease);
-    }
 
     @Override
     public List<CompletableFuture<Lease>> getAllLeases(String[] partitionIds)
     {
     	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "getAllLeases()"));
         ArrayList<CompletableFuture<Lease>> leases = new ArrayList<CompletableFuture<Lease>>();
-
+        
         for (String id : partitionIds)
         {
-        	// getLease() is a fast, nonblocking action in this implementation.
-        	// No need to actually be async, just fill the array with already-completed futures.
-            leases.add(getLease(id));
+        	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(id);
+        	leases.add(CompletableFuture.completedFuture((leaseInStore != null) ? new InMemoryLease(leaseInStore) : null));
         }
         
         return leases;
@@ -257,13 +239,14 @@ public class InMemoryLeaseManager implements ILeaseManager
     }
 
     @Override
-    public CompletableFuture<Boolean> releaseLease(Lease lease)
+    public CompletableFuture<Void> releaseLease(Lease lease)
     {
     	InMemoryLease leaseToRelease = (InMemoryLease)lease;
     	
+    	CompletableFuture<Void> retval = CompletableFuture.completedFuture(null);
+    	
     	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, leaseToRelease, "releaseLease()"));
     	
-    	boolean retval = true;
     	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(leaseToRelease.getPartitionId());
     	if (leaseInStore != null)
     	{
@@ -278,17 +261,16 @@ public class InMemoryLeaseManager implements ILeaseManager
     		}
     		else
     		{
-	    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, leaseToRelease,
-                        "releaseLease() not released because we don't own lease"));
-    			retval = false;
+    			// Lease was lost, intent achieved.
     		}
     	}
     	else
     	{
-    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, leaseToRelease, "releaseLease() can't find lease"));
-    		retval = false;
+    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, leaseToRelease, "releaseLease() can't find lease in store"));
+    		retval = new CompletableFuture<Void>();
+    		retval.completeExceptionally(new CompletionException(new RuntimeException("releaseLease can't find lease in store for " + leaseToRelease.getPartitionId())));
     	}
-    	return CompletableFuture.completedFuture(retval);
+    	return retval;
     }
 
     @Override

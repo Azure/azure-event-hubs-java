@@ -33,7 +33,7 @@ class Pump
     	if (capturedPump == null)
     	{
     		// No existing pump, create a new one.
-    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(Pump.this.host, lease, "creating new pump"));
+    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, lease, "creating new pump"));
     		PartitionPump newPartitionPump = createNewPump(lease);
     		this.pumpStates.put(lease.getPartitionId(), newPartitionPump);
     		
