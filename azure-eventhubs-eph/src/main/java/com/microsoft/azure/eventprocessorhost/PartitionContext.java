@@ -17,10 +17,8 @@ import org.slf4j.LoggerFactory;
 
 public class PartitionContext
 {
-    private final EventProcessorHost host;
+    private final HostContext hostContext;
     private final String partitionId;
-    private final String eventHubPath;
-    private final String consumerGroupName;
     
     private Lease lease;
     private String offset = PartitionReceiver.START_OF_STREAM;
@@ -29,24 +27,22 @@ public class PartitionContext
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionContext.class);
     
-    PartitionContext(EventProcessorHost host, String partitionId, String eventHubPath, String consumerGroupName)
+    PartitionContext(HostContext hostContext, String partitionId)
     {
-        this.host = host;
+        this.hostContext = hostContext;
         this.partitionId = partitionId;
-        this.eventHubPath = eventHubPath;
-        this.consumerGroupName = consumerGroupName;
 
         this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
     }
 
     public String getConsumerGroupName()
     {
-        return this.consumerGroupName;
+        return this.hostContext.getConsumerGroupName();
     }
 
     public String getEventHubPath()
     {
-        return this.eventHubPath;
+        return this.hostContext.getEventHubPath();
     }
     
     public String getOwner()
@@ -84,7 +80,7 @@ public class PartitionContext
 		}
 		else
 		{
-			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionId,
+			TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionId,
                     "setOffsetAndSequenceNumber(" + event.getSystemProperties().getOffset() + "//" +
 					event.getSystemProperties().getSequenceNumber() + ") would move backwards, ignoring"));
 		}
@@ -98,7 +94,7 @@ public class PartitionContext
     // Returns a String (offset) or Instant (timestamp).
     CompletableFuture<Object> getInitialOffset()
     {
-    	return this.host.getCheckpointManager().getCheckpoint(this.partitionId)
+    	return this.hostContext.getCheckpointManager().getCheckpoint(this.partitionId)
     	.thenApply((startingCheckpoint) ->
     	{
     		return checkpointToOffset(startingCheckpoint);
@@ -111,22 +107,19 @@ public class PartitionContext
     	if (startingCheckpoint == null)
     	{
     		// No checkpoint was ever stored. Use the initialOffsetProvider instead.
-        	Function<String, Object> initialOffsetProvider = this.host.getEventProcessorOptions().getInitialOffsetProvider();
-    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionId,
-                    "Calling user-provided initial offset provider"));
+        	Function<String, Object> initialOffsetProvider = this.hostContext.getEventProcessorOptions().getInitialOffsetProvider();
+    		TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionId, "Calling user-provided initial offset provider"));
     		startAt = initialOffsetProvider.apply(this.partitionId);
     		if (startAt instanceof String)
     		{
     			this.offset = (String)startAt;
         		this.sequenceNumber = 0; // TODO we use sequenceNumber to check for regression of offset, 0 could be a problem until it gets updated from an event
-    	    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionId,
-                        "Initial offset provided: " + this.offset + "//" + this.sequenceNumber));
+    	    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionId, "Initial offset provided: " + this.offset + "//" + this.sequenceNumber));
     		}
     		else if (startAt instanceof Instant)
     		{
     			// can't set offset/sequenceNumber
-    	    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionId,
-                        "Initial timestamp provided: " + (Instant)startAt));
+    	    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionId, "Initial timestamp provided: " + (Instant)startAt));
     		}
     		else
     		{
@@ -139,8 +132,7 @@ public class PartitionContext
 	    	this.offset = startingCheckpoint.getOffset();
 	    	startAt = this.offset;
 	    	this.sequenceNumber = startingCheckpoint.getSequenceNumber();
-	    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, this.partitionId,
-                    "Retrieved starting offset " + this.offset + "//" + this.sequenceNumber));
+	    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionId, "Retrieved starting offset " + this.offset + "//" + this.sequenceNumber));
     	}
     	
     	return startAt;
@@ -173,9 +165,9 @@ public class PartitionContext
     
     private CompletableFuture<Void> persistCheckpoint(Checkpoint persistThis)
     {
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, persistThis.getPartitionId(),
+    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(persistThis.getPartitionId(),
                 "Saving checkpoint: " + persistThis.getOffset() + "//" + persistThis.getSequenceNumber()));
 		
-        return this.host.getCheckpointManager().updateCheckpoint(this.lease, persistThis);
+        return this.hostContext.getCheckpointManager().updateCheckpoint(this.lease, persistThis);
     }
 }

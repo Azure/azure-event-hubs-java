@@ -64,7 +64,8 @@ public class Repros extends TestBase
 		{
 			utils.sendToAny("conflict-" + i++, 10);
 			System.out.println("\n." + factory1.getEventsReceivedCount() + "." + factory2.getEventsReceivedCount() + ":" +
-					((ThreadPoolExecutor)host1.getExecutorService()).getPoolSize() + "." + ((ThreadPoolExecutor)host2.getExecutorService()).getPoolSize() + ":" +
+					((ThreadPoolExecutor)host1.getHostContext().getExecutor()).getPoolSize() + "." +
+					((ThreadPoolExecutor)host2.getHostContext().getExecutor()).getPoolSize() + ":" +
 					Thread.activeCount());
 			Thread.sleep(100);
 		}
@@ -85,8 +86,8 @@ public class Repros extends TestBase
 		EventProcessorHost host = new EventProcessorHost("infiniteReceive-1", utils.getConnectionString().getEntityPath(),
 				utils.getConsumerGroup(), utils.getConnectionString().toString(),
 				checkpointer, leaser);
-		checkpointer.initialize(host);
-		leaser.initialize(host);
+		checkpointer.initialize(host.getHostContext());
+		leaser.initialize(host.getHostContext());
 		
 		EventProcessorOptions opts = EventProcessorOptions.getDefaultOptions();
 		opts.setExceptionNotification(genErr);

@@ -7,7 +7,6 @@ package com.microsoft.azure.eventprocessorhost;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -287,12 +286,12 @@ public class CheckpointManagerTest
     	{
     		if (!useAzureStorage)
     		{
-    			((InMemoryLeaseManager)leaseMgr).initialize(host);
-    			((InMemoryCheckpointManager)checkpointMgr).initialize(host);
+    			((InMemoryLeaseManager)leaseMgr).initialize(host.getHostContext());
+    			((InMemoryCheckpointManager)checkpointMgr).initialize(host.getHostContext());
     		}
     		else
     		{
-    			((AzureStorageCheckpointLeaseManager)checkpointMgr).initialize(host);
+    			((AzureStorageCheckpointLeaseManager)checkpointMgr).initialize(host.getHostContext());
     		}
 		}
     	catch (Exception e)

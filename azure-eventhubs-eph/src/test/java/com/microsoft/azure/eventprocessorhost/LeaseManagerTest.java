@@ -295,12 +295,12 @@ public class LeaseManagerTest
     	{
     		if (!useAzureStorage)
     		{
-    			((InMemoryLeaseManager)leaseMgr).initialize(host);
-    			((InMemoryCheckpointManager)checkpointMgr).initialize(host);
+    			((InMemoryLeaseManager)leaseMgr).initialize( host.getHostContext());
+    			((InMemoryCheckpointManager)checkpointMgr).initialize(host.getHostContext());
     		}
     		else
     		{
-    			((AzureStorageCheckpointLeaseManager)leaseMgr).initialize(host);
+    			((AzureStorageCheckpointLeaseManager)leaseMgr).initialize(host.getHostContext());
     		}
 		}
     	catch (Exception e)

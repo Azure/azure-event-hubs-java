@@ -262,7 +262,7 @@ public class PartitionManagerTest
 		{
 			StringBuilder blah = new StringBuilder();
 			blah.append("\tHost ");
-			blah.append(this.hosts[i].getHostName());
+			blah.append(this.hosts[i].getHostContext().getHostName());
 			blah.append(" has ");
 			countsPerHost[i] = 0;
 			for (String id : this.partitionManagers[i].getOwnedPartitions())
@@ -359,15 +359,15 @@ public class PartitionManagerTest
 			this.hosts[i] = new EventProcessorHost("dummyHost" + String.valueOf(i), "NOTREAL", EventHubClient.DEFAULT_CONSUMER_GROUP_NAME,
 					TestUtilities.syntacticallyCorrectDummyConnectionString, cm, lm);
 
-			lm.initialize(this.hosts[i]);
+			lm.initialize(this.hosts[i].getHostContext());
 			this.leaseManagers[i] = lm;
-			cm.initialize(this.hosts[i]);
+			cm.initialize(this.hosts[i].getHostContext());
 			this.checkpointManagers[i] = cm;
 			this.running[i] = false;
 			
-			this.partitionManagers[i] = new TestPartitionManager(this.hosts[i], partitionCount);
+			this.partitionManagers[i] = new TestPartitionManager(this.hosts[i].getHostContext(), partitionCount);
 			this.hosts[i].setPartitionManager(this.partitionManagers[i]);
-			this.hosts[i].setEventProcessorOptions(EventProcessorOptions.getDefaultOptions());
+			this.hosts[i].getHostContext().setEventProcessorOptions(EventProcessorOptions.getDefaultOptions());
 			// Quick lease expiration helps with some tests. Because we're using InMemoryLeaseManager, don't
 			// have to worry about storage latency, all lease operations are guaranteed to be fast.
 			PartitionManagerOptions opts = new PartitionManagerOptions();
@@ -432,9 +432,9 @@ public class PartitionManagerTest
 	{
 		private int partitionCount;
 		
-		TestPartitionManager(EventProcessorHost host, int partitionCount)
+		TestPartitionManager(HostContext hostContext, int partitionCount)
 		{
-			super(host);
+			super(hostContext);
 			this.partitionCount = partitionCount;
 		}
 		
@@ -467,13 +467,13 @@ public class PartitionManagerTest
 		@Override
 	    Pump createPumpTestHook()
 	    {
-			return new DummyPump(this.host);
+			return new DummyPump(this.hostContext);
 	    }
 		
 		@Override
 		void onInitializeCompleteTestHook()
 		{
-			TestUtilities.log("PartitionManager for host " + this.host.getHostName() + " initialized stores OK");
+			TestUtilities.log("PartitionManager for host " + this.hostContext.getHostName() + " initialized stores OK");
 		}
 		
 		@Override

@@ -14,15 +14,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 class Pump
 {
-    protected final EventProcessorHost host; // protected for testability
+    protected final HostContext hostContext;
 
     protected ConcurrentHashMap<String, PartitionPump> pumpStates; // protected for testability
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(Pump.class);
     
-    public Pump(EventProcessorHost host)
+    public Pump(HostContext hostContext)
     {
-        this.host = host;
+        this.hostContext = hostContext;
 
         this.pumpStates = new ConcurrentHashMap<String, PartitionPump>();
     }
@@ -33,7 +33,7 @@ class Pump
     	if (capturedPump == null)
     	{
     		// No existing pump, create a new one.
-    		TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, lease, "creating new pump"));
+    		TRACE_LOGGER.info(this.hostContext.withHostAndPartition(lease, "creating new pump"));
     		PartitionPump newPartitionPump = createNewPump(lease);
     		this.pumpStates.put(lease.getPartitionId(), newPartitionPump);
     		
@@ -46,7 +46,7 @@ class Pump
     	else
     	{
     		// There already is a pump. Shouldn't get here but do something sane if it happens -- just replace the lease.
-			TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, lease, "updating lease for pump"));
+			TRACE_LOGGER.info(this.hostContext.withHostAndPartition(lease, "updating lease for pump"));
 			capturedPump.setLease(lease);
     	}
     }
@@ -54,7 +54,7 @@ class Pump
     // Separated out so that tests can override and substitute their own pump class.
     protected PartitionPump createNewPump(Lease lease)
     {
-    	return new PartitionPump(this.host, lease);
+    	return new PartitionPump(this.hostContext, lease);
     }
     
     public CompletableFuture<Void> removePump(String partitionId, final CloseReason reason)
@@ -63,14 +63,14 @@ class Pump
     	PartitionPump capturedPump = this.pumpStates.get(partitionId); // CONCURRENTHASHTABLE
     	if (capturedPump != null)
     	{
-            TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId,
+            TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId,
                     "closing pump for reason " + reason.toString()));
             retval = capturedPump.shutdown(reason);
     	}
     	else
     	{
     		// Shouldn't get here but not really harmful, so just trace.
-    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, partitionId,
+    		TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(partitionId,
                     "no pump found to remove for partition " + partitionId));
     	}
     	return retval;

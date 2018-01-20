@@ -18,24 +18,17 @@ import org.slf4j.LoggerFactory;
 
 public final class EventProcessorHost
 {
-    private final String hostName;
-    private final String eventHubPath;
-    private final String consumerGroupName;
-    private String eventHubConnectionString;
-
-    private final ICheckpointManager checkpointManager;
-    private final ILeaseManager leaseManager;
     private boolean initializeLeaseManager = false;
     private boolean unregistered = false;
     private PartitionManager partitionManager;
-    private IEventProcessorFactory<?> processorFactory = null;
-    private EventProcessorOptions processorOptions;
     private PartitionManagerOptions partitionManagerOptions = null;
 
     // weOwnExecutor exists to support user-supplied thread pools.
     private final ScheduledExecutorService executorService;
     private final boolean weOwnExecutor;
     private final int executorServicePoolSize = 32;
+    
+    private final HostContext hostContext;
     
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(EventProcessorHost.class);
 
@@ -243,13 +236,13 @@ public final class EventProcessorHost
     	// If it appears in both, then it must be the same in both. If it appears in only one, populate the other.
     	ConnectionStringBuilder providedCSB = new ConnectionStringBuilder(eventHubConnectionString); 
     	String extractedEntityPath = providedCSB.getEntityPath();
-        this.eventHubConnectionString = eventHubConnectionString;
-    	if ((eventHubPath != null) && !eventHubPath.isEmpty())
+    	String effectiveEventHubPath = eventHubPath;
+        String effectiveEventHubConnectionString = eventHubConnectionString;
+    	if ((effectiveEventHubPath != null) && !effectiveEventHubPath.isEmpty())
     	{
-    		this.eventHubPath = eventHubPath;
     		if (extractedEntityPath != null)
    			{
-    			if (eventHubPath.compareTo(extractedEntityPath) != 0)
+    			if (effectiveEventHubPath.compareTo(extractedEntityPath) != 0)
 	    		{
 	    			throw new IllegalArgumentException("Provided EventHub path in eventHubPath parameter conflicts with the path in provided EventHub connection string");
 	    		}
@@ -258,18 +251,18 @@ public final class EventProcessorHost
     		else
     		{
     			// There is no entity path in the connection string, so put it there.
-    			ConnectionStringBuilder rebuildCSB = new ConnectionStringBuilder(providedCSB.getEndpoint(), this.eventHubPath,
+    			ConnectionStringBuilder rebuildCSB = new ConnectionStringBuilder(providedCSB.getEndpoint(), effectiveEventHubPath,
     					providedCSB.getSasKeyName(), providedCSB.getSasKey());
     			rebuildCSB.setOperationTimeout(providedCSB.getOperationTimeout());
     			rebuildCSB.setRetryPolicy(providedCSB.getRetryPolicy());
-    			this.eventHubConnectionString = rebuildCSB.toString();
+    			effectiveEventHubConnectionString = rebuildCSB.toString();
     		}
     	}
     	else
     	{
     		if ((extractedEntityPath != null) && !extractedEntityPath.isEmpty())
     		{
-    			this.eventHubPath = extractedEntityPath;
+    			effectiveEventHubPath = extractedEntityPath;
     		}
     		else
     		{
@@ -295,11 +288,6 @@ public final class EventProcessorHost
     		this.partitionManagerOptions = new PartitionManagerOptions();
     	}
     	
-        this.hostName = hostName;
-        this.consumerGroupName = consumerGroupName;
-        this.checkpointManager = checkpointManager;
-        this.leaseManager = leaseManager;
-
         if (executorService != null)
         {
             // User has supplied an ExecutorService, so use that.
@@ -311,11 +299,16 @@ public final class EventProcessorHost
             this.weOwnExecutor = true;
             this.executorService = Executors.newScheduledThreadPool(this.executorServicePoolSize);
         }
-        TRACE_LOGGER.info(LoggingUtils.threadPoolStatusReport(this.hostName, this.executorService));
+        TRACE_LOGGER.info(LoggingUtils.threadPoolStatusReport(hostName, this.executorService));
         
-        this.partitionManager = new PartitionManager(this);
+        this.hostContext = new HostContext(this.executorService,
+        		this, hostName,
+        		effectiveEventHubPath, consumerGroupName, effectiveEventHubConnectionString,
+        		leaseManager, checkpointManager);
+        
+        this.partitionManager = new PartitionManager(hostContext);
 
-        TRACE_LOGGER.info(LoggingUtils.withHost(this, "New EventProcessorHost created."));
+        TRACE_LOGGER.info(this.hostContext.withHost("New EventProcessorHost created."));
     }
 
     /**
@@ -325,7 +318,7 @@ public final class EventProcessorHost
      * 
      * @return	the processor host name
      */
-    public String getHostName() { return this.hostName; }
+    public String getHostName() { return this.hostContext.getHostName(); }
 
     /**
      * Returns the Event Hub connection string assembled by the processor host.
@@ -336,21 +329,21 @@ public final class EventProcessorHost
      * 
      * @return	Event Hub connection string.
      */
-    public String getEventHubConnectionString() { return this.eventHubConnectionString; }
+    public String getEventHubConnectionString() { return this.hostContext.getEventHubConnectionString(); }
     
     // TEST USE ONLY
     void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
-    void setEventProcessorOptions(EventProcessorOptions epo) { this.processorOptions = epo; }
+    HostContext getHostContext() { return this.hostContext; }
     
     // All of these accessors are for internal use only.
-    ScheduledExecutorService getExecutorService() { return this.executorService; }
-    ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
-    ILeaseManager getLeaseManager() { return this.leaseManager; }
+    //ScheduledExecutorService getExecutorService() { return this.executorService; }
+    //ICheckpointManager getCheckpointManager() { return this.checkpointManager; }
+    //ILeaseManager getLeaseManager() { return this.leaseManager; }
     //PartitionManager getPartitionManager() { return this.partitionManager; }
-    IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
-    String getEventHubPath() { return this.eventHubPath; }
-    String getConsumerGroupName() { return this.consumerGroupName; }
-    EventProcessorOptions getEventProcessorOptions() { return this.processorOptions; }
+    //IEventProcessorFactory<?> getProcessorFactory() { return this.processorFactory; }
+    //String getEventHubPath() { return this.eventHubPath; }
+    //String getConsumerGroupName() { return this.consumerGroupName; }
+    //EventProcessorOptions getEventProcessorOptions() { return this.processorOptions; }
     
     /**
      * Returns the existing partition manager options object. Unless you are providing implementations of
@@ -446,15 +439,14 @@ public final class EventProcessorHost
         {
             throw new IllegalStateException("Register cannot be called on an EventProcessorHost after unregister. Please create a new EventProcessorHost instance.");
         }
-    	if (this.processorFactory != null)
+    	if (this.hostContext.getEventProcessorFactory() != null)
     	{
     		throw new IllegalStateException("Register has already been called on this EventProcessorHost");
     	}
     	
         if (this.executorService.isShutdown() || this.executorService.isTerminated())
     	{
-    		TRACE_LOGGER.warn(LoggingUtils.withHost(this,
-                    "Calling registerEventProcessor/Factory after executor service has been shut down."));
+    		TRACE_LOGGER.warn(this.hostContext.withHost("Calling registerEventProcessor/Factory after executor service has been shut down."));
     		throw new RejectedExecutionException("EventProcessorHost executor service has been shut down");
     	}
     	
@@ -462,19 +454,19 @@ public final class EventProcessorHost
         {
             try
             {
-				((AzureStorageCheckpointLeaseManager)leaseManager).initialize(this);
+				((AzureStorageCheckpointLeaseManager)this.hostContext.getLeaseManager()).initialize(this.hostContext);
 			}
             catch (InvalidKeyException | URISyntaxException | StorageException e)
             {
-                TRACE_LOGGER.warn(LoggingUtils.withHost(this, "Failure initializing Storage lease manager."));
+                TRACE_LOGGER.warn(this.hostContext.withHost("Failure initializing Storage lease manager."));
             	throw new RuntimeException("Failure initializing Storage lease manager", e);
 			}
         }
 
-        TRACE_LOGGER.info(LoggingUtils.withHost(this, "Starting event processing."));
+        TRACE_LOGGER.info(this.hostContext.withHost("Starting event processing."));
 
-        this.processorFactory = factory;
-        this.processorOptions = processorOptions;
+        this.hostContext.setEventProcessorFactory(factory);
+        this.hostContext.setEventProcessorOptions(processorOptions);
         
         return this.partitionManager.initialize();
     }
@@ -487,7 +479,7 @@ public final class EventProcessorHost
      */
     public CompletableFuture<Void> unregisterEventProcessor()
     {
-    	TRACE_LOGGER.info(LoggingUtils.withHost(this, "Stopping event processing"));
+    	TRACE_LOGGER.info(this.hostContext.withHost("Stopping event processing"));
         this.unregistered = true;
     	
         CompletableFuture<Void> result = CompletableFuture.completedFuture(null);

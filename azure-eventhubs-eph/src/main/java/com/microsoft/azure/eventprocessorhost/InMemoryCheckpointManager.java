@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class InMemoryCheckpointManager implements ICheckpointManager
 {
-    private EventProcessorHost host;
+    private HostContext hostContext;
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(InMemoryCheckpointManager.class);
 
@@ -42,24 +42,24 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     }
 
     // This object is constructed before the EventProcessorHost and passed as an argument to
-    // EventProcessorHost's constructor. So it has to get a reference to the EventProcessorHost later.
-    public void initialize(EventProcessorHost host)
+    // EventProcessorHost's constructor. So it has to get context info later.
+    public void initialize(HostContext hostContext)
     {
-        this.host = host;
+        this.hostContext = hostContext;
     }
 
     @Override
     public CompletableFuture<Boolean> checkpointStoreExists()
     {
     	boolean exists = InMemoryCheckpointStore.singleton.existsMap();
-    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "checkpointStoreExists() " + exists));
+    	TRACE_LOGGER.info(this.hostContext.withHost("checkpointStoreExists() " + exists));
     	return CompletableFuture.completedFuture(exists);
     }
 
     @Override
     public CompletableFuture<Void> createCheckpointStoreIfNotExists()
     {
-    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "createCheckpointStoreIfNotExists()"));
+    	TRACE_LOGGER.info(this.hostContext.withHost("createCheckpointStoreIfNotExists()"));
         InMemoryCheckpointStore.singleton.initializeMap();
         return CompletableFuture.completedFuture(null);
     }
@@ -67,7 +67,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     @Override
     public CompletableFuture<Boolean> deleteCheckpointStore()
     {
-    	TRACE_LOGGER.info(LoggingUtils.withHost(this.host, "deleteCheckpointStore()"));
+    	TRACE_LOGGER.info(this.hostContext.withHost("deleteCheckpointStore()"));
     	InMemoryCheckpointStore.singleton.deleteMap();
     	return CompletableFuture.completedFuture(true);
     }
@@ -79,19 +79,19 @@ public class InMemoryCheckpointManager implements ICheckpointManager
         Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(partitionId);
         if (checkpointInStore == null)
         {
-        	TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, partitionId,
+        	TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(partitionId,
                     "getCheckpoint() no existing Checkpoint"));
         	returnCheckpoint = null;
         }
         else if (checkpointInStore.getSequenceNumber() == -1)
         {
         	// Uninitialized, so return null.
-        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId, "getCheckpoint() uninitalized"));
+        	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId, "getCheckpoint() uninitalized"));
         	returnCheckpoint = null;
         }
         else
         {
-        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId,
+        	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId,
         			"getCheckpoint() found " + checkpointInStore.getOffset() + "//" + checkpointInStore.getSequenceNumber()));
         	returnCheckpoint = new Checkpoint(checkpointInStore);
         }
@@ -105,7 +105,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     	Checkpoint returnCheckpoint = null;
     	if (checkpointInStore != null)
     	{
-        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId,
+        	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId,
                     "createCheckpointIfNotExists() found existing checkpoint, OK"));
         	if (checkpointInStore.getSequenceNumber() != -1)
         	{
@@ -119,7 +119,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     	}
     	else
     	{
-        	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId,
+        	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId,
                     "createCheckpointIfNotExists() creating new checkpoint"));
         	Checkpoint newStoreCheckpoint = new Checkpoint(partitionId);
         	newStoreCheckpoint.setOffset(null);
@@ -136,7 +136,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     @Override
     public CompletableFuture<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint)
     {
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, checkpoint.getPartitionId(),
+    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(checkpoint.getPartitionId(),
     		"updateCheckpoint() " + checkpoint.getOffset() + "//" + checkpoint.getSequenceNumber()));
     	Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(checkpoint.getPartitionId());
     	if (checkpointInStore != null)
@@ -146,7 +146,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     	}
     	else
     	{
-    		TRACE_LOGGER.warn(LoggingUtils.withHostAndPartition(this.host, checkpoint.getPartitionId(),
+    		TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(checkpoint.getPartitionId(),
                     "updateCheckpoint() can't find checkpoint"));
     	}
     	return CompletableFuture.completedFuture(null);
@@ -155,7 +155,7 @@ public class InMemoryCheckpointManager implements ICheckpointManager
     @Override
     public CompletableFuture<Void> deleteCheckpoint(String partitionId)
     {
-    	TRACE_LOGGER.info(LoggingUtils.withHostAndPartition(this.host, partitionId, "deleteCheckpoint()"));
+    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId, "deleteCheckpoint()"));
     	InMemoryCheckpointStore.singleton.removeCheckpoint(partitionId);
     	return CompletableFuture.completedFuture(null);
     }

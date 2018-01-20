@@ -13,27 +13,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 /**
  * Centralize log message generation
  */
-public final class LoggingUtils {
-    static String withHost(EventProcessorHost host, String logMessage)
-    {
-        return "host " + host.getHostName() + ": " + logMessage;
-    }
-
-    static String withHostAndPartition(EventProcessorHost host, String partitionId, String logMessage)
-    {
-        return LoggingUtils.withHost(host, partitionId + ": " + logMessage);
-    }
-
-    static String withHostAndPartition(EventProcessorHost host, PartitionContext context, String logMessage)
-    {
-    	return LoggingUtils.withHostAndPartition(host, context.getPartitionId(), logMessage);
-    }
-    
-    static String withHostAndPartition(EventProcessorHost host, Lease lease, String logMessage)
-    {
-    	return LoggingUtils.withHostAndPartition(host, lease.getPartitionId(), logMessage);
-    }
-    
+public final class LoggingUtils
+{
     static CompletionException wrapException(Exception e, String action)
     {
     	return new CompletionException(new ExceptionWithAction(e, action));

@@ -13,9 +13,9 @@ import com.microsoft.azure.eventhubs.EventData;
 
 class DummyPump extends Pump
 {
-	public DummyPump(EventProcessorHost host)
+	public DummyPump(HostContext hostContext)
 	{
-		super(host);
+		super(hostContext);
 	}
 	
 	Iterable<String> getPumpsList()
@@ -26,13 +26,13 @@ class DummyPump extends Pump
 	@Override
 	protected PartitionPump createNewPump(Lease lease)
 	{
-		return new DummyPartitionPump(this.host, lease); 
+		return new DummyPartitionPump(this.hostContext, lease); 
 	}
 	
 	@Override
 	protected void removingPumpTestHook(String partitionId, Throwable e)
     {
-		TestUtilities.log("Steal detected, host " + this.host.getHostName() + " removing " + partitionId);
+		TestUtilities.log("Steal detected, host " + this.hostContext.getHostName() + " removing " + partitionId);
     }
 	
 	
@@ -40,9 +40,9 @@ class DummyPump extends Pump
 	{
 		CompletableFuture<Void> blah = null;
 		
-		DummyPartitionPump(EventProcessorHost host, Lease lease)
+		DummyPartitionPump(HostContext hostContext, Lease lease)
 		{
-			super(host, lease);
+			super(hostContext, lease);
 		}
 
 		@Override
@@ -50,7 +50,7 @@ class DummyPump extends Pump
 	    {
 			super.setupPartitionContext();
 			this.blah = new CompletableFuture<Void>();
-			((InMemoryLeaseManager)this.host.getLeaseManager()).notifyOnSteal(this.host.getHostName(), this.lease.getPartitionId(), this);
+			((InMemoryLeaseManager)this.hostContext.getLeaseManager()).notifyOnSteal(this.hostContext.getHostName(), this.lease.getPartitionId(), this);
 			super.scheduleLeaseRenewer();
 			return this.blah;
 	    }
