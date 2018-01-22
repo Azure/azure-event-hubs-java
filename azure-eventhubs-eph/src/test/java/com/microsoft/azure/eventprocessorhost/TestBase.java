@@ -34,7 +34,7 @@ public class TestBase
 		ConnectionStringBuilder environmentCSB = settings.outUtils.getConnectionString();
 
 		String effectiveEntityPath = settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_PATH_OVERRIDE) ?
-				settings.inoutEPHConstructorArgs.getEHPath() : environmentCSB.getEntityPath();
+				settings.inoutEPHConstructorArgs.getEHPath() : environmentCSB.getEventHubName();
 				
 		String effectiveConsumerGroup = settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.CONSUMER_GROUP_OVERRIDE) ?
 				settings.inoutEPHConstructorArgs.getConsumerGroupName() : EventHubClient.DEFAULT_CONSUMER_GROUP_NAME; 
@@ -45,7 +45,7 @@ public class TestBase
 		{
 			ConnectionStringBuilder replacedCSB = new ConnectionStringBuilder()
 					.setEndpoint(environmentCSB.getEndpoint())
-					.setEntityPath(
+					.setEventHubName(
 							settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH) ? "" : settings.inoutEPHConstructorArgs.getEHPath()
 					)
 					.setSasKeyName(environmentCSB.getSasKeyName())

@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
  *  // Construct a new connection string
  * 	ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder()
  * 	    .setNamespaceName("EventHubsNamespaceName")
- *      .setEntityPath("EventHubsEntityName")
+ *      .setEventHubName("EventHubsEntityName")
  *      .setSasKeyName("SharedAccessSignatureKeyName")
  *      .setSasKey("SharedAccessSignatureKey")
  *
@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  *
  *  // Modify an existing connection string
  *  ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(existingConnectionString)
- *      .setEntityPath("SomeOtherEventHubsName")
+ *      .setEventHubName("SomeOtherEventHubsName")
  *      .setOperationTimeout(Duration.ofSeconds(30)
  *
  *  string connString = connectionStringBuilder.build();
@@ -122,8 +122,11 @@ public class ConnectionStringBuilder {
      * Set an endpoint which can be used to connect to the EventHub instance.
      *
      * @param namespaceName the name of the namespace to connect to.
-     * @param domainName    identifies the domain the namespace is located in. To be used when connecting to
-     *                      non-public and international clouds.
+     * @param domainName    identifies the domain the namespace is located in. For non-public and national clouds,
+     *                      the domain will not be "servicebus.windows.net". Available options include:
+     *                          - "servicebus.usgovcloudapi.net"
+     *                          - "servicebus.cloudapi.de"
+     *                          - "servicebus.chinacloudapi.cn"
      * @return the {@link ConnectionStringBuilder} being set.
      */
     public ConnectionStringBuilder setEndpoint(String namespaceName, String domainName) {
@@ -153,7 +156,7 @@ public class ConnectionStringBuilder {
      *
      * @return Entity Path
      */
-    public String getEntityPath() {
+    public String getEventHubName() {
         return this.eventHubName;
     }
 
@@ -163,7 +166,7 @@ public class ConnectionStringBuilder {
      * @param eventHubName the name of the Event Hub to connect to.
      * @return the {@link ConnectionStringBuilder} being set.
      */
-    public ConnectionStringBuilder setEntityPath(String eventHubName) {
+    public ConnectionStringBuilder setEventHubName(String eventHubName) {
         this.eventHubName = eventHubName;
         return this;
     }

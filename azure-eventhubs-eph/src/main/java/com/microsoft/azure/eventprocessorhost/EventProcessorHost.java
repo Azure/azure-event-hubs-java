@@ -287,7 +287,7 @@ public final class EventProcessorHost
     	// The event hub path must appear in at least one of the eventHubPath argument or the connection string.
     	// If it appears in both, then it must be the same in both. If it appears in only one, populate the other.
     	ConnectionStringBuilder providedCSB = new ConnectionStringBuilder(eventHubConnectionString); 
-    	String extractedEntityPath = providedCSB.getEntityPath();
+    	String extractedEntityPath = providedCSB.getEventHubName();
         this.eventHubConnectionString = eventHubConnectionString;
     	if ((eventHubPath != null) && !eventHubPath.isEmpty())
     	{
@@ -305,7 +305,7 @@ public final class EventProcessorHost
     			// There is no entity path in the connection string, so put it there.
     			ConnectionStringBuilder rebuildCSB = new ConnectionStringBuilder()
                     .setEndpoint(providedCSB.getEndpoint())
-                    .setEntityPath(this.eventHubPath)
+                    .setEventHubName(this.eventHubPath)
     				.setSasKeyName(providedCSB.getSasKeyName())
                     .setSasKey(providedCSB.getSasKey());
     			rebuildCSB.setOperationTimeout(providedCSB.getOperationTimeout());

@@ -23,11 +23,11 @@ public class SasTokenTestBase extends ApiTestBase {
         originalConnectionString = TestContext.getConnectionString();
         final String connectionStringWithSasToken = new ConnectionStringBuilder()
                 .setEndpoint(originalConnectionString.getEndpoint())
-                .setEntityPath(originalConnectionString.getEntityPath())
+                .setEventHubName(originalConnectionString.getEventHubName())
                 .setSharedAccessSignature(
                     SharedAccessSignatureTokenProvider.generateSharedAccessSignature(originalConnectionString.getSasKeyName(),
                             originalConnectionString.getSasKey(), 
-                            String.format("amqp://%s/%s", originalConnectionString.getEndpoint().getHost(), originalConnectionString.getEntityPath()),
+                            String.format("amqp://%s/%s", originalConnectionString.getEndpoint().getHost(), originalConnectionString.getEventHubName()),
                             Duration.ofDays(1))
                 )
                 .build();
