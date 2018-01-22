@@ -20,9 +20,9 @@ import java.util.regex.Pattern;
  *  // Construct a new connection string
  * 	ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder()
  * 	    .setNamespaceName("EventHubsNamespaceName")
- *      .setEventHubName("EventHubsEntityName")
- *      .setSasKeyName("SharedAccessSignatureKeyName")
- *      .setSasKey("SharedAccessSignatureKey")
+ * 	    .setEventHubName("EventHubsEntityName")
+ * 	    .setSasKeyName("SharedAccessSignatureKeyName")
+ * 	    .setSasKey("SharedAccessSignatureKey")
  *
  *  string connString = connectionStringBuilder.build();
  *
