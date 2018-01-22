@@ -304,10 +304,10 @@ public final class EventProcessorHost
     		{
     			// There is no entity path in the connection string, so put it there.
     			ConnectionStringBuilder rebuildCSB = new ConnectionStringBuilder()
-                    .setEndpoint(providedCSB.getEndpoint())
-                    .setEventHubName(this.eventHubPath)
-    				.setSasKeyName(providedCSB.getSasKeyName())
-                    .setSasKey(providedCSB.getSasKey());
+                        .setEndpoint(providedCSB.getEndpoint())
+                        .setEventHubName(this.eventHubPath)
+                        .setSasKeyName(providedCSB.getSasKeyName())
+                        .setSasKey(providedCSB.getSasKey());
     			rebuildCSB.setOperationTimeout(providedCSB.getOperationTimeout());
     			this.eventHubConnectionString = rebuildCSB.toString();
     		}

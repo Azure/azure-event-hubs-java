@@ -54,7 +54,7 @@ public class ConnStrBuilderTest extends ApiTestBase
 	{
 		final ConnectionStringBuilder connStrBuilder = new ConnectionStringBuilder(correctConnectionString);
 		final ConnectionStringBuilder secondConnStr = new ConnectionStringBuilder()
-				.setEndpoint(connStrBuilder.getEndpoint())
+                .setEndpoint(connStrBuilder.getEndpoint())
                 .setEventHubName(connStrBuilder.getEventHubName())
                 .setSasKeyName(connStrBuilder.getSasKeyName())
                 .setSasKey(connStrBuilder.getSasKey());

@@ -83,10 +83,10 @@ public class SecurityExceptionsTest extends ApiTestBase
                         correctConnectionString.getSasKey(),
                         String.format("amqps://%s/%s", correctConnectionString.getEndpoint().getHost(), correctConnectionString.getEventHubName()),
                         Duration.ofSeconds(10));
-                final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
-					.setEndpoint(correctConnectionString.getEndpoint())
-					.setEventHubName(correctConnectionString.getEventHubName())
-					.setSharedAccessSignature(wrongToken);
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEventHubName(correctConnectionString.getEventHubName())
+				.setSharedAccessSignature(wrongToken);
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("Test Message".getBytes()));
@@ -101,10 +101,10 @@ public class SecurityExceptionsTest extends ApiTestBase
                         correctConnectionString.getSasKey(),
                         "----------wrongresource-----------",
                         Duration.ofSeconds(10));
-                final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
-					.setEndpoint(correctConnectionString.getEndpoint())
-					.setEventHubName(correctConnectionString.getEventHubName())
-					.setSharedAccessSignature(wrongToken);
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEventHubName(correctConnectionString.getEventHubName())
+				.setSharedAccessSignature(wrongToken);
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("Test Message".getBytes()));

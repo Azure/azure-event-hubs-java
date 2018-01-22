@@ -46,7 +46,9 @@ public class TestBase
 			ConnectionStringBuilder replacedCSB = new ConnectionStringBuilder()
 					.setEndpoint(environmentCSB.getEndpoint())
 					.setEventHubName(
-							settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH) ? "" : settings.inoutEPHConstructorArgs.getEHPath()
+							settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH) ?
+                                    "" :
+                                    settings.inoutEPHConstructorArgs.getEHPath()
 					)
 					.setSasKeyName(environmentCSB.getSasKeyName())
 					.setSasKey(environmentCSB.getSasKey());
