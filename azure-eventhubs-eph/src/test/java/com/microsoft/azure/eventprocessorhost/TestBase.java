@@ -43,9 +43,13 @@ public class TestBase
 		if (settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_PATH_REPLACE_IN_CONNECTION) ||
 				settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH))
 		{
-			ConnectionStringBuilder replacedCSB = new ConnectionStringBuilder(environmentCSB.getEndpoint(),
-					settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH) ? "" : settings.inoutEPHConstructorArgs.getEHPath(), 
-					environmentCSB.getSasKeyName(), environmentCSB.getSasKey());
+			ConnectionStringBuilder replacedCSB = new ConnectionStringBuilder()
+					.setEndpoint(environmentCSB.getEndpoint())
+					.setEntityPath(
+							settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH) ? "" : settings.inoutEPHConstructorArgs.getEHPath()
+					)
+					.setSasKeyName(environmentCSB.getSasKeyName())
+					.setSasKey(environmentCSB.getSasKey());
 			replacedCSB.setOperationTimeout(environmentCSB.getOperationTimeout());
 			effectiveConnectionString = replacedCSB.toString();
 		}

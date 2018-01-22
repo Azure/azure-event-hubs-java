@@ -241,9 +241,12 @@ public class RequestResponseTest  extends ApiTestBase {
     
     @Test
     public void testGetRuntimesBadHub() throws EventHubException, IOException {
-    	ConnectionStringBuilder bogusConnectionString = new ConnectionStringBuilder(connectionString.getEndpoint(), "NOHUBZZZZZ",
-    			connectionString.getSasKeyName(), connectionString.getSasKey());
-    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.toString(), TestContext.EXECUTOR_SERVICE);
+    	ConnectionStringBuilder bogusConnectionString = new ConnectionStringBuilder()
+                .setEndpoint(connectionString.getEndpoint())
+                .setEntityPath("NOHUBZZZZZ")
+                .setSasKeyName(connectionString.getSasKeyName())
+                .setSasKey(connectionString.getSasKey());
+    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.build(), TestContext.EXECUTOR_SERVICE);
     	
     	try {
     		ehc.getRuntimeInformation().get();
@@ -292,9 +295,12 @@ public class RequestResponseTest  extends ApiTestBase {
     
     @Test
     public void testGetRuntimesBadKeyname() throws EventHubException, IOException {
-    	ConnectionStringBuilder bogusConnectionString = new ConnectionStringBuilder(connectionString.getEndpoint(), connectionString.getEntityPath(),
-    			"xxxnokeyxxx", connectionString.getSasKey());
-    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.toString(), TestContext.EXECUTOR_SERVICE);
+    	ConnectionStringBuilder bogusConnectionString = new ConnectionStringBuilder()
+                .setEndpoint(connectionString.getEndpoint())
+                .setEntityPath(connectionString.getEntityPath())
+                .setSasKeyName("xxxnokeyxxx")
+                .setSasKey(connectionString.getSasKey());
+    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.build(), TestContext.EXECUTOR_SERVICE);
     	
     	try {
     		ehc.getRuntimeInformation().get();

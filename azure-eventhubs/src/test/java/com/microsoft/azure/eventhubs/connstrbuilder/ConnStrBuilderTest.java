@@ -54,8 +54,11 @@ public class ConnStrBuilderTest extends ApiTestBase
 	public void exchangeConnectionStringAcrossConstructors()
 	{
 		final ConnectionStringBuilder connStrBuilder = new ConnectionStringBuilder(correctConnectionString);
-		final ConnectionStringBuilder secondConnStr = new ConnectionStringBuilder(connStrBuilder.getEndpoint(),
-				connStrBuilder.getEntityPath(), connStrBuilder.getSasKeyName(), connStrBuilder.getSasKey());
+		final ConnectionStringBuilder secondConnStr = new ConnectionStringBuilder()
+				.setEndpoint(connStrBuilder.getEndpoint())
+                .setEntityPath(connStrBuilder.getEntityPath())
+                .setSasKeyName(connStrBuilder.getSasKeyName())
+                .setSasKey(connStrBuilder.getSasKey());
 		secondConnStr.setOperationTimeout(connStrBuilder.getOperationTimeout());
 
 		validateConnStrBuilder.accept(new ConnectionStringBuilder(secondConnStr.toString()));

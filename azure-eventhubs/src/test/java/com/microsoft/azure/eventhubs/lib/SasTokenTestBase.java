@@ -21,14 +21,16 @@ public class SasTokenTestBase extends ApiTestBase {
     public static void replaceConnectionString()  throws Exception {
         
         originalConnectionString = TestContext.getConnectionString();
-        final String connectionStringWithSasToken = new ConnectionStringBuilder(
-                    originalConnectionString.getEndpoint(),
-                    originalConnectionString.getEntityPath(),
+        final String connectionStringWithSasToken = new ConnectionStringBuilder()
+                .setEndpoint(originalConnectionString.getEndpoint())
+                .setEntityPath(originalConnectionString.getEntityPath())
+                .setSharedAccessSignature(
                     SharedAccessSignatureTokenProvider.generateSharedAccessSignature(originalConnectionString.getSasKeyName(),
                             originalConnectionString.getSasKey(), 
                             String.format("amqp://%s/%s", originalConnectionString.getEndpoint().getHost(), originalConnectionString.getEntityPath()),
-                            Duration.ofDays(1)))
-                    .toString();
+                            Duration.ofDays(1))
+                )
+                .build();
 
         TestContext.setConnectionString(connectionStringWithSasToken);
     }

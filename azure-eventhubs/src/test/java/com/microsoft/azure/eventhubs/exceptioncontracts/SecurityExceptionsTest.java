@@ -24,11 +24,11 @@ public class SecurityExceptionsTest extends ApiTestBase
 	public void testEventHubClientUnAuthorizedAccessKeyName() throws Throwable
 	{
 		final ConnectionStringBuilder correctConnectionString = TestContext.getConnectionString();
-		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				correctConnectionString.getEntityPath(),
-				"---------------wrongkey------------",
-				correctConnectionString.getSasKey());
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEntityPath(correctConnectionString.getEntityPath())
+				.setSasKeyName("---------------wrongkey------------")
+				.setSasKey(correctConnectionString.getSasKey());
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("Test Message".getBytes()));
@@ -38,11 +38,11 @@ public class SecurityExceptionsTest extends ApiTestBase
 	public void testEventHubClientUnAuthorizedAccessKey() throws Throwable
 	{
 		final ConnectionStringBuilder correctConnectionString = TestContext.getConnectionString();
-		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				correctConnectionString.getEntityPath(),
-				correctConnectionString.getSasKeyName(),
-				"--------------wrongvalue-----------");
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEntityPath(correctConnectionString.getEntityPath())
+				.setSasKeyName(correctConnectionString.getSasKeyName())
+				.setSasKey("--------------wrongvalue-----------");
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("Test Message".getBytes()));
@@ -52,10 +52,10 @@ public class SecurityExceptionsTest extends ApiTestBase
 	public void testEventHubClientInvalidAccessToken() throws Throwable
 	{
                 final ConnectionStringBuilder correctConnectionString = TestContext.getConnectionString();
-		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				correctConnectionString.getEntityPath(),
-				"--------------invalidtoken-------------");
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEntityPath(correctConnectionString.getEntityPath())
+				.setSharedAccessSignature("--------------invalidtoken-------------");
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("Test Message".getBytes()));
@@ -65,10 +65,10 @@ public class SecurityExceptionsTest extends ApiTestBase
 	public void testEventHubClientNullAccessToken() throws Throwable
 	{
                 final ConnectionStringBuilder correctConnectionString = TestContext.getConnectionString();
-		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				correctConnectionString.getEntityPath(),
-				null);
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEntityPath(correctConnectionString.getEntityPath())
+				.setSharedAccessSignature(null);
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("Test Message".getBytes()));
@@ -83,10 +83,10 @@ public class SecurityExceptionsTest extends ApiTestBase
                         correctConnectionString.getSasKey(),
                         String.format("amqps://%s/%s", correctConnectionString.getEndpoint().getHost(), correctConnectionString.getEntityPath()),
                         Duration.ofSeconds(10));
-                final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				correctConnectionString.getEntityPath(),
-				wrongToken);
+                final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+					.setEndpoint(correctConnectionString.getEndpoint())
+					.setEntityPath(correctConnectionString.getEntityPath())
+					.setSharedAccessSignature(wrongToken);
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("Test Message".getBytes()));
@@ -101,10 +101,10 @@ public class SecurityExceptionsTest extends ApiTestBase
                         correctConnectionString.getSasKey(),
                         "----------wrongresource-----------",
                         Duration.ofSeconds(10));
-                final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				correctConnectionString.getEntityPath(),
-				wrongToken);
+                final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+					.setEndpoint(correctConnectionString.getEndpoint())
+					.setEntityPath(correctConnectionString.getEntityPath())
+					.setSharedAccessSignature(wrongToken);
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("Test Message".getBytes()));
@@ -114,11 +114,11 @@ public class SecurityExceptionsTest extends ApiTestBase
 	public void testUnAuthorizedAccessSenderCreation() throws Throwable
 	{
 		final ConnectionStringBuilder correctConnectionString = TestContext.getConnectionString();
-		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				correctConnectionString.getEntityPath(),
-				"---------------wrongkey------------",
-				correctConnectionString.getSasKey());
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEntityPath(correctConnectionString.getEntityPath())
+				.setSasKeyName("------------wrongkeyname----------")
+				.setSasKey(correctConnectionString.getSasKey());
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.createPartitionSenderSync(PARTITION_ID);
@@ -128,11 +128,11 @@ public class SecurityExceptionsTest extends ApiTestBase
 	public void testUnAuthorizedAccessReceiverCreation() throws Throwable
 	{
 		final ConnectionStringBuilder correctConnectionString = TestContext.getConnectionString();
-		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				correctConnectionString.getEntityPath(),
-				"---------------wrongkey------------",
-				correctConnectionString.getSasKey());
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEntityPath(correctConnectionString.getEntityPath())
+				.setSasKeyName("---------------wrongkey------------")
+				.setSasKey(correctConnectionString.getSasKey());
 		
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.createReceiverSync(TestContext.getConsumerGroupName(), PARTITION_ID, PartitionReceiver.START_OF_STREAM);
@@ -142,11 +142,11 @@ public class SecurityExceptionsTest extends ApiTestBase
 	public void testSendToNonExistantEventHub() throws Throwable
 	{
 		final ConnectionStringBuilder correctConnectionString = TestContext.getConnectionString();
-		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				"non-existant-entity" + UUID.randomUUID().toString(),
-				correctConnectionString.getSasKeyName(),
-				correctConnectionString.getSasKey());
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEntityPath("non-existant-entity" + UUID.randomUUID().toString())
+				.setSasKeyName(correctConnectionString.getSasKeyName())
+				.setSasKey(correctConnectionString.getSasKey());
 
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.sendSync(new EventData("test string".getBytes()));
@@ -156,11 +156,11 @@ public class SecurityExceptionsTest extends ApiTestBase
 	public void testReceiveFromNonExistantEventHub() throws Throwable
 	{
 		final ConnectionStringBuilder correctConnectionString = TestContext.getConnectionString();
-		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder(
-				correctConnectionString.getEndpoint(),
-				"non-existant-entity" + UUID.randomUUID().toString(),
-				correctConnectionString.getSasKeyName(),
-				correctConnectionString.getSasKey());
+		final ConnectionStringBuilder connectionString = new ConnectionStringBuilder()
+				.setEndpoint(correctConnectionString.getEndpoint())
+				.setEntityPath("non-existant-entity" + UUID.randomUUID().toString())
+				.setSasKeyName(correctConnectionString.getSasKeyName())
+				.setSasKey(correctConnectionString.getSasKey());
 
 		ehClient = EventHubClient.createFromConnectionStringSync(connectionString.toString(), TestContext.EXECUTOR_SERVICE);
 		ehClient.createReceiverSync(TestContext.getConsumerGroupName(), PARTITION_ID, PartitionReceiver.START_OF_STREAM);
