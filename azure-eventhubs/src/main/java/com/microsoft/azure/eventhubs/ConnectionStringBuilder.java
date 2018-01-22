@@ -259,15 +259,6 @@ public class ConnectionStringBuilder {
      */
     @Override
     public String toString() {
-        return this.build();
-    }
-
-    /**
-     * Returns an inter-operable connection string that can be used to connect to EventHubs instances.
-     *
-     * @return connection string
-     */
-    public String build() {
         final StringBuilder connectionStringBuilder = new StringBuilder();
         if (this.endpoint != null) {
             connectionStringBuilder.append(String.format(Locale.US, "%s%s%s%s", EndpointConfigName, KeyValueSeparator,

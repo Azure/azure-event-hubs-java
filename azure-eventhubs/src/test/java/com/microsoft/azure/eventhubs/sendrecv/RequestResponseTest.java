@@ -246,7 +246,7 @@ public class RequestResponseTest  extends ApiTestBase {
                 .setEventHubName("NOHUBZZZZZ")
                 .setSasKeyName(connectionString.getSasKeyName())
                 .setSasKey(connectionString.getSasKey());
-    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.build(), TestContext.EXECUTOR_SERVICE);
+    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.toString(), TestContext.EXECUTOR_SERVICE);
     	
     	try {
     		ehc.getRuntimeInformation().get();
@@ -300,7 +300,7 @@ public class RequestResponseTest  extends ApiTestBase {
                 .setEventHubName(connectionString.getEventHubName())
                 .setSasKeyName("xxxnokeyxxx")
                 .setSasKey(connectionString.getSasKey());
-    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.build(), TestContext.EXECUTOR_SERVICE);
+    	EventHubClient ehc = EventHubClient.createFromConnectionStringSync(bogusConnectionString.toString(), TestContext.EXECUTOR_SERVICE);
     	
     	try {
     		ehc.getRuntimeInformation().get();

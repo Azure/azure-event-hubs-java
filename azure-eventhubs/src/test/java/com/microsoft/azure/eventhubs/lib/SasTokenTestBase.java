@@ -30,7 +30,7 @@ public class SasTokenTestBase extends ApiTestBase {
                             String.format("amqp://%s/%s", originalConnectionString.getEndpoint().getHost(), originalConnectionString.getEventHubName()),
                             Duration.ofDays(1))
                 )
-                .build();
+                .toString();
 
         TestContext.setConnectionString(connectionStringWithSasToken);
     }
