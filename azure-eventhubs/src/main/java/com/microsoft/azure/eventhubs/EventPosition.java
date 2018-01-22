@@ -112,47 +112,6 @@ public class EventPosition {
         return new EventPosition(END_OF_STREAM, null, null, false);
     }
 
-    /**
-     * Gets the offset of the event at the position. It can be null if the position is created
-     * from a sequence number or enqueued time.
-     *
-     * @return the byte offset of the event.
-     */
-    String getOffset() {
-        return this.offset;
-    }
-
-    /**
-     * Indicates if the current event at the specified offset is included or not.
-     * It is only applicable if offset or sequence number is set. If offset or
-     * sequence number is not set, this will return null.
-     *
-     * @return the inclusive flag
-     */
-    Boolean getInclusiveFlag() {
-        return this.inclusiveFlag;
-    }
-
-    /**
-     * Gets the sequence number of the event at the position. It can be null if the position is created
-     * from an offset or enqueued time.
-     *
-     * @return the sequence number of the event.
-     */
-    Long getSequenceNumber() {
-        return this.sequenceNumber;
-    }
-
-    /**
-     * Gets the enqueued time of the event at the position. It can be null if the position is created
-     * from an offset or a sequence number.
-     *
-     * @return the enqueued time of the event.
-     */
-    Instant getEnqueuedTime() {
-        return this.dateTime;
-    }
-
     String getExpression() {
         // order of preference
         if (this.offset != null) {
