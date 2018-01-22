@@ -47,6 +47,11 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
     static final int DEFAULT_PREFETCH_COUNT = 999;
     static final long NULL_EPOCH = 0;
 
+
+    // Both constants should be removed before 1.0.0 release
+    public static String START_OF_STREAM = "-1";
+    public static String END_OF_STREAM = "@latest";
+
     private final String partitionId;
     private final MessagingFactory underlyingFactory;
     private final String eventHubName;
