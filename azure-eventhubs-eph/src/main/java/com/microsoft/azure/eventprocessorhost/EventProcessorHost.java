@@ -24,9 +24,9 @@ public final class EventProcessorHost
     private PartitionManagerOptions partitionManagerOptions = null;
 
     // weOwnExecutor exists to support user-supplied thread pools.
-    private final ScheduledExecutorService executorService;
     private final boolean weOwnExecutor;
-    private final int executorServicePoolSize = 32;
+    private final ScheduledExecutorService executorService;
+    private final int executorServicePoolSize = 8;
     
     private final HostContext hostContext;
     
@@ -471,11 +471,16 @@ public final class EventProcessorHost
     {
     	TRACE_LOGGER.info(this.hostContext.withHost("Stopping event processing"));
         this.unregistered = true;
-    	
-        CompletableFuture<Void> result = CompletableFuture.completedFuture(null);
-    	if ((this.partitionManager != null) && this.weOwnExecutor)
+
+        // PartitionManager is created in constructor. If this object exists, then
+        // this.partitionManager is not null.
+        CompletableFuture<Void> result = this.partitionManager.stopPartitions();
+        
+        // If we own the executor, stop it also.
+        // Owned executor is also created in constructor.
+    	if (this.weOwnExecutor)
     	{
-        	result = this.partitionManager.stopPartitions().thenRunAsync(() ->
+        	result = result.thenRunAsync(() ->
         	{
         		// IMPORTANT: run this last stage in the default threadpool!
         		// If a task running in a threadpool waits for that threadpool to terminate, it's going to wait a long time...
