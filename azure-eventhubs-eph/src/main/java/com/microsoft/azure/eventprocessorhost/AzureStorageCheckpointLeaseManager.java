@@ -472,20 +472,23 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	}
     	else
     	{
-			try
-			{
-				Iterable<ListBlobItem> blobList = this.consumerGroupDirectory.listBlobs("", true, null, this.leaseOperationOptions, null);
-				this.partitionIds = new ArrayList<String>();
-	    		blobList.forEach((lbi) ->
-	    		{
-	    			Path p = Paths.get(lbi.getUri().getPath());
-	    			this.partitionIds.add(p.getFileName().toString());
-	    		});
-			}
-			catch (URISyntaxException | StorageException e)
-			{
-				throw new CompletionException(e);
-			}
+    		result = CompletableFuture.runAsync(() ->
+    		{
+				try
+				{
+					Iterable<ListBlobItem> blobList = this.consumerGroupDirectory.listBlobs("", true, null, this.leaseOperationOptions, null);
+					this.partitionIds = new ArrayList<String>();
+		    		blobList.forEach((lbi) ->
+		    		{
+		    			Path p = Paths.get(lbi.getUri().getPath());
+		    			this.partitionIds.add(p.getFileName().toString());
+		    		});
+				}
+				catch (URISyntaxException | StorageException e)
+				{
+					throw new CompletionException(e);
+				}
+    		}, this.hostContext.getExecutor());
     		
     	}
     	return result;
