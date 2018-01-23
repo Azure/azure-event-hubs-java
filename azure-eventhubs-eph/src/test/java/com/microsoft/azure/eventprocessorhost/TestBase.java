@@ -3,7 +3,7 @@ package com.microsoft.azure.eventprocessorhost;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -264,14 +264,9 @@ public class TestBase
 		}
 
 		@Override
-		public ArrayList<CompletableFuture<Lease>> getAllLeases(String[] partitionIds)
+		public CompletableFuture<List<Lease>> getAllLeases()
 		{
-			ArrayList<CompletableFuture<Lease>> retval = new ArrayList<CompletableFuture<Lease>>();
-			for (String id : partitionIds)
-			{
-				retval.add(CompletableFuture.completedFuture(null));
-			}
-			return retval;
+			return CompletableFuture.completedFuture(null);
 		}
 
 		@Override

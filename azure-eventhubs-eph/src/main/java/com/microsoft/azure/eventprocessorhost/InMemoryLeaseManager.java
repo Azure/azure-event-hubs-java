@@ -90,18 +90,18 @@ public class InMemoryLeaseManager implements ILeaseManager
     }
 
     @Override
-    public List<CompletableFuture<Lease>> getAllLeases(String[] partitionIds)
+    public CompletableFuture<List<Lease>> getAllLeases()
     {
     	TRACE_LOGGER.info(this.hostContext.withHost("getAllLeases()"));
-        ArrayList<CompletableFuture<Lease>> leases = new ArrayList<CompletableFuture<Lease>>();
+        ArrayList<Lease> leases = new ArrayList<Lease>();
         
-        for (String id : partitionIds)
+        for (String id : InMemoryLeaseStore.singleton.getPartitionIds())
         {
         	InMemoryLease leaseInStore = InMemoryLeaseStore.singleton.getLease(id);
-        	leases.add(CompletableFuture.completedFuture((leaseInStore != null) ? new InMemoryLease(leaseInStore) : null));
+        	leases.add((leaseInStore != null) ? new InMemoryLease(leaseInStore) : null);
         }
         
-        return leases;
+        return CompletableFuture.completedFuture(leases);
     }
 
     @Override
@@ -344,6 +344,16 @@ public class InMemoryLeaseManager implements ILeaseManager
         synchronized InMemoryLease getLease(String partitionId)
         {
         	return this.inMemoryLeasesPrivate.get(partitionId);
+        }
+        
+        synchronized List<String> getPartitionIds()
+        {
+        	ArrayList<String> ids = new ArrayList<String>();
+        	this.inMemoryLeasesPrivate.keySet().forEach((key) ->
+        	{
+        		ids.add(key);
+        	});
+        	return ids;
         }
         
         synchronized InMemoryLease atomicAquireUnowned(String partitionId, String newOwner)

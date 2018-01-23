@@ -8,6 +8,7 @@ package com.microsoft.azure.eventprocessorhost;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import org.junit.Test;
 
@@ -261,12 +262,20 @@ public class LeaseManagerTest
 		return containerName.toString();
 	}
 	
-	private CompletableFuture<Lease> getOneLease(String partitionId, ILeaseManager leaseMgr)
+	private CompletableFuture<Lease> getOneLease(String partitionId, ILeaseManager leaseMgr) throws InterruptedException, ExecutionException
 	{
-		String[] ids = new String[1];
-		ids[0] = partitionId;
-		List<CompletableFuture<Lease>> blah = leaseMgr.getAllLeases(ids);
-		return blah.get(0);
+		List<Lease> leaseList = leaseMgr.getAllLeases().get();
+		Lease returnLease = null;
+		for (int i = 0; i < leaseList.size(); i++)
+		{
+			Lease l = leaseList.get(i);
+			if (l.getPartitionId().compareTo(partitionId) == 0)
+			{
+				returnLease = l;
+				break;
+			}
+		}
+		return CompletableFuture.completedFuture(returnLease);
 	}
 	
 	private void setupOneManager(boolean useAzureStorage, int index, String suffix, String containerName) throws Exception

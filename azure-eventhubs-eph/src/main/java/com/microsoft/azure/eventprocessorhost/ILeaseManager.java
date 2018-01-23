@@ -68,7 +68,7 @@ public interface ILeaseManager
      * 
      * @return  List of lease info.
      */
-    public List<CompletableFuture<Lease>> getAllLeases(String[] partitionIds);
+    public CompletableFuture<List<Lease>> getAllLeases();
 
     /**
      * Create in the store the lease info for the given partition, if it does not exist. Do nothing if it does exist

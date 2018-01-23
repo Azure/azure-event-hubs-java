@@ -7,6 +7,8 @@ package com.microsoft.azure.eventprocessorhost;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -45,6 +47,8 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private CloudBlobClient storageClient;
     private CloudBlobContainer eventHubContainer;
     private CloudBlobDirectory consumerGroupDirectory;
+    
+    private ArrayList<String> partitionIds = null;
     
     private Gson gson;
     
@@ -422,14 +426,69 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
 
     @Override
-    public List<CompletableFuture<Lease>> getAllLeases(String[] partitionIds)
+    public CompletableFuture<List<Lease>> getAllLeases()
     {
-        ArrayList<CompletableFuture<Lease>> leaseFutures = new ArrayList<CompletableFuture<Lease>>();
-        for (String id : partitionIds)
-        {
-        	leaseFutures.add(getLease(id));
-        }
-        return leaseFutures;
+    	CompletableFuture<ArrayList<CompletableFuture<Lease>>> intermediateFuture = cachePartitionIds()
+    	.thenApplyAsync((empty) ->
+    	{
+            ArrayList<CompletableFuture<Lease>> leaseFutures = new ArrayList<CompletableFuture<Lease>>();
+            for (String id : this.partitionIds)
+            {
+            	leaseFutures.add(getLease(id));
+            }
+            return leaseFutures;
+    	}, this.hostContext.getExecutor());
+    	
+    	return intermediateFuture.thenComposeAsync((leaseFutures) ->
+    	{
+    		CompletableFuture<?>[] blah = new CompletableFuture<?>[leaseFutures.size()];
+    		return CompletableFuture.allOf(leaseFutures.toArray(blah));
+    	}, this.hostContext.getExecutor())
+    	.thenCombineAsync(intermediateFuture, (empty, leaseFutures) ->
+    	{
+    		ArrayList<Lease> leaseList = new ArrayList<Lease>();
+    		leaseFutures.forEach((lf) ->
+    		{
+    			try
+    			{
+					leaseList.add(lf.get());
+				}
+    			catch (Exception e)
+    			{
+    				throw new CompletionException(e);
+				}
+    		});
+    		return leaseList;
+    	}, this.hostContext.getExecutor());
+    }
+    
+    private CompletableFuture<Void> cachePartitionIds()
+    {
+    	CompletableFuture<Void> result = null;
+    	
+    	if (this.partitionIds != null)
+    	{
+    		result = CompletableFuture.completedFuture(null);    		
+    	}
+    	else
+    	{
+			try
+			{
+				Iterable<ListBlobItem> blobList = this.consumerGroupDirectory.listBlobs("", true, null, this.leaseOperationOptions, null);
+				this.partitionIds = new ArrayList<String>();
+	    		blobList.forEach((lbi) ->
+	    		{
+	    			Path p = Paths.get(lbi.getUri().getPath());
+	    			this.partitionIds.add(p.getFileName().toString());
+	    		});
+			}
+			catch (URISyntaxException | StorageException e)
+			{
+				throw new CompletionException(e);
+			}
+    		
+    	}
+    	return result;
     }
 
     @Override
