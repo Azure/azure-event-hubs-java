@@ -13,20 +13,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+
+import com.microsoft.azure.eventhubs.*;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
-import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
-import com.microsoft.azure.eventhubs.EventHubException;
 
 public class ConcurrentReceiversTest extends ApiTestBase
 {
@@ -45,7 +41,7 @@ public class ConcurrentReceiversTest extends ApiTestBase
 		partitionCount = TestContext.getPartitionCount();
 		connStr = TestContext.getConnectionString();
 
-		sender = EventHubClient.createFromConnectionString(connStr.toString()).get();
+		sender = EventHubClient.createFromConnectionString(connStr.toString(), TestContext.EXECUTOR_SERVICE).get();
 		receivers = new PartitionReceiver[partitionCount];
 		consumerGroupName = TestContext.getConsumerGroupName();
 	}
@@ -53,7 +49,7 @@ public class ConcurrentReceiversTest extends ApiTestBase
 	@Test()
 	public void testParallelCreationOfReceivers() throws EventHubException, IOException, InterruptedException, ExecutionException, TimeoutException
 	{
-		ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString());
+		ehClient = EventHubClient.createFromConnectionStringSync(connStr.toString(), TestContext.EXECUTOR_SERVICE);
 		ReceiveAtleastOneEventValidator[] counter = new ReceiveAtleastOneEventValidator[partitionCount];
 		
 		@SuppressWarnings("unchecked") CompletableFuture<Void>[] validationSignals = new CompletableFuture[partitionCount];
@@ -61,7 +57,7 @@ public class ConcurrentReceiversTest extends ApiTestBase
 		for(int i=0; i < partitionCount; i++)
 		{
 			final int index = i;
-			receiverFutures[i] = ehClient.createReceiver(consumerGroupName, Integer.toString(i), Instant.now()).thenAcceptAsync(
+			receiverFutures[i] = ehClient.createReceiver(consumerGroupName, Integer.toString(i), EventPosition.fromEnqueuedTime(Instant.now())).thenAcceptAsync(
 					new Consumer<PartitionReceiver>(){
 						@Override
 						public void accept(final PartitionReceiver t) {

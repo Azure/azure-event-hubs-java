@@ -33,7 +33,7 @@ class RealEventHubUtilities
 		ArrayList<String> partitionIds = setupWithoutSenders(fakePartitions);
 		
 		// EventHubClient is source of all senders
-		this.client = EventHubClient.createFromConnectionStringSync(this.hubConnectionString.toString());
+		this.client = EventHubClient.createFromConnectionStringSync(this.hubConnectionString.toString(), TestUtilities.EXECUTOR_SERVICE);
 		
 		return partitionIds;
 	}
@@ -97,7 +97,7 @@ class RealEventHubUtilities
 		if (this.hubName == null)
 		{
 			this.hubConnectionString = new ConnectionStringBuilder(System.getenv("EVENT_HUB_CONNECTION_STRING"));
-			this.hubName = this.hubConnectionString.getEntityPath();
+			this.hubName = this.hubConnectionString.getEventHubName();
 		}
 	}
 	
@@ -143,7 +143,7 @@ class RealEventHubUtilities
 	    	this.cachedPartitionIds = new ArrayList<String>();
 	    	ehCacheCheck();
 	    	
-	    	EventHubClient idClient = EventHubClient.createFromConnectionStringSync(this.hubConnectionString.toString());
+	    	EventHubClient idClient = EventHubClient.createFromConnectionStringSync(this.hubConnectionString.toString(), TestUtilities.EXECUTOR_SERVICE);
 	    	try
 	    	{
 	    		EventHubRuntimeInformation info = idClient.getRuntimeInformation().get();

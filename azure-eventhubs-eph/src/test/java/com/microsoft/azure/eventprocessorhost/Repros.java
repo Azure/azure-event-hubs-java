@@ -4,12 +4,8 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.CompletableFuture;
 
+import com.microsoft.azure.eventhubs.*;
 import org.junit.Test;
-
-import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
-import com.microsoft.azure.eventhubs.PartitionReceiver;
 
 public class Repros extends TestBase
 {
@@ -42,7 +38,7 @@ public class Repros extends TestBase
 		
 		PrefabGeneralErrorHandler general1 = new PrefabGeneralErrorHandler();
 		PrefabProcessorFactory factory1 = new PrefabProcessorFactory(telltale, doCheckpointing, doMarker);
-		EventProcessorHost host1 = new EventProcessorHost(conflictingName, utils.getConnectionString().getEntityPath(),
+		EventProcessorHost host1 = new EventProcessorHost(conflictingName, utils.getConnectionString().getEventHubName(),
 				utils.getConsumerGroup(), utils.getConnectionString().toString(),
 				TestUtilities.getStorageConnectionString(), storageName);
 		EventProcessorOptions options1 = EventProcessorOptions.getDefaultOptions();
@@ -50,7 +46,7 @@ public class Repros extends TestBase
 		
 		PrefabGeneralErrorHandler general2 = new PrefabGeneralErrorHandler();
 		PrefabProcessorFactory factory2 = new PrefabProcessorFactory(telltale, doCheckpointing, doMarker);
-		EventProcessorHost host2 = new EventProcessorHost(conflictingName, utils.getConnectionString().getEntityPath(),
+		EventProcessorHost host2 = new EventProcessorHost(conflictingName, utils.getConnectionString().getEventHubName(),
 				utils.getConsumerGroup(), utils.getConnectionString().toString(),
 				TestUtilities.getStorageConnectionString(), storageName);
 		EventProcessorOptions options2 = EventProcessorOptions.getDefaultOptions();
@@ -163,8 +159,8 @@ public class Repros extends TestBase
 			System.out.println("\nParked: " + parkedCount + "  SELECTING: " + selectingList);
 			
 			System.out.println("Client " + clientSerialNumber + " starting");
-			EventHubClient client = EventHubClient.createFromConnectionStringSync(utils.getConnectionString().toString());
-			PartitionReceiver receiver = client.createReceiver(utils.getConsumerGroup(), "0", PartitionReceiver.START_OF_STREAM).get();
+			EventHubClient client = EventHubClient.createFromConnectionStringSync(utils.getConnectionString().toString(), TestUtilities.EXECUTOR_SERVICE);
+			PartitionReceiver receiver = client.createReceiver(utils.getConsumerGroup(), "0", EventPosition.fromStartOfStream()).get();
 					//client.createEpochReceiver(utils.getConsumerGroup(), "0", PartitionReceiver.START_OF_STREAM, 1).get();
 
 			boolean useReceiveHandler = false;

@@ -47,11 +47,11 @@ public class InteropEventBodyTest extends ApiTestBase {
         final ConnectionStringBuilder connStrBuilder = TestContext.getConnectionString();
         final String connectionString = connStrBuilder.toString();
 
-        ehClient = EventHubClient.createFromConnectionStringSync(connectionString);
-        msgFactory = MessagingFactory.createFromConnectionString(connectionString).get();
-        receiver = ehClient.createReceiverSync(TestContext.getConsumerGroupName(), partitionId, Instant.now());
+        ehClient = EventHubClient.createFromConnectionStringSync(connectionString, TestContext.EXECUTOR_SERVICE);
+        msgFactory = MessagingFactory.createFromConnectionString(connectionString, TestContext.EXECUTOR_SERVICE).get();
+        receiver = ehClient.createReceiverSync(TestContext.getConsumerGroupName(), partitionId, EventPosition.fromEnqueuedTime(Instant.now()));
         partitionSender = ehClient.createPartitionSenderSync(partitionId);
-        partitionMsgSender = MessageSender.create(msgFactory, "link1", connStrBuilder.getEntityPath() + "/partitions/" + partitionId).get();
+        partitionMsgSender = MessageSender.create(msgFactory, "link1", connStrBuilder.getEventHubName() + "/partitions/" + partitionId).get();
         
         // run out of messages in that specific partition - to account for clock-skew with Instant.now() on test machine vs eventhubs service
         receiver.setReceiveTimeout(Duration.ofSeconds(5));

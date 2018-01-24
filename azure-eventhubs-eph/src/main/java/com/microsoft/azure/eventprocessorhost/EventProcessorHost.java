@@ -6,6 +6,7 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.RetryPolicy;
 import com.microsoft.azure.storage.StorageException;
 
 import java.net.URISyntaxException;
@@ -164,7 +165,7 @@ public final class EventProcessorHost
             final AzureStorageCheckpointLeaseManager combinedManager,
             final ScheduledExecutorService executorService)
     {
-        this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, combinedManager, combinedManager, executorService);
+        this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, combinedManager, combinedManager, executorService, null);
     }
 
 
@@ -189,7 +190,7 @@ public final class EventProcessorHost
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager)
     {
-    	this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, checkpointManager, leaseManager, null);
+    	this(hostName, eventHubPath, consumerGroupName, eventHubConnectionString, checkpointManager, leaseManager, null, null);
     }
     
     /**
@@ -213,7 +214,8 @@ public final class EventProcessorHost
             final String eventHubConnectionString,
             ICheckpointManager checkpointManager,
             ILeaseManager leaseManager,
-            ScheduledExecutorService executorService)
+            ScheduledExecutorService executorService,
+            RetryPolicy retryPolicy)
     {
     	if ((hostName == null) || hostName.isEmpty())
     	{
@@ -235,7 +237,7 @@ public final class EventProcessorHost
     	// The event hub path must appear in at least one of the eventHubPath argument or the connection string.
     	// If it appears in both, then it must be the same in both. If it appears in only one, populate the other.
     	ConnectionStringBuilder providedCSB = new ConnectionStringBuilder(eventHubConnectionString); 
-    	String extractedEntityPath = providedCSB.getEntityPath();
+    	String extractedEntityPath = providedCSB.getEventHubName();
     	String effectiveEventHubPath = eventHubPath;
         String effectiveEventHubConnectionString = eventHubConnectionString;
     	if ((effectiveEventHubPath != null) && !effectiveEventHubPath.isEmpty())
@@ -251,10 +253,12 @@ public final class EventProcessorHost
     		else
     		{
     			// There is no entity path in the connection string, so put it there.
-    			ConnectionStringBuilder rebuildCSB = new ConnectionStringBuilder(providedCSB.getEndpoint(), effectiveEventHubPath,
-    					providedCSB.getSasKeyName(), providedCSB.getSasKey());
+    			ConnectionStringBuilder rebuildCSB = new ConnectionStringBuilder()
+                        .setEndpoint(providedCSB.getEndpoint())
+                        .setEventHubName(effectiveEventHubPath)
+                        .setSasKeyName(providedCSB.getSasKeyName())
+                        .setSasKey(providedCSB.getSasKey());
     			rebuildCSB.setOperationTimeout(providedCSB.getOperationTimeout());
-    			rebuildCSB.setRetryPolicy(providedCSB.getRetryPolicy());
     			effectiveEventHubConnectionString = rebuildCSB.toString();
     		}
     	}
@@ -303,7 +307,7 @@ public final class EventProcessorHost
         
         this.hostContext = new HostContext(this.executorService,
         		this, hostName,
-        		effectiveEventHubPath, consumerGroupName, effectiveEventHubConnectionString,
+        		effectiveEventHubPath, consumerGroupName, effectiveEventHubConnectionString, retryPolicy,
         		leaseManager, checkpointManager);
         
         this.partitionManager = new PartitionManager(hostContext);
@@ -330,7 +334,7 @@ public final class EventProcessorHost
      * @return	Event Hub connection string.
      */
     public String getEventHubConnectionString() { return this.hostContext.getEventHubConnectionString(); }
-    
+
     // TEST USE ONLY
     void setPartitionManager(PartitionManager pm) { this.partitionManager = pm; }
     HostContext getHostContext() { return this.hostContext; }

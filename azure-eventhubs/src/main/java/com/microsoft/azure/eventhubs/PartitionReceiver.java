@@ -5,7 +5,6 @@
 package com.microsoft.azure.eventhubs;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -13,6 +12,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -47,17 +47,10 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
     static final int DEFAULT_PREFETCH_COUNT = 999;
     static final long NULL_EPOCH = 0;
 
-    /**
-     * This is a constant defined to represent the start of a partition stream in EventHub.
-     */
-    public static final String START_OF_STREAM = "-1";
 
-    /**
-     * This is a constant defined to represent the current end of a partition stream in EventHub.
-     * This can be used as an offset argument in receiver creation to start receiving from the latest
-     * event, instead of a specific offset or point in time.
-     */
-    public static final String END_OF_STREAM = "@latest";
+    // Both constants should be removed before 1.0.0 release
+    public static String START_OF_STREAM = "-1";
+    public static String END_OF_STREAM = "@latest";
 
     private final String partitionId;
     private final MessagingFactory underlyingFactory;
@@ -65,9 +58,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
     private final String consumerGroupName;
     private final Object receiveHandlerLock;
 
-    private String startingOffset;
-    private boolean offsetInclusive;
-    private Instant startingDateTime;
+    private EventPosition eventPosition;
     private MessageReceiver internalReceiver;
     private Long epoch;
     private boolean isEpochReceiver;
@@ -79,22 +70,19 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                               final String eventHubName,
                               final String consumerGroupName,
                               final String partitionId,
-                              final String startingOffset,
-                              final boolean offsetInclusive,
-                              final Instant dateTime,
+                              final EventPosition eventPosition,
                               final Long epoch,
                               final boolean isEpochReceiver,
-                              final ReceiverOptions receiverOptions)
+                              final ReceiverOptions receiverOptions,
+                              final Executor executor)
             throws EventHubException {
-        super(null, null);
+        super(null, null, executor);
 
         this.underlyingFactory = factory;
         this.eventHubName = eventHubName;
         this.consumerGroupName = consumerGroupName;
         this.partitionId = partitionId;
-        this.startingOffset = startingOffset;
-        this.offsetInclusive = offsetInclusive;
-        this.startingDateTime = dateTime;
+        this.eventPosition = eventPosition;
         this.epoch = epoch;
         this.isEpochReceiver = isEpochReceiver;
         this.receiveHandlerLock = new Object();
@@ -108,12 +96,11 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                                                        final String eventHubName,
                                                        final String consumerGroupName,
                                                        final String partitionId,
-                                                       final String startingOffset,
-                                                       final boolean offsetInclusive,
-                                                       final Instant dateTime,
+                                                       final EventPosition eventPosition,
                                                        final long epoch,
                                                        final boolean isEpochReceiver,
-                                                       final ReceiverOptions receiverOptions)
+                                                       final ReceiverOptions receiverOptions,
+                                                       final Executor executor)
             throws EventHubException {
         if (epoch < NULL_EPOCH) {
             throw new IllegalArgumentException("epoch cannot be a negative value. Please specify a zero or positive long value.");
@@ -123,12 +110,12 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
             throw new IllegalArgumentException("specify valid string for argument - 'consumerGroupName'");
         }
 
-        final PartitionReceiver receiver = new PartitionReceiver(factory, eventHubName, consumerGroupName, partitionId, startingOffset, offsetInclusive, dateTime, epoch, isEpochReceiver, receiverOptions);
+        final PartitionReceiver receiver = new PartitionReceiver(factory, eventHubName, consumerGroupName, partitionId, eventPosition, epoch, isEpochReceiver, receiverOptions, executor);
         return receiver.createInternalReceiver().thenApplyAsync(new Function<Void, PartitionReceiver>() {
             public PartitionReceiver apply(Void a) {
                 return receiver;
             }
-        });
+        }, executor);
     }
 
     private CompletableFuture<Void> createInternalReceiver() throws EventHubException {
@@ -140,18 +127,14 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                     public void accept(MessageReceiver r) {
                         PartitionReceiver.this.internalReceiver = r;
                     }
-                });
+                }, this.executor);
     }
 
     /**
      * @return The Cursor from which this Receiver started receiving from
      */
-    final String getStartingOffset() {
-        return this.startingOffset;
-    }
-
-    final boolean getOffsetInclusive() {
-        return this.offsetInclusive;
+    final EventPosition getStartingPosition() {
+        return this.eventPosition;
     }
 
     /**
@@ -295,7 +278,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
                 if (PartitionReceiver.this.receiverOptions != null && PartitionReceiver.this.receiverOptions.getReceiverRuntimeMetricEnabled())
                     lastMessageRef = new PassByRef<>();
 
-                Iterable<EventData> events = EventDataUtil.toEventDataCollection(amqpMessages, lastMessageRef);
+                final Iterable<EventData> events = EventDataUtil.toEventDataCollection(amqpMessages, lastMessageRef);
 
                 if (lastMessageRef != null && lastMessageRef.get() != null) {
 
@@ -312,7 +295,7 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 
                 return events;
             }
-        });
+        }, this.executor);
     }
 
     /**
@@ -396,52 +379,27 @@ public final class PartitionReceiver extends ClientEntity implements IReceiverSe
 
     @Override
     public Map<Symbol, UnknownDescribedType> getFilter(final Message lastReceivedMessage) {
-        final UnknownDescribedType filter;
-        if (lastReceivedMessage == null && this.startingOffset == null) {
-            long totalMilliSeconds;
-            try {
-                totalMilliSeconds = this.startingDateTime.toEpochMilli();
-            } catch (ArithmeticException ex) {
-                totalMilliSeconds = Long.MAX_VALUE;
-                if (TRACE_LOGGER.isWarnEnabled()) {
-                    TRACE_LOGGER.warn(
-                            "receiver not yet created, action[createReceiveLink], warning[starting receiver from epoch+Long.Max]");
-                }
-            }
-
-            filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
-                    String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.ENQUEUED_TIME_UTC_ANNOTATION_NAME, StringUtil.EMPTY, totalMilliSeconds));
+        String expression;
+        if (lastReceivedMessage != null) {
+            String lastReceivedOffset = lastReceivedMessage.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
+            expression = String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT, AmqpConstants.OFFSET_ANNOTATION_NAME, StringUtil.EMPTY, lastReceivedOffset);
         } else {
-            final String lastReceivedOffset;
-            final boolean offsetInclusiveFlag;
-            if (lastReceivedMessage != null) {
-                offsetInclusiveFlag = false;
-                lastReceivedOffset = lastReceivedMessage.getMessageAnnotations().getValue().get(AmqpConstants.OFFSET).toString();
-            } else {
-                offsetInclusiveFlag = this.offsetInclusive;
-                lastReceivedOffset = this.startingOffset;
-            }
-
-            if (TRACE_LOGGER.isInfoEnabled()) {
-                String logReceivePath = "";
-                if (this.internalReceiver == null) {
-                    // During startup, internalReceiver is still null. Need to handle this special case when logging during startup
-                    // or the reactor thread crashes with NPE when calling internalReceiver.getReceivePath() and no receiving occurs.
-                    logReceivePath = "receiverPath[RECEIVER IS NULL]";
-                } else {
-                    logReceivePath = "receiverPath[" + this.internalReceiver.getReceivePath() + "]";
-                }
-                TRACE_LOGGER.info(String.format("%s, action[createReceiveLink], offset[%s], offsetInclusive[%s]", logReceivePath, lastReceivedOffset, offsetInclusiveFlag));
-            }
-
-            filter = new UnknownDescribedType(AmqpConstants.STRING_FILTER,
-                    String.format(AmqpConstants.AMQP_ANNOTATION_FORMAT,
-                            AmqpConstants.OFFSET_ANNOTATION_NAME,
-                            offsetInclusiveFlag ? "=" : StringUtil.EMPTY,
-                            lastReceivedOffset));
+            expression = this.eventPosition.getExpression();
         }
 
-        return Collections.singletonMap(AmqpConstants.STRING_FILTER, filter);
+        if (TRACE_LOGGER.isInfoEnabled()) {
+            String logReceivePath = "";
+            if (this.internalReceiver == null) {
+                // During startup, internalReceiver is still null. Need to handle this special case when logging during startup
+                // or the reactor thread crashes with NPE when calling internalReceiver.getReceivePath() and no receiving occurs.
+                logReceivePath = "receiverPath[RECEIVER IS NULL]";
+            } else {
+                logReceivePath = "receiverPath[" + this.internalReceiver.getReceivePath() + "]";
+            }
+            TRACE_LOGGER.info(String.format("%s, action[createReceiveLink], %s", logReceivePath, this.eventPosition));
+        }
+
+        return Collections.singletonMap(AmqpConstants.STRING_FILTER, new UnknownDescribedType(AmqpConstants.STRING_FILTER, expression));
     }
 
     @Override

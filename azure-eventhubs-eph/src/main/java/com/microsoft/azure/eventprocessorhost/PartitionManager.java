@@ -58,7 +58,7 @@ class PartitionManager
     		try
     		{
     			// Stage 0: get EventHubClient for the event hub
-				retval = EventHubClient.createFromConnectionString(this.hostContext.getEventHubConnectionString())
+				retval = EventHubClient.createFromConnectionString(this.hostContext.getEventHubConnectionString(), this.hostContext.getRetryPolicy(), this.hostContext.getExecutor())
 				// Stage 1: use the client to get runtime info for the event hub 
 				.thenComposeAsync((ehClient) -> ehClient.getRuntimeInformation(), this.hostContext.getExecutor())
 				// Stage 2: extract the partition ids from the runtime info or throw on null (timeout)

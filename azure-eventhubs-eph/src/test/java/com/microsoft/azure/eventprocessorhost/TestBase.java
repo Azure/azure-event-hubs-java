@@ -35,7 +35,7 @@ public class TestBase
 		ConnectionStringBuilder environmentCSB = settings.outUtils.getConnectionString();
 
 		String effectiveEntityPath = settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_PATH_OVERRIDE) ?
-				settings.inoutEPHConstructorArgs.getEHPath() : environmentCSB.getEntityPath();
+				settings.inoutEPHConstructorArgs.getEHPath() : environmentCSB.getEventHubName();
 				
 		String effectiveConsumerGroup = settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.CONSUMER_GROUP_OVERRIDE) ?
 				settings.inoutEPHConstructorArgs.getConsumerGroupName() : EventHubClient.DEFAULT_CONSUMER_GROUP_NAME; 
@@ -44,11 +44,16 @@ public class TestBase
 		if (settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_PATH_REPLACE_IN_CONNECTION) ||
 				settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH))
 		{
-			ConnectionStringBuilder replacedCSB = new ConnectionStringBuilder(environmentCSB.getEndpoint(),
-					settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH) ? "" : settings.inoutEPHConstructorArgs.getEHPath(), 
-					environmentCSB.getSasKeyName(), environmentCSB.getSasKey());
+			ConnectionStringBuilder replacedCSB = new ConnectionStringBuilder()
+					.setEndpoint(environmentCSB.getEndpoint())
+					.setEventHubName(
+							settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_REMOVE_PATH) ?
+                                    "" :
+                                    settings.inoutEPHConstructorArgs.getEHPath()
+					)
+					.setSasKeyName(environmentCSB.getSasKeyName())
+					.setSasKey(environmentCSB.getSasKey());
 			replacedCSB.setOperationTimeout(environmentCSB.getOperationTimeout());
-			replacedCSB.setRetryPolicy(environmentCSB.getRetryPolicy());
 			effectiveConnectionString = replacedCSB.toString();
 		}
 		if (settings.inoutEPHConstructorArgs.isFlagSet(PerTestSettings.EPHConstructorArgs.EH_CONNECTION_OVERRIDE))
@@ -80,7 +85,7 @@ public class TestBase
 					settings.inoutEPHConstructorArgs.getLeaseManager() : new BogusLeaseManager();
 					
 			settings.outHost = new EventProcessorHost(effectiveHostName, effectiveEntityPath, effectiveConsumerGroup, effectiveConnectionString,
-					effectiveCheckpointMananger, effectiveLeaseManager, effectiveExecutor);
+					effectiveCheckpointMananger, effectiveLeaseManager, effectiveExecutor, null);
 		}
 		else
 		{

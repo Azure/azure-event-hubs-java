@@ -17,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
+import com.microsoft.azure.eventhubs.EventPosition;
 import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.ReceiverDisconnectedException;
@@ -217,7 +218,8 @@ class PartitionPump extends PartitionReceiveHandler
         CompletableFuture<EventHubClient> startOpeningFuture = null;
         try
         {
-			startOpeningFuture = EventHubClient.createFromConnectionString(this.hostContext.getEventHubConnectionString());
+			startOpeningFuture = EventHubClient.createFromConnectionString(this.hostContext.getEventHubConnectionString(),
+					this.hostContext.getRetryPolicy(), this.hostContext.getExecutor());
 		}
         catch (EventHubException | IOException e2)
         {
@@ -260,15 +262,19 @@ class PartitionPump extends PartitionReceiveHandler
 	    	
 	    	try
 	    	{
+	    		// FOO FOO FOO need to redo getInitialOffset to return an EventPosition
+	    		// This change is just to get everything to compile.
 	        	if (startAt instanceof String)
 	        	{
+		    		EventPosition blah = EventPosition.fromOffset((String)startAt);
 					receiverFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(),
-							this.partitionContext.getPartitionId(), (String)startAt, epoch, options);
+							this.partitionContext.getPartitionId(), blah, epoch, options);
 	        	}
 	        	else if (startAt instanceof Instant) 
 	        	{
+	        		EventPosition blah = EventPosition.fromEnqueuedTime((Instant)startAt);
 	        		receiverFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(),
-	        				this.partitionContext.getPartitionId(), (Instant)startAt, epoch, options);
+	        				this.partitionContext.getPartitionId(), blah, epoch, options);
 	        	}
 	        	else
 	        	{
