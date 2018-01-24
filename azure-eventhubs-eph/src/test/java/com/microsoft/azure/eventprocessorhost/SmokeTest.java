@@ -10,6 +10,8 @@ import java.util.concurrent.Executors;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.microsoft.azure.eventhubs.EventPosition;
+
 
 public class SmokeTest extends TestBase
 {
@@ -68,7 +70,7 @@ public class SmokeTest extends TestBase
 		{
 			settings.inoutEPHConstructorArgs.setStorageContainerName(containerName);
 		}
-		settings.inOptions.setInitialOffsetProvider((partitionId) -> { return storedNow; });
+		settings.inOptions.setInitialPositionProvider((partitionId) -> { return EventPosition.fromEnqueuedTime(storedNow); });
 		settings = testSetup(settings);
 
 		settings.outUtils.sendToAny(settings.outTelltale);
@@ -161,7 +163,7 @@ public class SmokeTest extends TestBase
 		final Instant savedNow = Instant.now();
 		
 		PerTestSettings settings = new PerTestSettings("receiveAllPartitions");
-		settings.inOptions.setInitialOffsetProvider((partitionId) -> { return savedNow; });
+		settings.inOptions.setInitialPositionProvider((partitionId) -> { return EventPosition.fromEnqueuedTime(savedNow); });
 		settings = testSetup(settings);
 
 		final int maxGeneration = 10;
@@ -193,7 +195,7 @@ public class SmokeTest extends TestBase
 		final Instant savedNow = Instant.now();
 		
 		PerTestSettings settings = new PerTestSettings("rcvAllPartsUserExec");
-		settings.inOptions.setInitialOffsetProvider((partitionId) -> { return savedNow; });
+		settings.inOptions.setInitialPositionProvider((partitionId) -> { return EventPosition.fromEnqueuedTime(savedNow); });
 		settings.inoutEPHConstructorArgs.setExecutor(Executors.newScheduledThreadPool(4));
 		settings = testSetup(settings);
 
@@ -226,7 +228,7 @@ public class SmokeTest extends TestBase
 		final Instant savedNow = Instant.now();
 		
 		PerTestSettings settings = new PerTestSettings("rcvAllParts1ThrdExec");
-		settings.inOptions.setInitialOffsetProvider((partitionId) -> { return savedNow; });
+		settings.inOptions.setInitialPositionProvider((partitionId) -> { return EventPosition.fromEnqueuedTime(savedNow); });
 		settings.inoutEPHConstructorArgs.setExecutor(Executors.newSingleThreadScheduledExecutor());
 		settings = testSetup(settings);
 

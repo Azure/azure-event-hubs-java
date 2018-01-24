@@ -79,7 +79,7 @@ public class Repros extends TestBase
 		PrefabProcessorFactory factory = new PrefabProcessorFactory("never match", PrefabEventProcessor.CheckpointChoices.CKP_NONE, true, false);
 		InMemoryCheckpointManager checkpointer = new InMemoryCheckpointManager();
 		InMemoryLeaseManager leaser = new InMemoryLeaseManager();
-		EventProcessorHost host = new EventProcessorHost("infiniteReceive-1", utils.getConnectionString().getEntityPath(),
+		EventProcessorHost host = new EventProcessorHost("infiniteReceive-1", utils.getConnectionString().getEventHubName(),
 				utils.getConsumerGroup(), utils.getConnectionString().toString(),
 				checkpointer, leaser);
 		checkpointer.initialize(host.getHostContext());

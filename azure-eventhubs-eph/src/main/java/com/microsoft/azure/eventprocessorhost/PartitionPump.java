@@ -6,7 +6,6 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.concurrent.CompletableFuture;
@@ -17,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
-import com.microsoft.azure.eventhubs.EventPosition;
 import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
 import com.microsoft.azure.eventhubs.PartitionReceiver;
 import com.microsoft.azure.eventhubs.ReceiverDisconnectedException;
@@ -262,27 +260,8 @@ class PartitionPump extends PartitionReceiveHandler
 	    	
 	    	try
 	    	{
-	    		// FOO FOO FOO need to redo getInitialOffset to return an EventPosition
-	    		// This change is just to get everything to compile.
-	        	if (startAt instanceof String)
-	        	{
-		    		EventPosition blah = EventPosition.fromOffset((String)startAt);
-					receiverFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(),
-							this.partitionContext.getPartitionId(), blah, epoch, options);
-	        	}
-	        	else if (startAt instanceof Instant) 
-	        	{
-	        		EventPosition blah = EventPosition.fromEnqueuedTime((Instant)startAt);
-	        		receiverFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(),
-	        				this.partitionContext.getPartitionId(), blah, epoch, options);
-	        	}
-	        	else
-	        	{
-	        		String errMsg = "Starting offset is not String or Instant, is " + ((startAt != null) ? startAt.getClass().toString() : "null");
-	                TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(this.partitionContext, errMsg));
-	                receiverFuture = new CompletableFuture<PartitionReceiver>();
-	                receiverFuture.completeExceptionally(new RuntimeException(errMsg));
-	        	}
+				receiverFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(),
+						this.partitionContext.getPartitionId(), startAt, epoch, options);
 	    	}
 	    	catch (EventHubException e)
 	    	{
