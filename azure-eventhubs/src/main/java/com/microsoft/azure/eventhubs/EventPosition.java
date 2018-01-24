@@ -8,13 +8,14 @@ import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.time.Instant;
 
 /**
  * Defines a position of an {@link EventData} in the event hub partition.
  * The position can be an Offset, Sequence Number, or EnqueuedTime.
  */
-public class EventPosition {
+public class EventPosition implements Serializable {
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(EventPosition.class);
 
@@ -146,6 +147,8 @@ public class EventPosition {
     @Override
     public String toString() {
         return String.format("offset[%s], sequenceNumber[%s], enqueuedTime[%s], inclusiveFlag[%s]",
-                this.offset, this.sequenceNumber, this.dateTime.toEpochMilli(), this.inclusiveFlag);
+                this.offset, this.sequenceNumber,
+                (this.dateTime != null) ? this.dateTime.toEpochMilli() : "null",
+                this.inclusiveFlag);
     }
 }
