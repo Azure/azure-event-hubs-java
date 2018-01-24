@@ -117,5 +117,140 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         testClosed.shutdown();
 
         temp.sendSync(new EventData("test data - string".getBytes()));
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+    }
+
+    @Test()
+    public void SupplyClosedExecutorServiceToReceiveOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final PartitionReceiver temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed)
+                .createReceiverSync(TestContext.getConsumerGroupName(), PARTITION_ID, EventPosition.fromEndOfStream());
+
+        testClosed.shutdown();
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+        try {
+        temp.receiveSync(20);
+            Assert.assertTrue(false);
+        } catch(EventHubException expected) {
+            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
+        }
+    }
+
+    @Test()
+    public void SupplyClosedExecutorServiceToCreateLinkOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final EventHubClient temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed);
+
+        testClosed.shutdown();
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+
+        try {
+            temp.sendSync(new EventData("test data - string".getBytes()));
+            Assert.assertTrue(false);
+        } catch(EventHubException expected) {
+            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
+        }
+    }
+
+    @Test()
+    public void SupplyClosedExecutorServiceToCreateSenderOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final EventHubClient temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed);
+
+        testClosed.shutdown();
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+
+        try {
+            temp.createPartitionSenderSync(PARTITION_ID);
+            Assert.assertTrue(false);
+        } catch(EventHubException expected) {
+            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
+        }
+    }
+
+    @Test()
+    public void SupplyClosedExecutorServiceToCreateReceiverOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final EventHubClient temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed);
+
+        testClosed.shutdown();
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+
+        try {
+            temp.createReceiverSync(TestContext.getConsumerGroupName(), PARTITION_ID, EventPosition.fromEndOfStream());
+            Assert.assertTrue(false);
+        } catch(EventHubException expected) {
+            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
+        }
+    }
+
+    @Test()
+    public void SupplyClosedExecutorServiceThenFactoryCloseOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final EventHubClient temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed);
+
+        testClosed.shutdown();
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+
+        try {
+            temp.closeSync();
+            Assert.assertTrue(false);
+        } catch(EventHubException expected) {
+            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
+        } catch (RejectedExecutionException expected) {
+        }
+    }
+
+    @Test()
+    public void SupplyClosedExecutorServiceThenSenderCloseOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final PartitionSender temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed).createPartitionSenderSync(PARTITION_ID);
+
+        testClosed.shutdown();
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+
+        try {
+            temp.closeSync();
+            Assert.assertTrue(false);
+        } catch(EventHubException expected) {
+            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
+        }
+    }
+
+    @Test()
+    public void SupplyClosedExecutorServiceThenReceiverCloseOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final PartitionReceiver temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed).createReceiverSync(TestContext.getConsumerGroupName(), PARTITION_ID, EventPosition.fromEndOfStream());
+
+        testClosed.shutdown();
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+
+        try {
+            temp.closeSync();
+            Assert.assertTrue(false);
+        } catch(EventHubException expected) {
+            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
+        }
     }
 }

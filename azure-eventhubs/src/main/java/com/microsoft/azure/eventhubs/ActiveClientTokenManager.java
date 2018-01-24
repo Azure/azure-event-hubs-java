@@ -6,34 +6,37 @@ package com.microsoft.azure.eventhubs;
 
 import java.time.Duration;
 import java.util.Locale;
-import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ActiveClientTokenManager {
+final class ActiveClientTokenManager {
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ActiveClientTokenManager.class);
 
-    private ScheduledFuture timer;
+    private CompletableFuture timer;
 
     private final Object timerLock;
     private final Runnable sendTokenTask;
     private final ClientEntity clientEntity;
     private final Duration tokenRefreshInterval;
+    private final ISchedulerProvider schedulerProvider;
 
     public ActiveClientTokenManager(
             final ClientEntity clientEntity,
             final Runnable sendTokenAsync,
-            final Duration tokenRefreshInterval) {
+            final Duration tokenRefreshInterval,
+            final ISchedulerProvider schedulerProvider) {
 
         this.sendTokenTask = sendTokenAsync;
         this.clientEntity = clientEntity;
         this.tokenRefreshInterval = tokenRefreshInterval;
         this.timerLock = new Object();
+        this.schedulerProvider = schedulerProvider;
 
         synchronized (this.timerLock) {
-            this.timer = Timer.schedule(new TimerCallback(), tokenRefreshInterval, TimerType.OneTimeRun);
+            this.timer = Timer.schedule(this.schedulerProvider.getReactorScheduler(), new TimerCallback(), tokenRefreshInterval);
         }
     }
 
@@ -54,7 +57,7 @@ public class ActiveClientTokenManager {
                 sendTokenTask.run();
 
                 synchronized (timerLock) {
-                    timer = Timer.schedule(new TimerCallback(), tokenRefreshInterval, TimerType.OneTimeRun);
+                    timer = Timer.schedule(schedulerProvider.getReactorScheduler(), new TimerCallback(), tokenRefreshInterval);
                 }
             } else {
 

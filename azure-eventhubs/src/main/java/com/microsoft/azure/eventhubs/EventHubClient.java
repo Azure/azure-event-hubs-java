@@ -937,7 +937,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
         CompletableFuture<Map<String, Object>> rawdataFuture = new CompletableFuture<Map<String, Object>>();
         
         ManagementRetry retrier = new ManagementRetry(rawdataFuture, endTime, this.underlyingFactory, request);
-        Timer.schedule(retrier, Duration.ZERO, TimerType.OneTimeRun);
+        Timer.schedule(this.underlyingFactory.getReactorScheduler(), retrier, Duration.ZERO);
         
         return rawdataFuture;
     }
@@ -1010,7 +1010,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 							// the next time it is needed.
 							ManagementRetry retrier = new ManagementRetry(ManagementRetry.this.finalFuture, ManagementRetry.this.endTime,
 									ManagementRetry.this.mf, ManagementRetry.this.request);
-							Timer.schedule(retrier, waitTime, TimerType.OneTimeRun);
+							Timer.schedule(mf.getReactorScheduler(), retrier, waitTime);
 						}
 					}
 				}
