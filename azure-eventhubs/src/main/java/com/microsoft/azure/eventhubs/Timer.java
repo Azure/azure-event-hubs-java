@@ -9,22 +9,23 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
 import com.microsoft.azure.eventhubs.amqp.DispatchHandler;
-import com.microsoft.azure.eventhubs.amqp.ReactorDispatcher;
 
 final class Timer {
 
-    private Timer() {
+    final ISchedulerProvider schedulerProvider;
+
+    public Timer(final ISchedulerProvider schedulerProvider) {
+        this.schedulerProvider = schedulerProvider;
     }
 
-    public static CompletableFuture<?> schedule(
-            final ReactorDispatcher dispatcher,
+    public CompletableFuture<?> schedule(
             final Runnable runnable,
             final Duration runAfter) {
 
         final ScheduledTask scheduledTask = new ScheduledTask(runnable);
         final CompletableFuture<?> taskHandle = scheduledTask.getScheduledFuture();
         try {
-            dispatcher.invoke((int) runAfter.toMillis(), scheduledTask);
+            this.schedulerProvider.getReactorScheduler().invoke((int) runAfter.toMillis(), scheduledTask);
         } catch (IOException e) {
             taskHandle.completeExceptionally(e);
         }

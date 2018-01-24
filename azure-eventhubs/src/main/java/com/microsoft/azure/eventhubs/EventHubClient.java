@@ -43,6 +43,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
     private MessagingFactory underlyingFactory;
     private MessageSender sender;
     private CompletableFuture<Void> createSender;
+    private Timer timer;
 
     private EventHubClient(final ConnectionStringBuilder connectionString, final Executor executor) throws IOException, IllegalEntityException {
         super(StringUtil.getRandomString(), null, executor);
@@ -134,6 +135,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
                     @Override
                     public EventHubClient apply(MessagingFactory factory) {
                         eventHubClient.underlyingFactory = factory;
+                        eventHubClient.timer = new Timer(factory);
                         return eventHubClient;
                     }
                 }, executor);
@@ -937,7 +939,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
         CompletableFuture<Map<String, Object>> rawdataFuture = new CompletableFuture<Map<String, Object>>();
         
         ManagementRetry retrier = new ManagementRetry(rawdataFuture, endTime, this.underlyingFactory, request);
-        Timer.schedule(this.underlyingFactory.getReactorScheduler(), retrier, Duration.ZERO);
+        this.timer.schedule(retrier, Duration.ZERO);
         
         return rawdataFuture;
     }
@@ -1010,7 +1012,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 							// the next time it is needed.
 							ManagementRetry retrier = new ManagementRetry(ManagementRetry.this.finalFuture, ManagementRetry.this.endTime,
 									ManagementRetry.this.mf, ManagementRetry.this.request);
-							Timer.schedule(mf.getReactorScheduler(), retrier, waitTime);
+							EventHubClient.this.timer.schedule(retrier, waitTime);
 						}
 					}
 				}

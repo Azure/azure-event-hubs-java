@@ -22,6 +22,7 @@ final class ActiveClientTokenManager {
     private final ClientEntity clientEntity;
     private final Duration tokenRefreshInterval;
     private final ISchedulerProvider schedulerProvider;
+    private final Timer timerScheduler;
 
     public ActiveClientTokenManager(
             final ClientEntity clientEntity,
@@ -34,9 +35,10 @@ final class ActiveClientTokenManager {
         this.tokenRefreshInterval = tokenRefreshInterval;
         this.timerLock = new Object();
         this.schedulerProvider = schedulerProvider;
+        this.timerScheduler = new Timer(schedulerProvider);
 
         synchronized (this.timerLock) {
-            this.timer = Timer.schedule(this.schedulerProvider.getReactorScheduler(), new TimerCallback(), tokenRefreshInterval);
+            this.timer = this.timerScheduler.schedule(new TimerCallback(), tokenRefreshInterval);
         }
     }
 
@@ -57,7 +59,7 @@ final class ActiveClientTokenManager {
                 sendTokenTask.run();
 
                 synchronized (timerLock) {
-                    timer = Timer.schedule(schedulerProvider.getReactorScheduler(), new TimerCallback(), tokenRefreshInterval);
+                    timer = timerScheduler.schedule(new TimerCallback(), tokenRefreshInterval);
                 }
             } else {
 

@@ -68,6 +68,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
     private final ReceiveWork receiveWork;
     private final CreateAndReceive createAndReceive;
     private final Object errorConditionLock;
+    private final Timer timer;
 
     private int prefetchCount;
     private Receiver receiveLink;
@@ -97,6 +98,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
         this.prefetchCountSync = new Object();
         this.settingsProvider = settingsProvider;
         this.linkOpen = new WorkItem<>(new CompletableFuture<>(), factory.getOperationTimeout());
+        this.timer = new Timer(factory);
 
         this.pendingReceives = new ConcurrentLinkedQueue<>();
         this.errorConditionLock = new Object();
@@ -263,7 +265,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
         }
 
         if (this.pendingReceives.isEmpty()) {
-            Timer.schedule(this.underlyingFactory.getReactorScheduler(), this.onOperationTimedout, this.receiveTimeout);
+            timer.schedule(this.onOperationTimedout, this.receiveTimeout);
         }
 
         final CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<>();
@@ -407,7 +409,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
     private void scheduleOperationTimer(final TimeoutTracker tracker) {
         if (tracker != null) {
-            Timer.schedule(this.underlyingFactory.getReactorScheduler(), this.onOperationTimedout, tracker.remaining());
+            timer.schedule(this.onOperationTimedout, tracker.remaining());
         }
     }
 
@@ -542,8 +544,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
     private void scheduleLinkOpenTimeout(final TimeoutTracker timeout) {
         // timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-        this.openTimer = Timer.schedule(
-                this.underlyingFactory.getReactorScheduler(),
+        this.openTimer = timer.schedule(
                 new Runnable() {
                     public void run() {
                         if (!linkOpen.getWork().isDone()) {
@@ -581,8 +582,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
 
     private void scheduleLinkCloseTimeout(final TimeoutTracker timeout) {
         // timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-        this.closeTimer = Timer.schedule(
-                this.underlyingFactory.getReactorScheduler(),
+        this.closeTimer = timer.schedule(
                 new Runnable() {
                     public void run() {
                         if (!linkClose.isDone()) {

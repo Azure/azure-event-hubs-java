@@ -210,17 +210,17 @@ public final class MessagingFactory extends ClientEntity implements IAmqpConnect
 
         messagingFactory.createConnection();
 
-        messagingFactory.openTimer = Timer.schedule(
-                                                messagingFactory.getReactorScheduler(),
-                                                new Runnable() {
-                                                        @Override
-                                                        public void run() {
-                                                            if (!messagingFactory.open.isDone()) {
-                                                                messagingFactory.open.completeExceptionally(new TimeoutException("Opening MessagingFactory timed out."));
-                                                                messagingFactory.getReactor().stop();
-                                                            }
-                                                        }
-                                                    },
+        final Timer timer = new Timer(messagingFactory);
+        messagingFactory.openTimer = timer.schedule(
+                                        new Runnable() {
+                                                @Override
+                                                public void run() {
+                                                    if (!messagingFactory.open.isDone()) {
+                                                        messagingFactory.open.completeExceptionally(new TimeoutException("Opening MessagingFactory timed out."));
+                                                        messagingFactory.getReactor().stop();
+                                                    }
+                                                }
+                                            },
                 messagingFactory.getOperationTimeout());
 
         // if scheduling messagingfactory openTimer fails - notify user and stop
@@ -333,7 +333,8 @@ public final class MessagingFactory extends ClientEntity implements IAmqpConnect
     @Override
     protected CompletableFuture<Void> onClose() {
         if (!this.getIsClosed()) {
-                this.closeTimer = Timer.schedule(this.getReactorScheduler(), new Runnable() {
+                final Timer timer = new Timer(this);
+                this.closeTimer = timer.schedule(new Runnable() {
                                                      @Override
                                                      public void run() {
                                                          if (!closeTask.isDone()) {

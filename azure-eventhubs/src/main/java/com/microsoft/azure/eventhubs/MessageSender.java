@@ -77,6 +77,7 @@ public final class MessageSender extends ClientEntity implements IAmqpSender, IE
     private final ActiveClientTokenManager activeClientTokenManager;
     private final String tokenAudience;
     private final Object errorConditionLock;
+    private final Timer timer;
 
     private volatile int maxMessageSize;
 
@@ -118,6 +119,7 @@ public final class MessageSender extends ClientEntity implements IAmqpSender, IE
         this.sendPath = senderPath;
         this.underlyingFactory = factory;
         this.operationTimeout = factory.getOperationTimeout();
+        this.timer = new Timer(factory);
 
         this.lastKnownLinkError = null;
         this.lastKnownErrorReportedAt = Instant.EPOCH;
@@ -221,8 +223,7 @@ public final class MessageSender extends ClientEntity implements IAmqpSender, IE
         if (timeoutTask != null)
             timeoutTask.cancel(false);
 
-        final CompletableFuture<?> timeoutTimerTask = Timer.schedule(
-                this.underlyingFactory.getReactorScheduler(),
+        final CompletableFuture<?> timeoutTimerTask = this.timer.schedule(
                 new SendTimeout(deliveryTag, sendWaiterData),
                 currentSendTracker.remaining());
 
@@ -639,8 +640,7 @@ public final class MessageSender extends ClientEntity implements IAmqpSender, IE
         this.linkFirstOpen = new CompletableFuture<>();
 
         // timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-        this.openTimer = Timer.schedule(
-                this.underlyingFactory.getReactorScheduler(),
+        this.openTimer = this.timer.schedule(
                 new Runnable() {
                     public void run() {
                         if (!MessageSender.this.linkFirstOpen.isDone()) {
@@ -836,8 +836,7 @@ public final class MessageSender extends ClientEntity implements IAmqpSender, IE
 
     private void scheduleLinkCloseTimeout(final TimeoutTracker timeout) {
         // timer to signal a timeout if exceeds the operationTimeout on MessagingFactory
-        this.closeTimer = Timer.schedule(
-                this.underlyingFactory.getReactorScheduler(),
+        this.closeTimer = this.timer.schedule(
                 new Runnable() {
                     public void run() {
                         if (!linkClose.isDone()) {
