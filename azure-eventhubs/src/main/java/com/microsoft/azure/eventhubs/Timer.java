@@ -7,6 +7,7 @@ package com.microsoft.azure.eventhubs;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 
 import com.microsoft.azure.eventhubs.amqp.DispatchHandler;
 
@@ -26,7 +27,7 @@ final class Timer {
         final CompletableFuture<?> taskHandle = scheduledTask.getScheduledFuture();
         try {
             this.schedulerProvider.getReactorScheduler().invoke((int) runAfter.toMillis(), scheduledTask);
-        } catch (IOException e) {
+        } catch (IOException|RejectedExecutionException e) {
             taskHandle.completeExceptionally(e);
         }
 

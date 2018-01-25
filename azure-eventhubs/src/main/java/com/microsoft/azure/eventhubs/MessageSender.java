@@ -107,7 +107,7 @@ public final class MessageSender extends ClientEntity implements IAmqpSender, IE
                 }
             });
         } catch (IOException|RejectedExecutionException schedulerException) {
-            msgSender.linkFirstOpen.completeExceptionally(new EventHubException(false, "Failed to create Sender, see cause for more details.", schedulerException));
+            msgSender.linkFirstOpen.completeExceptionally(schedulerException);
         }
 
         return msgSender.linkFirstOpen;
@@ -888,7 +888,7 @@ public final class MessageSender extends ClientEntity implements IAmqpSender, IE
                 });
 
             } catch (IOException|RejectedExecutionException schedulerException) {
-                this.linkClose.completeExceptionally(new EventHubException(false, "Scheduling close failed. See cause for more details.", schedulerException));
+                this.linkClose.completeExceptionally(schedulerException);
             }
         }
 

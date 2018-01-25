@@ -200,7 +200,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                 }
             });
         } catch (IOException|RejectedExecutionException schedulerException) {
-            this.linkOpen.getWork().completeExceptionally(new EventHubException(false, "Failed to create Receiver, see cause for more details.", schedulerException));
+            this.linkOpen.getWork().completeExceptionally(schedulerException);
         }
 
         return this.linkOpen.getWork();
@@ -274,7 +274,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
         try {
             this.underlyingFactory.scheduleOnReactorThread(this.createAndReceive);
         } catch (IOException|RejectedExecutionException schedulerException) {
-            onReceive.completeExceptionally(new OperationCancelledException("Receive failed while dispatching to Reactor, see cause for more details.", schedulerException));
+            onReceive.completeExceptionally(schedulerException);
         }
 
         return onReceive;
@@ -671,7 +671,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
                     }
                 });
             } catch (IOException|RejectedExecutionException schedulerException) {
-                this.linkClose.completeExceptionally(new EventHubException(false, "Scheduling close failed with error. See cause for more details.", schedulerException));
+                this.linkClose.completeExceptionally(schedulerException);
             }
         }
 

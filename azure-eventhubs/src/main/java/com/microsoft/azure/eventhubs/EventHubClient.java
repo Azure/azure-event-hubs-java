@@ -939,8 +939,12 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
         CompletableFuture<Map<String, Object>> rawdataFuture = new CompletableFuture<Map<String, Object>>();
         
         ManagementRetry retrier = new ManagementRetry(rawdataFuture, endTime, this.underlyingFactory, request);
-        this.timer.schedule(retrier, Duration.ZERO);
-        
+
+        final CompletableFuture<?> scheduledTask = this.timer.schedule(retrier, Duration.ZERO);
+        if (scheduledTask.isCompletedExceptionally()) {
+            ExceptionUtil.transferException(scheduledTask, rawdataFuture);
+        }
+
         return rawdataFuture;
     }
     

@@ -120,7 +120,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         testClosed.awaitTermination(60, TimeUnit.SECONDS);
     }
 
-    @Test()
+    @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToReceiveOperation() throws Exception {
         final ExecutorService testClosed = Executors.newWorkStealingPool();
 
@@ -131,15 +131,11 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
         testClosed.shutdown();
         testClosed.awaitTermination(60, TimeUnit.SECONDS);
-        try {
+
         temp.receiveSync(20);
-            Assert.assertTrue(false);
-        } catch(EventHubException expected) {
-            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
-        }
     }
 
-    @Test()
+    @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToCreateLinkOperation() throws Exception {
         final ExecutorService testClosed = Executors.newWorkStealingPool();
 
@@ -150,15 +146,11 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         testClosed.shutdown();
         testClosed.awaitTermination(60, TimeUnit.SECONDS);
 
-        try {
-            temp.sendSync(new EventData("test data - string".getBytes()));
-            Assert.assertTrue(false);
-        } catch(EventHubException expected) {
-            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
-        }
+        // first send creates send link
+        temp.sendSync(new EventData("test data - string".getBytes()));
     }
 
-    @Test()
+    @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToCreateSenderOperation() throws Exception {
         final ExecutorService testClosed = Executors.newWorkStealingPool();
 
@@ -169,15 +161,10 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         testClosed.shutdown();
         testClosed.awaitTermination(60, TimeUnit.SECONDS);
 
-        try {
-            temp.createPartitionSenderSync(PARTITION_ID);
-            Assert.assertTrue(false);
-        } catch(EventHubException expected) {
-            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
-        }
+        temp.createPartitionSenderSync(PARTITION_ID);
     }
 
-    @Test()
+    @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToCreateReceiverOperation() throws Exception {
         final ExecutorService testClosed = Executors.newWorkStealingPool();
 
@@ -188,16 +175,11 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         testClosed.shutdown();
         testClosed.awaitTermination(60, TimeUnit.SECONDS);
 
-        try {
-            temp.createReceiverSync(TestContext.getConsumerGroupName(), PARTITION_ID, EventPosition.fromEndOfStream());
-            Assert.assertTrue(false);
-        } catch(EventHubException expected) {
-            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
-        }
+        temp.createReceiverSync(TestContext.getConsumerGroupName(), PARTITION_ID, EventPosition.fromEndOfStream());
     }
 
-    @Test()
-    public void SupplyClosedExecutorServiceThenFactoryCloseOperation() throws Exception {
+    @Test(expected = RejectedExecutionException.class)
+    public void SupplyClosedExecutorServiceThenMgmtOperation() throws Throwable {
         final ExecutorService testClosed = Executors.newWorkStealingPool();
 
         final EventHubClient temp = EventHubClient.createFromConnectionStringSync(
@@ -208,15 +190,27 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         testClosed.awaitTermination(60, TimeUnit.SECONDS);
 
         try {
-            temp.closeSync();
-            Assert.assertTrue(false);
-        } catch(EventHubException expected) {
-            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
-        } catch (RejectedExecutionException expected) {
+            temp.getPartitionRuntimeInformation(PARTITION_ID).get();
+        } catch(ExecutionException ex) {
+            throw ex.getCause();
         }
     }
 
-    @Test()
+    @Test(expected = RejectedExecutionException.class)
+    public void SupplyClosedExecutorServiceThenFactoryCloseOperation() throws Exception {
+        final ExecutorService testClosed = Executors.newWorkStealingPool();
+
+        final EventHubClient temp = EventHubClient.createFromConnectionStringSync(
+                TestContext.getConnectionString().toString(),
+                testClosed);
+
+        testClosed.shutdown();
+        testClosed.awaitTermination(60, TimeUnit.SECONDS);
+
+        temp.closeSync();
+    }
+
+    @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceThenSenderCloseOperation() throws Exception {
         final ExecutorService testClosed = Executors.newWorkStealingPool();
 
@@ -227,15 +221,10 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         testClosed.shutdown();
         testClosed.awaitTermination(60, TimeUnit.SECONDS);
 
-        try {
-            temp.closeSync();
-            Assert.assertTrue(false);
-        } catch(EventHubException expected) {
-            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
-        }
+        temp.closeSync();
     }
 
-    @Test()
+    @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceThenReceiverCloseOperation() throws Exception {
         final ExecutorService testClosed = Executors.newWorkStealingPool();
 
@@ -246,11 +235,6 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         testClosed.shutdown();
         testClosed.awaitTermination(60, TimeUnit.SECONDS);
 
-        try {
-            temp.closeSync();
-            Assert.assertTrue(false);
-        } catch(EventHubException expected) {
-            Assert.assertEquals(expected.getCause().getClass(), RejectedExecutionException.class);
-        }
+        temp.closeSync();
     }
 }

@@ -346,19 +346,12 @@ public final class MessagingFactory extends ClientEntity implements IAmqpConnect
                         operationTimeout);
 
                 if (this.closeTimer.isCompletedExceptionally()) {
-                    this.closeTimer.whenCompleteAsync(
-                            (unUsed, exception) -> {
-                                if (exception != null && !(exception instanceof CancellationException))
-                                    closeTask.completeExceptionally(
-                                            new OperationCancelledException("Failed to Close MessagingFactory, see cause for more details.",
-                                                    exception));
-                            }, this.executor);
+                    ExceptionUtil.transferException(this.closeTimer, this.closeTask);
                 } else {
                     try {
                         this.scheduleOnReactorThread(new CloseWork());
                     } catch (IOException|RejectedExecutionException schedulerException) {
-                        this.closeTask.completeExceptionally(
-                                new EventHubException(false, "Failed to Close MessagingFactory, see cause for more details.", schedulerException));
+                        this.closeTask.completeExceptionally(schedulerException);
                     }
                 }
         }
@@ -544,12 +537,10 @@ public final class MessagingFactory extends ClientEntity implements IAmqpConnect
     }
 
     public void scheduleOnReactorThread(final DispatchHandler handler) throws IOException, RejectedExecutionException {
-        throwIfReactorError();
         this.getReactorScheduler().invoke(handler);
     }
 
     public void scheduleOnReactorThread(final int delay, final DispatchHandler handler) throws IOException, RejectedExecutionException {
-        throwIfReactorError();
         this.getReactorScheduler().invoke(delay, handler);
     }
 
@@ -557,13 +548,6 @@ public final class MessagingFactory extends ClientEntity implements IAmqpConnect
 
         public Reactor create(final ReactorHandler reactorHandler) throws IOException {
             return ProtonUtil.reactor(reactorHandler);
-        }
-    }
-
-    private void throwIfReactorError() {
-        final RejectedExecutionException rejectedException = this.reactor.attachments().get(RejectedExecutionException.class, RejectedExecutionException.class);
-        if (rejectedException != null) {
-            throw rejectedException;
         }
     }
 }
