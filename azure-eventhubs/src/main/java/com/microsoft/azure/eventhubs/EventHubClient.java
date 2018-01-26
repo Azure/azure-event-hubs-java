@@ -942,7 +942,7 @@ public class EventHubClient extends ClientEntity implements IEventHubClient {
 
         final CompletableFuture<?> scheduledTask = this.timer.schedule(retrier, Duration.ZERO);
         if (scheduledTask.isCompletedExceptionally()) {
-            ExceptionUtil.transferException(scheduledTask, rawdataFuture);
+            rawdataFuture.completeExceptionally(ExceptionUtil.getExceptionFromCompletedFuture(scheduledTask));
         }
 
         return rawdataFuture;

@@ -132,16 +132,17 @@ public final class ExceptionUtil {
         return builder.toString();
     }
 
-    public static void transferException(
-            final CompletableFuture<?> exceptionallyCompletedFuture,
-            final CompletableFuture<?> transferee) {
+    public static Throwable getExceptionFromCompletedFuture(
+            final CompletableFuture<?> exceptionallyCompletedFuture) {
         try {
             exceptionallyCompletedFuture.get();
         } catch (ExecutionException|InterruptedException exception) {
             final Throwable cause = exception.getCause();
-            transferee.completeExceptionally(cause == null ? exception : cause);
+            return (cause == null ? exception : cause);
         } catch (Exception exception) {
-            transferee.completeExceptionally(exception);
+            return exception;
         }
+
+        return null;
     }
 }

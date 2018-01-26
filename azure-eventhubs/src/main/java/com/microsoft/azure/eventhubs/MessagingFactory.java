@@ -346,7 +346,7 @@ public final class MessagingFactory extends ClientEntity implements IAmqpConnect
                         operationTimeout);
 
                 if (this.closeTimer.isCompletedExceptionally()) {
-                    ExceptionUtil.transferException(this.closeTimer, this.closeTask);
+                    this.closeTask.completeExceptionally(ExceptionUtil.getExceptionFromCompletedFuture(this.closeTimer));
                 } else {
                     try {
                         this.scheduleOnReactorThread(new CloseWork());
