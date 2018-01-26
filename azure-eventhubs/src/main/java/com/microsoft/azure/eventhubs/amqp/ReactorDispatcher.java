@@ -54,14 +54,14 @@ public final class ReactorDispatcher {
     }
 
     public void invoke(final DispatchHandler timerCallback) throws IOException, RejectedExecutionException {
-        throwIfSchedulerError();
+        this.throwIfSchedulerError();
 
         this.workQueue.offer(timerCallback);
         this.signalWorkQueue();
     }
 
     public void invoke(final int delay, final DispatchHandler timerCallback) throws IOException, RejectedExecutionException {
-        throwIfSchedulerError();
+        this.throwIfSchedulerError();
 
         this.workQueue.offer(new DelayHandler(this.reactor, delay, timerCallback));
         this.signalWorkQueue();

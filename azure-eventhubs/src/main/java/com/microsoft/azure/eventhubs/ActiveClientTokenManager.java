@@ -58,8 +58,8 @@ final class ActiveClientTokenManager {
 
                 sendTokenTask.run();
 
-                synchronized (timerLock) {
-                    timer = timerScheduler.schedule(new TimerCallback(), tokenRefreshInterval);
+                synchronized (ActiveClientTokenManager.this.timerLock) {
+                    ActiveClientTokenManager.this.timer = ActiveClientTokenManager.this.timerScheduler.schedule(new TimerCallback(), tokenRefreshInterval);
                 }
             } else {
 
