@@ -320,23 +320,15 @@ class PartitionManager
     	{
     		if (e != null)
     		{
-    			if (e instanceof FinalException)
-    			{
-    				throw (FinalException)e; // just keep propagating!
-    			}
-    			else
-    			{
-	        		if (partitionId != null)
-	        		{
-	        			TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(partitionId, finalFailureMessage));
-	        		}
-	        		else
-	        		{
-	        			TRACE_LOGGER.warn(this.hostContext.withHost(finalFailureMessage));
-	        		}
-	        		// We are out of retries, so throw a FinalException.
-	        		throw new FinalException(LoggingUtils.wrapExceptionWithMessage(e, finalFailureMessage, action));
-    			}
+        		if (partitionId != null)
+        		{
+        			TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(partitionId, finalFailureMessage));
+        		}
+        		else
+        		{
+        			TRACE_LOGGER.warn(this.hostContext.withHost(finalFailureMessage));
+        		}
+        		throw LoggingUtils.wrapExceptionWithMessage(e, finalFailureMessage, action);
     		}
     		return (e == null) ? r : null;
     	}, this.hostContext.getExecutor());
