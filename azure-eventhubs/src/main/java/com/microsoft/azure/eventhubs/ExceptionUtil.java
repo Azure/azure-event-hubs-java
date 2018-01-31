@@ -167,25 +167,30 @@ public final class ExceptionUtil {
         T execute() throws IllegalArgumentException, EventHubException, ExecutionException, InterruptedException;
     }
 
+    private static void handle(final Exception exception) throws EventHubException {
+        if (exception instanceof InterruptedException) {
+            // Re-assert the thread's interrupted status
+            Thread.currentThread().interrupt();
+        }
+
+        Throwable throwable = exception.getCause();
+        if (throwable instanceof EventHubException) {
+            throw (EventHubException) throwable;
+        } else if (throwable instanceof RuntimeException) {
+            throw (RuntimeException) throwable;
+        } else if (throwable != null) {
+            throw new RuntimeException(throwable);
+        } else {
+            throw new RuntimeException(exception);
+        }
+    }
+
     static <T> T sync(final SyncFactory<T> factory) throws EventHubException {
         try {
             return factory.execute();
         } catch (InterruptedException | ExecutionException exception) {
-            if (exception instanceof InterruptedException) {
-                // Re-assert the thread's interrupted status
-                Thread.currentThread().interrupt();
-            }
-
-            Throwable throwable = exception.getCause();
-            if (throwable instanceof EventHubException) {
-                throw (EventHubException) throwable;
-            } else if (throwable instanceof RuntimeException) {
-                throw (RuntimeException) throwable;
-            } else if (throwable != null) {
-                throw new RuntimeException(throwable);
-            } else {
-                throw new RuntimeException(exception);
-            }
+            handle(exception);
+            return null;
         }
     }
 
@@ -193,21 +198,8 @@ public final class ExceptionUtil {
         try {
             return factory.execute();
         } catch (InterruptedException | ExecutionException exception) {
-            if (exception instanceof InterruptedException) {
-                // Re-assert the thread's interrupted status
-                Thread.currentThread().interrupt();
-            }
-
-            Throwable throwable = exception.getCause();
-            if (throwable instanceof EventHubException) {
-                throw (EventHubException) throwable;
-            } else if (throwable instanceof RuntimeException) {
-                throw (RuntimeException) throwable;
-            } else if (throwable != null) {
-                throw new RuntimeException(throwable);
-            } else {
-                throw new RuntimeException(exception);
-            }
+            handle(exception);
+            return null;
         }
     }
 
@@ -215,21 +207,7 @@ public final class ExceptionUtil {
         try {
             factory.execute();
         } catch (InterruptedException | ExecutionException exception) {
-            if (exception instanceof InterruptedException) {
-                // Re-assert the thread's interrupted status
-                Thread.currentThread().interrupt();
-            }
-
-            Throwable throwable = exception.getCause();
-            if (throwable instanceof EventHubException) {
-                throw (EventHubException) throwable;
-            } else if (throwable instanceof RuntimeException) {
-                throw (RuntimeException) throwable;
-            } else if (throwable != null) {
-                throw new RuntimeException(throwable);
-            } else {
-                throw new RuntimeException(exception);
-            }
+            handle(exception);
         }
     }
 
@@ -237,21 +215,8 @@ public final class ExceptionUtil {
         try {
             return factory.execute();
         } catch (InterruptedException | ExecutionException exception) {
-            if (exception instanceof InterruptedException) {
-                // Re-assert the thread's interrupted status
-                Thread.currentThread().interrupt();
-            }
-
-            Throwable throwable = exception.getCause();
-            if (throwable instanceof EventHubException) {
-                throw (EventHubException) throwable;
-            } else if (throwable instanceof RuntimeException) {
-                throw (RuntimeException) throwable;
-            } else if (throwable != null) {
-                throw new RuntimeException(throwable);
-            } else {
-                throw new RuntimeException(exception);
-            }
+            handle(exception);
+            return null;
         }
     }
 }
