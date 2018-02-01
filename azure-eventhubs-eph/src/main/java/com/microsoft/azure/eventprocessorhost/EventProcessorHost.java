@@ -438,6 +438,10 @@ public final class EventProcessorHost
      */
     public CompletableFuture<Void> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
+        this.hostContext.setEventProcessorFactory(factory);
+        this.hostContext.setEventProcessorOptions(processorOptions);
+        this.hostContext.forceDebugMessage("HostContext setup finished");
+        
         if (this.unregistered)
         {
             throw new IllegalStateException("Register cannot be called on an EventProcessorHost after unregister. Please create a new EventProcessorHost instance.");
@@ -468,10 +472,6 @@ public final class EventProcessorHost
 
         TRACE_LOGGER.info(this.hostContext.withHost("Starting event processing."));
 
-        this.hostContext.setEventProcessorFactory(factory);
-        this.hostContext.setEventProcessorOptions(processorOptions);
-        this.hostContext.forceDebugMessage("HostContext setup finished");
-        
         return this.partitionManager.initialize();
     }
 
