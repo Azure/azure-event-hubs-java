@@ -104,4 +104,10 @@ final class HostContext
     {
     	return withHostAndPartition(lease.getPartitionId(), logMessage);
     }
+    
+    
+    void forceDebugMessage(String message)
+    {
+    	this.eventProcessorOptions.notifyOfException(this.hostName, new RuntimeException(message), "DEBUG");
+    }
 }
