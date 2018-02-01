@@ -470,6 +470,7 @@ public final class EventProcessorHost
 
         this.hostContext.setEventProcessorFactory(factory);
         this.hostContext.setEventProcessorOptions(processorOptions);
+        this.hostContext.forceDebugMessage("HostContext setup finished");
         
         return this.partitionManager.initialize();
     }

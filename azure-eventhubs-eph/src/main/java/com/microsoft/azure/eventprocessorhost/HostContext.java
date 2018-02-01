@@ -108,6 +108,8 @@ final class HostContext
     
     void forceDebugMessage(String message)
     {
-    	this.eventProcessorOptions.notifyOfException(this.hostName, new RuntimeException(message), "DEBUG");
+    	System.out.println("Hostname is " + ((this.hostName != null) ? "not null" : "null"));
+    	System.out.println("Message is " + ((message != null) ? "not null" : "null"));
+    	System.out.println(this.hostName + " DEBUG DEBUG " + message);
     }
 }
