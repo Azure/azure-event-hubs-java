@@ -438,10 +438,6 @@ public final class EventProcessorHost
      */
     public CompletableFuture<Void> registerEventProcessorFactory(IEventProcessorFactory<?> factory, EventProcessorOptions processorOptions)
     {
-        this.hostContext.setEventProcessorFactory(factory);
-        this.hostContext.setEventProcessorOptions(processorOptions);
-        this.hostContext.forceDebugMessage("HostContext setup finished");
-        
         if (this.unregistered)
         {
             throw new IllegalStateException("Register cannot be called on an EventProcessorHost after unregister. Please create a new EventProcessorHost instance.");
@@ -451,6 +447,10 @@ public final class EventProcessorHost
     		throw new IllegalStateException("Register has already been called on this EventProcessorHost");
     	}
     	
+        this.hostContext.setEventProcessorFactory(factory);
+        this.hostContext.setEventProcessorOptions(processorOptions);
+        this.hostContext.forceDebugMessage("HostContext setup finished");
+        
         if (this.executorService.isShutdown() || this.executorService.isTerminated())
     	{
     		TRACE_LOGGER.warn(this.hostContext.withHost("Calling registerEventProcessor/Factory after executor service has been shut down."));
