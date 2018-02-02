@@ -115,18 +115,14 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                 "All letters in a container name must be lowercase. " +
                 "Must be from 3 to 63 characters long.");
         }
-        this.hostContext.forceDebugMessage("Storage container name >>>" + this.storageContainerName + "<<<");
         
         this.storageClient = CloudStorageAccount.parse(this.storageConnectionString).createCloudBlobClient();
         
         this.eventHubContainer = this.storageClient.getContainerReference(this.storageContainerName);
-        this.hostContext.forceDebugMessage("getContainerReference succeeded");
         
         // storageBlobPrefix is either empty or a real user-supplied string. Either way we can just
         // stick it on the front and get the desired result. 
-        this.hostContext.forceDebugMessage("getDirectoryReference(" + this.storageBlobPrefix + this.hostContext.getConsumerGroupName() + ")");
         this.consumerGroupDirectory = this.eventHubContainer.getDirectoryReference(this.storageBlobPrefix + this.hostContext.getConsumerGroupName());
-        this.hostContext.forceDebugMessage("getDirectoryReference() succeeded");
         
         this.gson = new Gson();
 
@@ -331,11 +327,9 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 		    	// returns true if the container was created, false if it already existed -- we don't care
 				this.eventHubContainer.createIfNotExists(options, null);
 				TRACE_LOGGER.info(this.hostContext.withHost("Created lease store OK"));
-				this.hostContext.forceDebugMessage("Created lease store OK");
     		}
     		catch (StorageException e)
     		{
-    			this.hostContext.forceDebugMessage("Lease store creation failed " + e.toString());
     			throw LoggingUtils.wrapException(e, action);
     		}
     	}, this.hostContext.getExecutor());
@@ -522,18 +516,15 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	AzureBlobLease returnLease = null;
     	try
     	{
-    		this.hostContext.forceDebugMessage("Creating blob for >>>" + partitionId + "<<<");
     		CloudBlockBlob leaseBlob = this.consumerGroupDirectory.getBlockBlobReference(partitionId); // getBlockBlobReference does not take options
     		returnLease = new AzureBlobLease(partitionId, leaseBlob, this.leaseOperationOptions);
     		uploadLease(returnLease, leaseBlob, AccessCondition.generateIfNoneMatchCondition("*"), UploadActivity.Create, options);
             TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId,
                     "CreateLeaseIfNotExist OK - leaseContainerName: " + this.storageContainerName + " consumerGroupName: " + this.hostContext.getConsumerGroupName() +
                             " storageBlobPrefix: " + this.storageBlobPrefix));
-    		this.hostContext.forceDebugMessage("Blob >>>" + partitionId + "<<< created OK");
     	}
     	catch (StorageException se)
     	{
-    		this.hostContext.forceDebugMessage("Blob >>>" + partitionId + "<<< failed why?");
     		StorageExtendedErrorInformation extendedErrorInfo = se.getExtendedErrorInformation();
     		if ((extendedErrorInfo != null) &&
     				((extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.BLOB_ALREADY_EXISTS) == 0) ||
@@ -542,11 +533,9 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     			// The blob already exists.
     			TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId, "Lease already exists"));
         		returnLease = getLeaseInternal(partitionId, options);
-        		this.hostContext.forceDebugMessage("Blob >>>" + partitionId + "<<< failed ALREADY EXISTS");
     		}
     		else
     		{
-        		this.hostContext.forceDebugMessage("Blob >>>" + partitionId + "<<< failed BAD " + se.toString());
     			throw se;
     		}
     	}

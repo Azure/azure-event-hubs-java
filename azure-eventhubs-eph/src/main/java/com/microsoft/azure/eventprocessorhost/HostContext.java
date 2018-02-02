@@ -108,10 +108,4 @@ final class HostContext
     {
     	return withHostAndPartition(lease.getPartitionId(), logMessage);
     }
-    
-    
-    void forceDebugMessage(String message)
-    {
-    	System.out.println(this.hostName + " DEBUG DEBUG " + message);
-    }
 }

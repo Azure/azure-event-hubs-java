@@ -449,7 +449,6 @@ public final class EventProcessorHost
     	
         this.hostContext.setEventProcessorFactory(factory);
         this.hostContext.setEventProcessorOptions(processorOptions);
-        this.hostContext.forceDebugMessage("HostContext setup finished");
         
         if (this.executorService.isShutdown() || this.executorService.isTerminated())
     	{
