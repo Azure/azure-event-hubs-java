@@ -334,7 +334,7 @@ class PartitionManager
 	        		{
 	        			TRACE_LOGGER.warn(this.hostContext.withHost(finalFailureMessage));
 	        		}
-	        		throw new FinalException(LoggingUtils.wrapExceptionWithMessage(e, finalFailureMessage, action));
+	        		throw new FinalException(LoggingUtils.wrapExceptionWithMessage(LoggingUtils.unwrapException(e, null), finalFailureMessage, action));
     			}
     		}
     		return (e == null) ? r : null;
