@@ -52,7 +52,13 @@ public final class EventDataBatch {
             throw new IllegalArgumentException("eventData cannot be null");
         }
 
-        final int size = getSize(eventData, events.isEmpty());
+        final int size;
+        try {
+            size = getSize(eventData, events.isEmpty());
+        } catch (java.nio.BufferOverflowException exception) {
+            return false;
+        }
+
         if (this.currentSize + size > this.maxMessageSize)
             return false;
 
