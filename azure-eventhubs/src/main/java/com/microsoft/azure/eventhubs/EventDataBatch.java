@@ -46,7 +46,7 @@ public final class EventDataBatch {
      * @param eventData The {@link EventData} to add.
      * @return A boolean value indicating if the {@link EventData} addition to this batch/collection was successful or not.
      */
-    public final boolean tryAdd(final EventData eventData) {
+    public final boolean tryAdd(final EventData eventData) throws PayloadSizeExceededException {
 
         if (eventData == null) {
             throw new IllegalArgumentException("eventData cannot be null");
@@ -56,7 +56,7 @@ public final class EventDataBatch {
         try {
             size = getSize(eventData, events.isEmpty());
         } catch (java.nio.BufferOverflowException exception) {
-            return false;
+            throw new PayloadSizeExceededException(String.format("Size of the payload exceeded Maximum message size: %s kb", this.maxMessageSize / 1024));
         }
 
         if (this.currentSize + size > this.maxMessageSize)
