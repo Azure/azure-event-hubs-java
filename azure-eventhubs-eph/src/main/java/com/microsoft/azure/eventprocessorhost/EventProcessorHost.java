@@ -367,7 +367,7 @@ public final class EventProcessorHost
      * <pre>
      * class MyEventProcessor implements IEventProcessor { ... }
      * EventProcessorHost host = new EventProcessorHost(...);
-     * CompletableFuture<Void> foo = host.registerEventProcessor(MyEventProcessor.class);
+     * CompletableFuture&lt;Void&gt; foo = host.registerEventProcessor(MyEventProcessor.class);
      * foo.get();
      * </pre>
      *  
