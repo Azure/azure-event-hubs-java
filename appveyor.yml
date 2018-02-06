@@ -3,26 +3,26 @@ branches:
   only:
   - master
   - dev
-environment:
+#environment:
 #  ClientSecret:
 #    secure: /8H7C81iNS+gVi7LhJCEOPUlNaa30y4KcY4nw/g2C4HGxOv6SrcroyDvMnqD+5GN
 #  TenantId:
 #    secure: xohonz/X8PPLOVIdT3ch2C5XeSa30RwR6NuXFh4e85svXT1mJNGGO1HQEGxCk3wp
 #  AppId:
 #    secure: c+H140oRJfHtmFHZxSRLWocv5AU0q33X7kgMcTcXxhJvtVhk2WAk1dRQkSN+SyoA
-before_build:
+#before_build:
 #  - ps: >-
 #    . .\build\AppveyorBuildFunctions.ps1
-build_script:
+#build_script:
 #  - ps: >-
 #    Build-Solution
-before_test:
+#before_test:
 #  - ps: >-
 #    Deploy-AzureResources
 test_script:
   - mvn clean package -DskipTests javadoc:jar source:jar
 #  - ps: >-
 #    Run-UnitTests
-on_finish:
+#on_finish:
 #  - ps: >-
 #    Delete-AzureResources
