@@ -16,6 +16,7 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

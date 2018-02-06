@@ -17,6 +17,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

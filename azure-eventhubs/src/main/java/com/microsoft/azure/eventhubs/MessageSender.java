@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.PriorityQueue;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import com.microsoft.azure.eventhubs.amqp.AmqpConstants;
 import com.microsoft.azure.eventhubs.amqp.AmqpException;
 import com.microsoft.azure.eventhubs.amqp.AmqpUtil;

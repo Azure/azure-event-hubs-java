@@ -11,6 +11,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import com.microsoft.azure.eventhubs.*;
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 import com.microsoft.azure.eventhubs.EventHubException;

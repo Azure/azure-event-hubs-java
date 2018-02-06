@@ -23,7 +23,7 @@ import org.apache.qpid.proton.engine.Session;
 import org.apache.qpid.proton.engine.Transport;
 import org.apache.qpid.proton.reactor.Reactor;
 
-import com.microsoft.azure.eventhubs.ClientConstants;
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import com.microsoft.azure.eventhubs.EventHubException;
 
 public class SessionHandler extends BaseHandler {

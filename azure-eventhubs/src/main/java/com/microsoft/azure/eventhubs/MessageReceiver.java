@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import com.microsoft.azure.eventhubs.amqp.AmqpException;
 import com.microsoft.azure.eventhubs.amqp.DispatchHandler;
 import com.microsoft.azure.eventhubs.amqp.IAmqpReceiver;

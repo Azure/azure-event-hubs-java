@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
+
 /**
  * Represents various optional behaviors which can be turned on or off during the creation of a {@link PartitionReceiver}.
  */

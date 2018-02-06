@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
+
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
 

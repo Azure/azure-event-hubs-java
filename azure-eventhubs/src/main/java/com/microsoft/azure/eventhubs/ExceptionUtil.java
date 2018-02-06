@@ -12,6 +12,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 
@@ -19,7 +20,7 @@ import com.microsoft.azure.eventhubs.amqp.AmqpErrorCode;
 import com.microsoft.azure.eventhubs.amqp.AmqpException;
 import com.microsoft.azure.eventhubs.amqp.AmqpResponseCode;
 
-public final class ExceptionUtil {
+final class ExceptionUtil {
     static Exception toException(ErrorCondition errorCondition) {
         if (errorCondition == null) {
             throw new IllegalArgumentException("'null' errorCondition cannot be translated to EventHubException");

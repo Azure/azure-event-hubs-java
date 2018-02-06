@@ -43,7 +43,7 @@ import java.util.regex.Pattern;
  * <li> SharedAccessKey - the key for the corresponding shared access policy rule of the namespace or entity.
  * </ul>
  */
-public class ConnectionStringBuilder {
+public final class ConnectionStringBuilder {
     final static String endpointFormat = "sb://%s.%s";
     final static String hostnameFormat = "sb://%s";
     final static String defaultDomainName = "servicebus.windows.net";

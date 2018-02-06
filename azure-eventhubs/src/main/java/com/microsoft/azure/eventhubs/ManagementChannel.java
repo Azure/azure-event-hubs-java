@@ -7,6 +7,7 @@ package com.microsoft.azure.eventhubs;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import com.microsoft.azure.eventhubs.amqp.AmqpResponseCode;
 import com.microsoft.azure.eventhubs.amqp.IAmqpConnection;
 import com.microsoft.azure.eventhubs.amqp.IOperationResult;
@@ -21,7 +22,7 @@ import org.apache.qpid.proton.amqp.messaging.AmqpValue;
 import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.message.Message;
 
-public class ManagementChannel {
+final class ManagementChannel {
 
     final FaultTolerantObject<RequestResponseChannel> innerChannel;
     final ISessionProvider sessionProvider;

@@ -24,7 +24,7 @@ import org.apache.qpid.proton.engine.SslDomain;
 import org.apache.qpid.proton.engine.Transport;
 import org.apache.qpid.proton.reactor.Handshaker;
 
-import com.microsoft.azure.eventhubs.ClientConstants;
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import com.microsoft.azure.eventhubs.StringUtil;
 
 // ServiceBus <-> ProtonReactor interaction handles all

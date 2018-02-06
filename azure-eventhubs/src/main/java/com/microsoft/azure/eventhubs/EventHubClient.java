@@ -4,6 +4,7 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import com.microsoft.azure.eventhubs.amqp.AmqpException;
 
 import java.io.IOException;

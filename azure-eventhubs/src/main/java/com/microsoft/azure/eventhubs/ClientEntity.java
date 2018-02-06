@@ -17,7 +17,7 @@ import java.util.concurrent.ExecutionException;
  * main-purpose: closeAll related entities
  * Internal-class
  */
-public abstract class ClientEntity {
+abstract class ClientEntity {
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ClientEntity.class);
 

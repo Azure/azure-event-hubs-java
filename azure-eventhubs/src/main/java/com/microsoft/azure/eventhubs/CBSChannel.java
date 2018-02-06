@@ -7,6 +7,7 @@ package com.microsoft.azure.eventhubs;
 import java.util.Map;
 import java.util.HashMap;
 
+import com.microsoft.azure.eventhubs.Impl.ClientConstants;
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.messaging.ApplicationProperties;
 import org.apache.qpid.proton.message.Message;
@@ -21,7 +22,7 @@ import com.microsoft.azure.eventhubs.amqp.RequestResponseCloser;
 import com.microsoft.azure.eventhubs.amqp.RequestResponseOpener;
 import com.microsoft.azure.eventhubs.amqp.AmqpResponseCode;
 
-public class CBSChannel {
+final class CBSChannel {
 
     final FaultTolerantObject<RequestResponseChannel> innerChannel;
     final ISessionProvider sessionProvider;
