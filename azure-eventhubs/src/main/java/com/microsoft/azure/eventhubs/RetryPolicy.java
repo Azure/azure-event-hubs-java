@@ -4,7 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import com.microsoft.azure.eventhubs.Impl.ClientConstants;
+import com.microsoft.azure.eventhubs.impl.ClientConstants;
+import com.microsoft.azure.eventhubs.impl.RetryExponential;
 
 import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;

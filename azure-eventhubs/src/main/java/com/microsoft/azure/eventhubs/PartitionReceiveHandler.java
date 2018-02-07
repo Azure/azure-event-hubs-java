@@ -17,7 +17,11 @@ public abstract class PartitionReceiveHandler {
         this.maxEventCount = maxEventCount;
     }
 
-    int getMaxEventCount() {
+    /**
+     * Maximum number of {@link EventData} to supply while invoking {@link #onReceive(Iterable)}
+     * @return value indicating the maximum number of {@link EventData} to supply while invoking {@link #onReceive(Iterable)}
+     */
+    public int getMaxEventCount() {
         return maxEventCount;
     }
 
@@ -37,7 +41,7 @@ public abstract class PartitionReceiveHandler {
      * @param events the list of fetched events from the corresponding PartitionReceiver.
      * @see PartitionReceiver#receive
      */
-    public abstract void onReceive(Iterable<EventData> events);
+    public abstract void onReceive(Iterable<? extends EventData> events);
 
     /**
      * Implement this method to Listen to errors which lead to Closure of the {@link PartitionReceiveHandler} pump.

@@ -20,7 +20,7 @@ public class ServerBusyException extends EventHubException {
         super(true);
     }
 
-    ServerBusyException(final String message) {
+    public ServerBusyException(final String message) {
         super(true, message);
     }
 

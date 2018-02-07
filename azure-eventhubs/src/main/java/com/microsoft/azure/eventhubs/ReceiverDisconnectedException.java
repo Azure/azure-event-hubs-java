@@ -23,7 +23,7 @@ public class ReceiverDisconnectedException extends EventHubException {
         super(false);
     }
 
-    ReceiverDisconnectedException(final String message) {
+    public ReceiverDisconnectedException(final String message) {
         super(false, message);
     }
 

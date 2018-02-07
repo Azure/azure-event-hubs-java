@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.impl.StringUtil;
+
 import java.util.Locale;
 
 /**
@@ -65,7 +67,7 @@ public class EventHubException extends Exception
 		return this.errorContext;
 	}
 
-	void setContext(ErrorContext errorContext)
+	public void setContext(ErrorContext errorContext)
 	{
 		this.errorContext = errorContext;
 	}

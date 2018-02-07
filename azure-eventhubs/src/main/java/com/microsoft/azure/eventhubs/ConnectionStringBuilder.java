@@ -4,6 +4,9 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.impl.MessagingFactory;
+import com.microsoft.azure.eventhubs.impl.StringUtil;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Duration;
