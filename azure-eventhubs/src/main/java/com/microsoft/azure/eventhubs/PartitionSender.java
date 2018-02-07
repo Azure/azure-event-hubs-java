@@ -146,4 +146,8 @@ public interface PartitionSender {
      * @see EventDataBatch
      */
     CompletableFuture<Void> send(EventDataBatch eventDatas) throws EventHubException;
+
+    CompletableFuture<Void> close();
+
+    void closeSync() throws EventHubException;
 }

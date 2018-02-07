@@ -47,7 +47,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
             throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
         final EventDataBatch batchEvents = sender.createBatch();
 
-        while (batchEvents.tryAdd(new EventData("a".getBytes())));
+        while (batchEvents.tryAdd(EventData.create("a".getBytes())));
 
         sender = ehClient.createPartitionSenderSync(partitionId);
         sender.sendSync(batchEvents);
@@ -60,7 +60,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
                 .with(o -> o.partitionKey = UUID.randomUUID().toString());
         final EventDataBatch batchEvents = ehClient.createBatch(options);
 
-        while (batchEvents.tryAdd(new EventData("a".getBytes())));
+        while (batchEvents.tryAdd(EventData.create("a".getBytes())));
 
         ehClient.sendSync(batchEvents);
     }
@@ -74,7 +74,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
         final EventDataBatch batchEvents = ehClient.createBatch(options);
 
         int count = 0;
-        while (batchEvents.tryAdd(new EventData("a".getBytes())) && count++ < 10);
+        while (batchEvents.tryAdd(EventData.create("a".getBytes())) && count++ < 10);
 
         final int sentCount = count;
         final CompletableFuture<Void> testResult = new CompletableFuture<>();
@@ -82,9 +82,9 @@ public class EventDataBatchAPITest extends ApiTestBase {
             final AtomicInteger netCount = new AtomicInteger(0);
 
             @Override
-            public void onReceive(Iterable<EventData> events) {
+            public void onReceive(Iterable<? extends EventData> events) {
                 if (events != null) {
-                    final Iterator<EventData> eterator = events.iterator();
+                    final Iterator<? extends EventData> eterator = events.iterator();
                     while (eterator.hasNext()) {
                         final EventData currentData = eterator.next();
                         final String currentPartitionKey = currentData.getSystemProperties().getPartitionKey();
@@ -143,7 +143,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
 
             int count = 0;
             while (true) {
-                final EventData eventData = new EventData(new String(new char[new Random().nextInt(50000)]).replace("\0", "a").getBytes());
+                final EventData eventData = EventData.create(new String(new char[new Random().nextInt(50000)]).replace("\0", "a").getBytes());
                 for (int i = 0; i < new Random().nextInt(20); i++)
                     eventData.getProperties().put("somekey" + i, "somevalue");
 
@@ -176,7 +176,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
 
         int count = 0;
         while (true) {
-            final EventData eventData = new EventData(new String("a").getBytes());
+            final EventData eventData = EventData.create(new String("a").getBytes());
             for (int i=0;i<new Random().nextInt(20);i++)
                 eventData.getProperties().put("somekey" + i, "somevalue");
 
@@ -200,7 +200,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
 
         int count = 0;
         while (true) {
-            final EventData eventData = new EventData(new String("a").getBytes());
+            final EventData eventData = EventData.create(new String("a").getBytes());
             for (int i=0;i<new Random().nextInt(20);i++)
                 eventData.getProperties().put("somekey" + i, "somevalue");
 
@@ -237,7 +237,7 @@ public class EventDataBatchAPITest extends ApiTestBase {
         }
 
         @Override
-        public void onReceive(Iterable<EventData> events) {
+        public void onReceive(Iterable<? extends EventData> events) {
             if (events != null)
                 for (EventData event : events) {
                     currentCount++;

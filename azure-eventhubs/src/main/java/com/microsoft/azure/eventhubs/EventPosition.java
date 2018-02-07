@@ -66,7 +66,7 @@ public interface EventPosition extends Serializable {
      * @return An {@link EventPosition} object.
      */
     static EventPosition fromEnqueuedTime(Instant dateTime) {
-        return EventPosition.fromEnqueuedTime(dateTime);
+        return EventPositionImpl.fromEnqueuedTime(dateTime);
     }
 
     /**

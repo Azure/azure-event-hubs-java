@@ -136,4 +136,8 @@ public interface PartitionReceiver  {
      * @return A completableFuture which sets receiveHandler
      */
     CompletableFuture<Void> setReceiveHandler(final PartitionReceiveHandler receiveHandler, final boolean invokeWhenNoEvents);
+
+    CompletableFuture<Void> close();
+
+    void closeSync() throws EventHubException;
 }

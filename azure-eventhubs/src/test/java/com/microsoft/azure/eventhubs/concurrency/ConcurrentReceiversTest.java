@@ -122,7 +122,7 @@ public class ConcurrentReceiversTest extends ApiTestBase
 		}
 
 		@Override
-		public void onReceive(Iterable<EventData> events)
+		public void onReceive(Iterable<? extends EventData> events)
 		{
 			if (events != null && events.iterator().hasNext())
 			{

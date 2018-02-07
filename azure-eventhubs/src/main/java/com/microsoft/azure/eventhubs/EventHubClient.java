@@ -447,4 +447,8 @@ public interface EventHubClient {
      * @return CompletableFuture which returns an EventHubPartitionRuntimeInformation on success, or null on timeout.
      */
     CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId);
+
+    CompletableFuture<Void> close();
+
+    void closeSync() throws EventHubException;
 }

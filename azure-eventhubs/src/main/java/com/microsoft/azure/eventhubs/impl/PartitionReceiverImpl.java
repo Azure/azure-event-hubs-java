@@ -25,7 +25,7 @@ import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.UnknownDescribedType;
 import org.apache.qpid.proton.message.Message;
 
-final class PartitionReceiverImpl extends ClientEntity implements IReceiverSettingsProvider, PartitionReceiver {
+public final class PartitionReceiverImpl extends ClientEntity implements IReceiverSettingsProvider, PartitionReceiver {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionReceiverImpl.class);
     public static final int MINIMUM_PREFETCH_COUNT = 10;
 

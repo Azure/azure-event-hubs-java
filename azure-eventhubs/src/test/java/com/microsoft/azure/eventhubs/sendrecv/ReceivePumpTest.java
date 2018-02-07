@@ -9,6 +9,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
 
 import com.microsoft.azure.eventhubs.*;
+import com.microsoft.azure.eventhubs.impl.*;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -32,10 +33,10 @@ public class ReceivePumpTest
 		final ReceivePump receivePump = new ReceivePump(
 				new ReceivePump.IPartitionReceiver()
 				{
-					@Override public Iterable<EventData> receive(int maxBatchSize) throws EventHubException
+					@Override public Iterable<? extends EventData> receive(int maxBatchSize) throws EventHubException
 					{
 						LinkedList<EventData> events = new LinkedList<EventData>();
-						events.add(new EventData("some".getBytes()));
+						events.add(EventData.create("some".getBytes()));
 						return events;
 					}
 					@Override public String getPartitionId()
@@ -44,7 +45,7 @@ public class ReceivePumpTest
 					}
 				},
 				new PartitionReceiveHandler(10) {
-					@Override public void onReceive(Iterable<EventData> events)
+					@Override public void onReceive(Iterable<? extends EventData> events)
 					{
 						assertion = IteratorUtil.sizeEquals(events, 1); 
 						
@@ -78,7 +79,7 @@ public class ReceivePumpTest
 					}
 				},
 				new PartitionReceiveHandler(10) {
-					@Override public void onReceive(Iterable<EventData> events)
+					@Override public void onReceive(Iterable<? extends EventData> events)
 					{						
 					}
 					@Override public void onError(Throwable error)
@@ -108,7 +109,7 @@ public class ReceivePumpTest
 					}
 				},
 				new PartitionReceiveHandler(10) {
-					@Override public void onReceive(Iterable<EventData> events)
+					@Override public void onReceive(Iterable<? extends EventData> events)
 					{						
 					}
 					@Override public void onError(Throwable error)
@@ -139,7 +140,7 @@ public class ReceivePumpTest
 					}
 				},
 				new PartitionReceiveHandler(10) {
-					@Override public void onReceive(Iterable<EventData> events)
+					@Override public void onReceive(Iterable<? extends EventData> events)
 					{
 						throw new RuntimeException(runtimeExceptionMsg);
 					}
