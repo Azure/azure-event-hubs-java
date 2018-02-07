@@ -148,11 +148,6 @@ public final class PartitionReceiverImpl extends ClientEntity implements IReceiv
         return this.runtimeInformation;
     }
 
-    public final Iterable<? extends EventData> receiveSync(final int maxEventCount)
-            throws EventHubException {
-        return ExceptionUtil.sync(() -> this.receive(maxEventCount).get());
-    }
-
     public CompletableFuture<Iterable<? extends EventData>> receive(final int maxEventCount) {
         return this.internalReceiver.receive(maxEventCount).thenApplyAsync(new Function<Collection<Message>, Iterable<EventData>>() {
             @Override
@@ -241,7 +236,6 @@ public final class PartitionReceiverImpl extends ClientEntity implements IReceiv
             return CompletableFuture.completedFuture(null);
         }
     }
-
 
     @Override
     public Map<Symbol, UnknownDescribedType> getFilter(final Message lastReceivedMessage) {

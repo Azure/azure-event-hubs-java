@@ -145,22 +145,22 @@ public final class ExceptionUtil {
     }
 
     @FunctionalInterface
-    interface SyncFactory<T> {
+    public interface SyncFactory<T> {
         T execute() throws EventHubException, ExecutionException, InterruptedException;
     }
 
     @FunctionalInterface
-    interface SyncFactoryWithIOException<T> {
+    public interface SyncFactoryWithIOException<T> {
         T execute() throws IOException, EventHubException, ExecutionException, InterruptedException;
     }
 
    @FunctionalInterface
-    interface SyncFactoryVoid {
+    public interface SyncFactoryVoid {
         void execute() throws EventHubException, ExecutionException, InterruptedException;
     }
 
     @FunctionalInterface
-    interface SyncFactoryWithIllegalArgException<T> {
+    public interface SyncFactoryWithIllegalArgException<T> {
         T execute() throws IllegalArgumentException, EventHubException, ExecutionException, InterruptedException;
     }
 
@@ -182,7 +182,7 @@ public final class ExceptionUtil {
         }
     }
 
-    static <T> T sync(final SyncFactory<T> factory) throws EventHubException {
+    public static <T> T sync(final SyncFactory<T> factory) throws EventHubException {
         try {
             return factory.execute();
         } catch (InterruptedException | ExecutionException exception) {
@@ -191,7 +191,7 @@ public final class ExceptionUtil {
         }
     }
 
-    static <T> T syncWithIOException(final SyncFactoryWithIOException<T> factory) throws IOException, EventHubException {
+    public static <T> T syncWithIOException(final SyncFactoryWithIOException<T> factory) throws IOException, EventHubException {
         try {
             return factory.execute();
         } catch (InterruptedException | ExecutionException exception) {
@@ -200,7 +200,7 @@ public final class ExceptionUtil {
         }
     }
 
-    static void syncVoid(final SyncFactoryVoid factory) throws EventHubException {
+    public static void syncVoid(final SyncFactoryVoid factory) throws EventHubException {
         try {
             factory.execute();
         } catch (InterruptedException | ExecutionException exception) {
@@ -208,7 +208,7 @@ public final class ExceptionUtil {
         }
     }
 
-    static <T> T syncWithIllegalArgException(final SyncFactoryWithIllegalArgException<T> factory) throws EventHubException {
+    public static <T> T syncWithIllegalArgException(final SyncFactoryWithIllegalArgException<T> factory) throws EventHubException {
         try {
             return factory.execute();
         } catch (InterruptedException | ExecutionException exception) {

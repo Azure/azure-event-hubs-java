@@ -69,26 +69,11 @@ final class PartitionSenderImpl extends ClientEntity implements PartitionSender 
         return new EventDataBatchImpl(options.maxMessageSize, null);
     }
 
-    public final EventDataBatch createBatch() {
-        return this.createBatch(new BatchOptions());
-    }
-
-    public final void sendSync(final EventData data)
-            throws EventHubException {
-        ExceptionUtil.syncVoid(() -> this.send(data).get());
-    }
-
     public final CompletableFuture<Void> send(EventData data) {
         return this.internalSender.send(((EventDataImpl) data).toAmqpMessage());
     }
 
-    public final void sendSync(final Iterable<? extends EventData> eventDatas)
-            throws EventHubException {
-        ExceptionUtil.syncVoid(() -> this.send(eventDatas).get());
-    }
-
-    public final CompletableFuture<Void> send(Iterable<? extends EventData> eventDatas)
-            throws EventHubException {
+    public final CompletableFuture<Void> send(Iterable<? extends EventData> eventDatas) {
         if (eventDatas == null || IteratorUtil.sizeEquals(eventDatas, 0)) {
             throw new IllegalArgumentException("EventData batch cannot be empty.");
         }
@@ -96,12 +81,7 @@ final class PartitionSenderImpl extends ClientEntity implements PartitionSender 
         return this.internalSender.send(EventDataUtil.toAmqpMessages((Iterable<EventDataImpl>) eventDatas));
     }
 
-    public final void sendSync(final EventDataBatch eventDatas) throws EventHubException {
-        ExceptionUtil.syncVoid(() -> this.send(eventDatas).get());
-    }
-
-    public final CompletableFuture<Void> send(EventDataBatch eventDatas)
-            throws EventHubException {
+    public final CompletableFuture<Void> send(EventDataBatch eventDatas) {
         if (eventDatas == null || Integer.compare(eventDatas.getSize(), 0) == 0) {
             throw new IllegalArgumentException("EventDataBatch cannot be empty.");
         }

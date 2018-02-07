@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.impl.ExceptionUtil;
+
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 
@@ -79,7 +81,9 @@ public interface PartitionReceiver  {
      * @return Batch of {@link EventData}'s from the partition on which this receiver is created. Returns 'null' if no {@link EventData} is present.
      * @throws EventHubException if ServiceBus client encountered any unrecoverable/non-transient problems during {@link #receive}
      */
-    Iterable<? extends EventData> receiveSync(final int maxEventCount) throws EventHubException;
+    default Iterable<? extends EventData> receiveSync(final int maxEventCount) throws EventHubException{
+        return ExceptionUtil.sync(() -> this.receive(maxEventCount).get());
+    }
 
     /**
      * Receive a batch of {@link EventData}'s from an EventHub partition

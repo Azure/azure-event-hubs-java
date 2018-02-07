@@ -4,6 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
+import com.microsoft.azure.eventhubs.impl.ExceptionUtil;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -31,7 +33,9 @@ public interface PartitionSender {
      *
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      */
-    EventDataBatch createBatch();
+    default EventDataBatch createBatch() {
+        return this.createBatch(new BatchOptions());
+    }
 
     /**
      * Synchronous version of {@link #send(EventData)} Api.
@@ -40,7 +44,9 @@ public interface PartitionSender {
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      */
-    void sendSync(final EventData data) throws EventHubException;
+    default void sendSync(final EventData data) throws EventHubException{
+        ExceptionUtil.syncVoid(() -> this.send(data).get());
+    }
 
     /**
      * Send {@link EventData} to a specific EventHub partition. The target partition is pre-determined when this PartitionSender was created.
@@ -70,7 +76,9 @@ public interface PartitionSender {
      * @param eventDatas batch of events to send to EventHub
      * @throws EventHubException if Service Bus service encountered problems during the operation.
      */
-    void sendSync(final Iterable<? extends EventData> eventDatas) throws EventHubException;
+    default void sendSync(final Iterable<? extends EventData> eventDatas) throws EventHubException{
+        ExceptionUtil.syncVoid(() -> this.send(eventDatas).get());
+    }
 
     /**
      * Send {@link EventData} to a specific EventHub partition. The targeted partition is pre-determined when this PartitionSender was created.
@@ -110,10 +118,8 @@ public interface PartitionSender {
      *
      * @param eventDatas batch of events to send to EventHub
      * @return a CompletableFuture that can be completed when the send operations is done..
-     * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
-     * @throws EventHubException          if Service Bus service encountered problems during the operation.
      */
-    CompletableFuture<Void> send(Iterable<? extends EventData> eventDatas) throws EventHubException;
+    CompletableFuture<Void> send(Iterable<? extends EventData> eventDatas);
 
     /**
      * Synchronous version of {@link #send(EventDataBatch)}
@@ -121,7 +127,9 @@ public interface PartitionSender {
      * @param eventDatas EventDataBatch to send to EventHub
      * @throws EventHubException if Service Bus service encountered problems during the operation.
      */
-    void sendSync(final EventDataBatch eventDatas) throws EventHubException;
+    default void sendSync(final EventDataBatch eventDatas) throws EventHubException{
+        ExceptionUtil.syncVoid(() -> this.send(eventDatas).get());
+    }
 
     /**
      * Send {@link EventDataBatch} to a specific EventHub partition. The targeted partition is pre-determined when this PartitionSender was created.
@@ -137,11 +145,10 @@ public interface PartitionSender {
      *
      * @param eventDatas EventDataBatch to send to EventHub
      * @return a CompletableFuture that can be completed when the send operation is done..
-     * @throws EventHubException if Service Bus service encountered problems during the operation.
      * @see #send(Iterable)
      * @see EventDataBatch
      */
-    CompletableFuture<Void> send(EventDataBatch eventDatas) throws EventHubException;
+    CompletableFuture<Void> send(EventDataBatch eventDatas);
 
     CompletableFuture<Void> close();
 

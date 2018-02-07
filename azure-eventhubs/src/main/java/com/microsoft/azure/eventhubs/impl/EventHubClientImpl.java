@@ -54,21 +54,6 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
         this.senderCreateSync = new Object();
     }
 
-    public static EventHubClient createFromConnectionStringSync(final String connectionString, final Executor executor)
-            throws EventHubException, IOException {
-        return createFromConnectionStringSync(connectionString, null, executor);
-    }
-
-    public static EventHubClient createFromConnectionStringSync(final String connectionString, final RetryPolicy retryPolicy, final Executor executor)
-            throws EventHubException, IOException {
-        return ExceptionUtil.syncWithIOException(() -> createFromConnectionString(connectionString, retryPolicy, executor).get());
-    }
-
-    public static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString, final Executor executor)
-            throws EventHubException, IOException {
-        return createFromConnectionString(connectionString, null, executor);
-    }
-
     public static CompletableFuture<EventHubClient> createFromConnectionString(
             final String connectionString, final RetryPolicy retryPolicy, final Executor executor)
             throws EventHubException, IOException {
@@ -106,15 +91,6 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
         );
     }
 
-    public final EventDataBatch createBatch() throws EventHubException {
-        return this.createBatch(new BatchOptions());
-    }
-
-    @Override
-    public final void sendSync(final EventData data) throws EventHubException {
-        ExceptionUtil.syncVoid(() -> this.send(data).get());
-    }
-
     @Override
     public final CompletableFuture<Void> send(final EventData data) {
         if (data == null) {
@@ -127,11 +103,6 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
                 return EventHubClientImpl.this.sender.send(((EventDataImpl) data).toAmqpMessage());
             }
         }, this.executor);
-    }
-
-    @Override
-    public final void sendSync(final Iterable<? extends EventData> eventDatas) throws EventHubException {
-        ExceptionUtil.syncVoid(() -> this.send(eventDatas).get());
     }
 
     @Override
@@ -149,11 +120,6 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
     }
 
     @Override
-    public final void sendSync(final EventDataBatch eventDatas) throws EventHubException {
-        ExceptionUtil.syncVoid(() -> this.send(eventDatas).get());
-    }
-
-    @Override
     public final CompletableFuture<Void> send(final EventDataBatch eventDatas) {
         if (eventDatas == null || Integer.compare(eventDatas.getSize(), 0) == 0) {
             throw new IllegalArgumentException("Empty batch of EventData cannot be sent.");
@@ -163,11 +129,6 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
         return eventDataBatch.getPartitionKey() != null ?
                 this.send(eventDataBatch.getInternalIterable(), eventDataBatch.getPartitionKey()) :
                 this.send(eventDataBatch.getInternalIterable());
-    }
-
-    @Override
-    public final void sendSync(final EventData eventData, final String partitionKey) throws EventHubException {
-        ExceptionUtil.syncVoid(() -> this.send(eventData, partitionKey).get());
     }
 
     @Override
@@ -186,12 +147,6 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
                 return EventHubClientImpl.this.sender.send(((EventDataImpl) eventData).toAmqpMessage(partitionKey));
             }
         }, this.executor);
-    }
-
-    @Override
-    public final void sendSync(final Iterable<? extends EventData> eventDatas, final String partitionKey)
-            throws EventHubException {
-        ExceptionUtil.syncVoid(() -> this.send(eventDatas, partitionKey).get());
     }
 
     @Override
@@ -218,21 +173,9 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
     }
 
     @Override
-    public final PartitionSender createPartitionSenderSync(final String partitionId)
-            throws EventHubException, IllegalArgumentException {
-        return ExceptionUtil.syncWithIllegalArgException(() -> this.createPartitionSender(partitionId).get());
-    }
-
-    @Override
     public final CompletableFuture<PartitionSender> createPartitionSender(final String partitionId)
             throws EventHubException {
         return PartitionSenderImpl.Create(this.underlyingFactory, this.eventHubName, partitionId, this.executor);
-    }
-
-    @Override
-    public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition)
-            throws EventHubException {
-        return ExceptionUtil.sync(() -> this.createReceiver(consumerGroupName, partitionId, eventPosition).get());
     }
 
     @Override
@@ -242,33 +185,15 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
     }
 
     @Override
-    public final PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final ReceiverOptions receiverOptions)
-            throws EventHubException {
-        return ExceptionUtil.sync(() -> this.createReceiver(consumerGroupName, partitionId, eventPosition, receiverOptions).get());
-    }
-
-    @Override
     public final CompletableFuture<PartitionReceiver> createReceiver(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final ReceiverOptions receiverOptions)
             throws EventHubException {
         return PartitionReceiverImpl.create(this.underlyingFactory, this.eventHubName, consumerGroupName, partitionId, eventPosition, PartitionReceiverImpl.NULL_EPOCH, false, receiverOptions, this.executor);
     }
 
     @Override
-    public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final long epoch)
-            throws EventHubException {
-        return ExceptionUtil.sync(() -> this.createEpochReceiver(consumerGroupName, partitionId, eventPosition, epoch).get());
-    }
-
-    @Override
     public final CompletableFuture<PartitionReceiver> createEpochReceiver(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final long epoch)
             throws EventHubException {
         return this.createEpochReceiver(consumerGroupName, partitionId, eventPosition, epoch, null);
-    }
-
-    @Override
-    public final PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final long epoch, final ReceiverOptions receiverOptions)
-            throws EventHubException {
-        return ExceptionUtil.sync(() -> this.createEpochReceiver(consumerGroupName, partitionId, eventPosition, epoch, receiverOptions).get());
     }
 
     @Override

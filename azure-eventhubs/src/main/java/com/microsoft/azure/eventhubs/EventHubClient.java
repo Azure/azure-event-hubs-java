@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 import com.microsoft.azure.eventhubs.impl.EventHubClientImpl;
+import com.microsoft.azure.eventhubs.impl.ExceptionUtil;
 
 /**
  * Anchor class - all EventHub client operations STARTS here.
@@ -36,7 +37,7 @@ public interface EventHubClient {
      */
     static EventHubClient createFromConnectionStringSync(final String connectionString, final Executor executor)
             throws EventHubException, IOException {
-        return EventHubClientImpl.createFromConnectionStringSync(connectionString, executor);
+        return EventHubClient.createFromConnectionStringSync(connectionString, null, executor);
     }
 
     /**
@@ -51,7 +52,7 @@ public interface EventHubClient {
      */
     static EventHubClient createFromConnectionStringSync(final String connectionString, final RetryPolicy retryPolicy, final Executor executor)
             throws EventHubException, IOException {
-        return EventHubClientImpl.createFromConnectionStringSync(connectionString, retryPolicy, executor);
+        return ExceptionUtil.syncWithIOException(() -> createFromConnectionString(connectionString, retryPolicy, executor).get());
     }
 
     /**
@@ -66,7 +67,7 @@ public interface EventHubClient {
      */
     static CompletableFuture<EventHubClient> createFromConnectionString(final String connectionString, final Executor executor)
             throws EventHubException, IOException {
-        return EventHubClientImpl.createFromConnectionString(connectionString, executor);
+        return EventHubClient.createFromConnectionString(connectionString, null, executor);
     }
 
     /**
@@ -104,7 +105,9 @@ public interface EventHubClient {
      * @return the empty {@link EventDataBatch}, after negotiating maximum message size with EventHubs service
      * @throws EventHubException if the Microsoft Azure Event Hubs service encountered problems during the operation.
      */
-    EventDataBatch createBatch() throws EventHubException;
+    default EventDataBatch createBatch() throws EventHubException {
+        return this.createBatch(new BatchOptions());
+    }
 
     /**
      * Synchronous version of {@link #send(EventData)}.
@@ -114,7 +117,9 @@ public interface EventHubClient {
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
      */
-    void sendSync(final EventData data) throws EventHubException;
+    default void sendSync(final EventData data) throws EventHubException {
+        ExceptionUtil.syncVoid(() -> this.send(data).get());
+    }
 
     /**
      * Send {@link EventData} to EventHub. The sent {@link EventData} will land on any arbitrarily chosen EventHubs partition.
@@ -151,7 +156,9 @@ public interface EventHubClient {
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
      */
-    void sendSync(final Iterable<? extends EventData> eventDatas) throws EventHubException;
+    default void sendSync(final Iterable<? extends EventData> eventDatas) throws EventHubException {
+        ExceptionUtil.syncVoid(() -> this.send(eventDatas).get());
+    }
 
     /**
      * Send a batch of {@link EventData} to EventHub. The sent {@link EventData} will land on any arbitrarily chosen EventHubs partition.
@@ -202,7 +209,9 @@ public interface EventHubClient {
      * @param eventDatas EventDataBatch to send to EventHub
      * @throws EventHubException        if Service Bus service encountered problems during the operation.
      */
-    void sendSync(final EventDataBatch eventDatas) throws EventHubException;
+    default void sendSync(final EventDataBatch eventDatas) throws EventHubException {
+        ExceptionUtil.syncVoid(() -> this.send(eventDatas).get());
+    }
 
     /**
      * Send {@link EventDataBatch} to EventHub. The sent {@link EventDataBatch} will land according the partition key
@@ -224,7 +233,9 @@ public interface EventHubClient {
      * @throws PayloadSizeExceededException if the total size of the {@link EventData} exceeds a pre-defined limit set by the service. Default is 256k bytes.
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      */
-    void sendSync(final EventData eventData, final String partitionKey) throws EventHubException;
+    default void sendSync(final EventData eventData, final String partitionKey) throws EventHubException{
+        ExceptionUtil.syncVoid(() -> this.send(eventData, partitionKey).get());
+    }
 
     /**
      * Send an '{@link EventData} with a partitionKey' to EventHub. All {@link EventData}'s with a partitionKey are guaranteed to land on the same partition.
@@ -263,7 +274,9 @@ public interface EventHubClient {
      * @throws EventHubException          if Service Bus service encountered problems during the operation.
      * @throws UnresolvedAddressException   if there are Client to Service network connectivity issues, if the Azure DNS resolution of the ServiceBus Namespace fails (ex: namespace deleted etc.)
      */
-    void sendSync(final Iterable<? extends EventData> eventDatas, final String partitionKey) throws EventHubException;
+    default void sendSync(final Iterable<? extends EventData> eventDatas, final String partitionKey) throws EventHubException{
+        ExceptionUtil.syncVoid(() -> this.send(eventDatas, partitionKey).get());
+    }
 
     /**
      * Send a 'batch of {@link EventData} with the same partitionKey' to EventHub. All {@link EventData}'s with a partitionKey are guaranteed to land on the same partition.
@@ -290,7 +303,9 @@ public interface EventHubClient {
      * @return PartitionSenderImpl which can be used to send events to a specific partition.
      * @throws EventHubException if Service Bus service encountered problems during connection creation.
      */
-    PartitionSender createPartitionSenderSync(final String partitionId) throws EventHubException, IllegalArgumentException;
+    default PartitionSender createPartitionSenderSync(final String partitionId) throws EventHubException, IllegalArgumentException{
+        return ExceptionUtil.syncWithIllegalArgException(() -> this.createPartitionSender(partitionId).get());
+    }
 
     /**
      * Create a {@link PartitionSender} which can publish {@link EventData}'s directly to a specific EventHub partition (sender type iii. in the below list).
@@ -318,7 +333,9 @@ public interface EventHubClient {
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
      */
-    PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition) throws EventHubException;
+    default PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition) throws EventHubException{
+        return ExceptionUtil.sync(() -> this.createReceiver(consumerGroupName, partitionId, eventPosition).get());
+    }
 
     /**
      * Create the EventHub receiver with given partition id and start receiving from the specified starting offset.
@@ -343,7 +360,9 @@ public interface EventHubClient {
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
      */
-    PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final ReceiverOptions receiverOptions) throws EventHubException;
+    default PartitionReceiver createReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final ReceiverOptions receiverOptions) throws EventHubException{
+        return ExceptionUtil.sync(() -> this.createReceiver(consumerGroupName, partitionId, eventPosition, receiverOptions).get());
+    }
 
     /**
      * Create the EventHub receiver with given partition id and start receiving from the specified starting offset.
@@ -369,7 +388,9 @@ public interface EventHubClient {
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
      */
-    PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final long epoch) throws EventHubException;
+    default PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final long epoch) throws EventHubException{
+        return ExceptionUtil.sync(() -> this.createEpochReceiver(consumerGroupName, partitionId, eventPosition, epoch).get());
+    }
 
     /**
      * Create a Epoch based EventHub receiver with given partition id and start receiving from the beginning of the partition stream.
@@ -404,7 +425,9 @@ public interface EventHubClient {
      * @return PartitionReceiver instance which can be used for receiving {@link EventData}.
      * @throws EventHubException if Service Bus service encountered problems during the operation.
      */
-    PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final long epoch, final ReceiverOptions receiverOptions) throws EventHubException;
+    default PartitionReceiver createEpochReceiverSync(final String consumerGroupName, final String partitionId, final EventPosition eventPosition, final long epoch, final ReceiverOptions receiverOptions) throws EventHubException{
+        return ExceptionUtil.sync(() -> this.createEpochReceiver(consumerGroupName, partitionId, eventPosition, epoch, receiverOptions).get());
+    }
 
     /**
      * Create a Epoch based EventHub receiver with given partition id and start receiving from the beginning of the partition stream.
