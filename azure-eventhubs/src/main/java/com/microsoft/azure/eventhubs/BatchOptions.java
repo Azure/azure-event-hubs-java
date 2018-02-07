@@ -5,9 +5,6 @@
 
 package com.microsoft.azure.eventhubs;
 
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.PartitionSender;
-
 import java.util.function.Consumer;
 
 /**

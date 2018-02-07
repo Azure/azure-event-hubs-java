@@ -4,12 +4,8 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import com.microsoft.azure.eventhubs.*;
-
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
-import java.util.function.Function;
 
 /**
  * This sender class is a logical representation of sending events to a specific EventHub partition. Do not use this class
