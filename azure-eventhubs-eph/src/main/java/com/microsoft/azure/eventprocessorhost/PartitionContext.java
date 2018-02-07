@@ -37,8 +37,6 @@ public class PartitionContext
     {
         this.hostContext = hostContext;
         this.partitionId = partitionId;
-
-        this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
     }
 
     /***

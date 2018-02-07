@@ -231,7 +231,7 @@ public class Repros extends TestBase
 		}
 
 		@Override
-		public void onReceive(Iterable<EventData> events)
+		public void onReceive(Iterable<? extends EventData> events)
 		{
 			if (this.firstEvents)
 			{

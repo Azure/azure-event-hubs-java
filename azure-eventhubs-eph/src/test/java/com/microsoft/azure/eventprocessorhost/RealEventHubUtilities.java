@@ -116,13 +116,13 @@ class RealEventHubUtilities
 	
 	void sendToAny(String body) throws EventHubException
 	{
-		EventData event = new EventData(body.getBytes());
+		EventData event = EventData.create(body.getBytes());
 		this.client.sendSync(event);
 	}
 	
 	void sendToPartition(String partitionId, String body) throws IllegalArgumentException, EventHubException
 	{
-		EventData event = new EventData(body.getBytes());
+		EventData event = EventData.create(body.getBytes());
 		PartitionSender sender = null;
 		if (this.partitionSenders.containsKey(partitionId))
 		{

@@ -531,7 +531,7 @@ class PartitionPump extends PartitionReceiveHandler
     }
 
 	@Override
-	public void onReceive(Iterable<EventData> events)
+	public void onReceive(Iterable<? extends EventData> events)
 	{
         if (this.hostContext.getEventProcessorOptions().getReceiverRuntimeMetricEnabled())
         {
@@ -548,14 +548,14 @@ class PartitionPump extends PartitionReceiveHandler
         // is different and is expecting an empty iterable if there are no events (and invoke processor after
         // receive timeout is turned on).
         
-        Iterable<EventData> effectiveEvents = events;
+        Iterable<? extends EventData> effectiveEvents = events;
         if (effectiveEvents == null)
         {
         	effectiveEvents = new ArrayList<EventData>();
         }
         
     	// Update offset and sequence number in the PartitionContext to support argument-less overload of PartitionContext.checkpoint()
-		Iterator<EventData> iter = effectiveEvents.iterator();
+		Iterator<? extends EventData> iter = effectiveEvents.iterator();
 		EventData last = null;
 		while (iter.hasNext())
 		{
