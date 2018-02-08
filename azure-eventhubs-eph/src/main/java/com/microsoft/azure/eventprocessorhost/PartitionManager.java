@@ -29,7 +29,7 @@ class PartitionManager
 {
 	// Protected instead of private for testability
     protected final HostContext hostContext;
-    protected Pump pump;
+    protected Pump pump = null;
     protected volatile String partitionIds[] = null;
     
     final private Object scanFutureSynchronizer = new Object(); 
