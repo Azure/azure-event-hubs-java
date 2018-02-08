@@ -12,6 +12,7 @@ package com.microsoft.azure.eventhubs;
  * @see <a href="http://go.microsoft.com/fwlink/?LinkId=761101">http://go.microsoft.com/fwlink/?LinkId=761101</a>
  */
 public class PayloadSizeExceededException extends EventHubException {
+
     private static final long serialVersionUID = 3627182744252750014L;
 
     PayloadSizeExceededException() {

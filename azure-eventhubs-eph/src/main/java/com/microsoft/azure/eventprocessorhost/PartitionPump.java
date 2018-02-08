@@ -24,7 +24,7 @@ import com.microsoft.azure.eventhubs.ReceiverOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class PartitionPump extends PartitionReceiveHandler
+class PartitionPump implements PartitionReceiveHandler
 {
 	protected final HostContext hostContext;
 	protected Lease lease = null; // protected for testability
@@ -49,8 +49,6 @@ class PartitionPump extends PartitionReceiveHandler
     
 	PartitionPump(HostContext hostContext, Lease lease)
 	{
-		super(hostContext.getEventProcessorOptions().getMaxBatchSize());
-		
 		this.hostContext = hostContext;
 		this.lease = lease;
 		this.processingSynchronizer = new Object();
@@ -529,6 +527,11 @@ class PartitionPump extends PartitionReceiveHandler
 			}
     	}, this.hostContext.getExecutor());
     }
+
+	@Override
+	public int getMaxEventCount() {
+		return this.hostContext.getEventProcessorOptions().getMaxBatchSize();
+	}
 
 	@Override
 	public void onReceive(Iterable<? extends EventData> events)

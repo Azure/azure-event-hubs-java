@@ -13,7 +13,7 @@ import java.util.concurrent.ExecutionException;
 import com.microsoft.azure.eventhubs.*;
 import com.microsoft.azure.eventhubs.EventHubException;
 
-class RealEventHubUtilities
+final class RealEventHubUtilities
 {
 	private ConnectionStringBuilder hubConnectionString = null;
 	private String hubName = null;

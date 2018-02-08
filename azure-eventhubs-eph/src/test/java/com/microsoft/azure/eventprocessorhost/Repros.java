@@ -208,7 +208,7 @@ public class Repros extends TestBase
 		}
 	}
 	
-	private class Blah extends PartitionReceiveHandler
+	private class Blah implements PartitionReceiveHandler
 	{
 		private int clientSerialNumber;
 		private PartitionReceiver receiver;
@@ -218,7 +218,6 @@ public class Repros extends TestBase
 		
 		protected Blah(int clientSerialNumber, PartitionReceiver receiver, EventHubClient client)
 		{
-			super(300);
 			this.clientSerialNumber = clientSerialNumber;
 			this.receiver = receiver;
 			this.client = client;
@@ -228,6 +227,11 @@ public class Repros extends TestBase
 		{
 			this.receivedMessages = new CompletableFuture<Void>();
 			return this.receivedMessages;
+		}
+
+		@Override
+		public int getMaxEventCount() {
+			return 300;
 		}
 
 		@Override

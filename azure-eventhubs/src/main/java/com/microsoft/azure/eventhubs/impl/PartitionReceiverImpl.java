@@ -25,7 +25,7 @@ import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.UnknownDescribedType;
 import org.apache.qpid.proton.message.Message;
 
-public final class PartitionReceiverImpl extends ClientEntity implements IReceiverSettingsProvider, PartitionReceiver {
+final class PartitionReceiverImpl extends ClientEntity implements IReceiverSettingsProvider, PartitionReceiver {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionReceiverImpl.class);
     public static final int MINIMUM_PREFETCH_COUNT = 10;
 
@@ -44,7 +44,7 @@ public final class PartitionReceiverImpl extends ClientEntity implements IReceiv
     private boolean isEpochReceiver;
     private ReceivePump receivePump;
     private ReceiverOptions receiverOptions;
-    private ReceiverRuntimeInformationImpl runtimeInformation;
+    private ReceiverRuntimeInformation runtimeInformation;
 
     private PartitionReceiverImpl(MessagingFactory factory,
                               final String eventHubName,
@@ -54,8 +54,7 @@ public final class PartitionReceiverImpl extends ClientEntity implements IReceiv
                               final Long epoch,
                               final boolean isEpochReceiver,
                               final ReceiverOptions receiverOptions,
-                              final Executor executor)
-            throws EventHubException {
+                              final Executor executor) {
         super(null, null, executor);
 
         this.underlyingFactory = factory;
@@ -69,7 +68,7 @@ public final class PartitionReceiverImpl extends ClientEntity implements IReceiv
         this.receiverOptions = receiverOptions;
 
         if (this.receiverOptions != null && this.receiverOptions.getReceiverRuntimeMetricEnabled())
-            this.runtimeInformation = new ReceiverRuntimeInformationImpl(partitionId);
+            this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
     }
 
     static CompletableFuture<PartitionReceiver> create(MessagingFactory factory,
@@ -98,7 +97,7 @@ public final class PartitionReceiverImpl extends ClientEntity implements IReceiv
         }, executor);
     }
 
-    private CompletableFuture<Void> createInternalReceiver() throws EventHubException {
+    private CompletableFuture<Void> createInternalReceiver() {
         return MessageReceiver.create(this.underlyingFactory,
                 StringUtil.getRandomString(),
                 String.format("%s/ConsumerGroups/%s/Partitions/%s", this.eventHubName, this.consumerGroupName, this.partitionId),

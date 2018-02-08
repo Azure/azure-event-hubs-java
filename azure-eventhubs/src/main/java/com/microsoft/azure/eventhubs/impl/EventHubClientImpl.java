@@ -36,7 +36,7 @@ import com.microsoft.azure.eventhubs.PartitionSender;
 import com.microsoft.azure.eventhubs.ReceiverOptions;
 import com.microsoft.azure.eventhubs.RetryPolicy;
 
-public class EventHubClientImpl extends ClientEntity implements EventHubClient {
+public final class EventHubClientImpl extends ClientEntity implements EventHubClient {
     private volatile boolean isSenderCreateStarted;
 
     private final String eventHubName;
@@ -258,7 +258,7 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
 				@Override
 				public CompletableFuture<EventHubRuntimeInformation> apply(Map<String, Object> rawdata) {
 			        CompletableFuture<EventHubRuntimeInformation> future2 = new CompletableFuture<EventHubRuntimeInformation>();
-					future2.complete(new EventHubRuntimeInformationImpl(
+					future2.complete(new EventHubRuntimeInformation(
 							(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
 							((Date)rawdata.get(ClientConstants.MANAGEMENT_RESULT_CREATED_AT)).toInstant(),
 							(int)rawdata.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_COUNT),
@@ -289,7 +289,7 @@ public class EventHubClientImpl extends ClientEntity implements EventHubClient {
 				@Override
 				public CompletableFuture<EventHubPartitionRuntimeInformation> apply(Map<String, Object> rawdata) {
 					CompletableFuture<EventHubPartitionRuntimeInformation> future2 = new CompletableFuture<EventHubPartitionRuntimeInformation>();
-					future2.complete(new EventHubPartitionRuntimeInformationImpl(
+					future2.complete(new EventHubPartitionRuntimeInformation(
 							(String)rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
 							(String)rawdata.get(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY),
 							(long)rawdata.get(ClientConstants.MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER),

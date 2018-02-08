@@ -6,44 +6,51 @@ package com.microsoft.azure.eventhubs;
 
 import java.time.Instant;
 
-/**
- * Represents the temporal receiver runtime information for a {@link PartitionReceiver}.
- * Current received {@link EventData} and {@link ReceiverRuntimeInformation} can be used to find approximate value of pending events (which are not processed yet).
- */
-public interface ReceiverRuntimeInformation {
+public final class ReceiverRuntimeInformation {
 
-    /**
-     * Get PartitionId of the {@link PartitionReceiver} for which the {@link ReceiverRuntimeInformation} is returned.
-     *
-     * @return Partition Identifier
-     */
-    String getPartitionId();
+    private final String partitionId;
 
-    /**
-     * Get sequence number of the {@link EventData}, that is written at the end of the Partition Stream.
-     *
-     * @return last sequence number
-     */
-    long getLastSequenceNumber();
+    private long lastSequenceNumber;
+    private Instant lastEnqueuedTime;
+    private String lastEnqueuedOffset;
+    private Instant retrievalTime;
 
-    /**
-     * Get enqueued time of the {@link EventData}, that is written at the end of the Partition Stream.
-     *
-     * @return last enqueued time
-     */
-    Instant getLastEnqueuedTime();
+    public ReceiverRuntimeInformation(final String partitionId) {
 
-    /**
-     * Get offset of the {@link EventData}, that is written at the end of the Partition Stream.
-     *
-     * @return last enqueued offset
-     */
-    String getLastEnqueuedOffset();
+        this.partitionId = partitionId;
+    }
 
-    /**
-     * Get the timestamp at which this {@link ReceiverRuntimeInformation} was constructed.
-     *
-     * @return retrieval time
-     */
-    Instant getRetrievalTime();
+    public String getPartitionId() {
+
+        return this.partitionId;
+    }
+
+    public long getLastSequenceNumber() {
+
+        return this.lastSequenceNumber;
+    }
+
+    public Instant getLastEnqueuedTime() {
+
+        return this.lastEnqueuedTime;
+    }
+
+    public String getLastEnqueuedOffset() {
+
+        return this.lastEnqueuedOffset;
+    }
+
+    public Instant getRetrievalTime() {
+
+        return this.retrievalTime;
+    }
+
+    public void setRuntimeInformation(final long sequenceNumber, final Instant enqueuedTime, final String offset) {
+
+        this.lastSequenceNumber = sequenceNumber;
+        this.lastEnqueuedTime = enqueuedTime;
+        this.lastEnqueuedOffset = offset;
+
+        this.retrievalTime = Instant.now();
+    }
 }

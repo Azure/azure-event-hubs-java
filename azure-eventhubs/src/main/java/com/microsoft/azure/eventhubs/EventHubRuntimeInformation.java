@@ -6,13 +6,37 @@ package com.microsoft.azure.eventhubs;
 
 import java.time.Instant;
 
-public interface EventHubRuntimeInformation {
+public final class EventHubRuntimeInformation {
 
-    String getPath();
+    final String path;
+    final Instant createdAt;
+    final int partitionCount;
+    final String[] partitionIds;
 
-	Instant getCreatedAt();
+    public EventHubRuntimeInformation(
+            final String path,
+            final Instant createdAt,
+            final int partitionCount,
+            final String[] partitionIds) {
+        this.path = path;
+        this.createdAt = createdAt;
+        this.partitionCount = partitionCount;
+        this.partitionIds = partitionIds;
+    }
 
-    int getPartitionCount();
+    public String getPath() {
+        return this.path;
+    }
 
-    String[] getPartitionIds();
+    public Instant getCreatedAt() {
+        return this.createdAt;
+    }
+
+    public int getPartitionCount() {
+        return this.partitionCount;
+    }
+
+    public String[] getPartitionIds() {
+        return this.partitionIds;
+    }
 }

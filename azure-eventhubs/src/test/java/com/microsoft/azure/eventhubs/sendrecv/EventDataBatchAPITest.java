@@ -78,8 +78,13 @@ public class EventDataBatchAPITest extends ApiTestBase {
 
         final int sentCount = count;
         final CompletableFuture<Void> testResult = new CompletableFuture<>();
-        final PartitionReceiveHandler validator = new PartitionReceiveHandler(100) {
+        final PartitionReceiveHandler validator = new PartitionReceiveHandler() {
             final AtomicInteger netCount = new AtomicInteger(0);
+
+            @Override
+            public int getMaxEventCount() {
+                return 100;
+            }
 
             @Override
             public void onReceive(Iterable<? extends EventData> events) {
@@ -224,16 +229,21 @@ public class EventDataBatchAPITest extends ApiTestBase {
         ehClient.closeSync();
     }
 
-    public static class CountValidator extends PartitionReceiveHandler {
+    public static class CountValidator implements PartitionReceiveHandler {
         final CompletableFuture<Void> validateSignal;
         final int netEventCount;
 
         int currentCount = 0;
 
         public CountValidator(final CompletableFuture<Void> validateSignal, final int netEventCount) {
-            super(999);
+
             this.validateSignal = validateSignal;
             this.netEventCount = netEventCount;
+        }
+
+        @Override
+        public int getMaxEventCount() {
+            return 999;
         }
 
         @Override

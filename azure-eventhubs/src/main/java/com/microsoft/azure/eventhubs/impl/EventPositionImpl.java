@@ -4,15 +4,13 @@
  */
 package com.microsoft.azure.eventhubs.impl;
 
-import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventPosition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
 import java.time.Instant;
 
-public class EventPositionImpl implements EventPosition {
+public final class EventPositionImpl implements EventPosition {
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(EventPositionImpl.class);
 

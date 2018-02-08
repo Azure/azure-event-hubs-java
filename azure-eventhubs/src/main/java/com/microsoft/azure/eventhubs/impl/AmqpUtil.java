@@ -14,7 +14,7 @@ import org.apache.qpid.proton.amqp.messaging.Data;
 import org.apache.qpid.proton.amqp.messaging.MessageAnnotations;
 import org.apache.qpid.proton.message.Message;
 
-public class AmqpUtil {
+public final class AmqpUtil {
 
     private AmqpUtil() {
     }

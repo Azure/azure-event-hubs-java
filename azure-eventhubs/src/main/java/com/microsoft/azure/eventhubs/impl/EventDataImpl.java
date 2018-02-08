@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class EventDataImpl implements EventData {
+public final class EventDataImpl implements EventData {
     private static final long serialVersionUID = -5631628195600014255L;
     private static final int BODY_DATA_NULL = -1;
 

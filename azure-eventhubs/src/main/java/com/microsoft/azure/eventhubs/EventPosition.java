@@ -4,11 +4,7 @@
  */
 package com.microsoft.azure.eventhubs;
 
-import com.microsoft.azure.eventhubs.impl.AmqpConstants;
 import com.microsoft.azure.eventhubs.impl.EventPositionImpl;
-import com.microsoft.azure.eventhubs.impl.StringUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.time.Instant;

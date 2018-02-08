@@ -6,17 +6,52 @@ package com.microsoft.azure.eventhubs;
 
 import java.time.Instant;
 
-public interface EventHubPartitionRuntimeInformation {
+public final class EventHubPartitionRuntimeInformation {
 
-    String getEventHubPath();
+    private final String eventHubPath;
+    private final String partitionId;
+    private final long beginSequenceNumber;
+    private final long lastEnqueuedSequenceNumber;
+    private final String lastEnqueuedOffset;
+    private final Instant lastEnqueuedTimeUtc;
 
-    String getPartitionId();
+    public EventHubPartitionRuntimeInformation(
+            final String eventHubPath,
+            final String partitionId,
+            final long beginSequenceNumber,
+            final long lastEnqueuedSequenceNumber,
+            final String lastEnqueuedOffset,
+            final Instant lastEnqueuedTimeUtc) {
 
-    long getBeginSequenceNumber();
+        this.eventHubPath = eventHubPath;
+        this.partitionId = partitionId;
+        this.beginSequenceNumber = beginSequenceNumber;
+        this.lastEnqueuedSequenceNumber = lastEnqueuedSequenceNumber;
+        this.lastEnqueuedOffset = lastEnqueuedOffset;
+        this.lastEnqueuedTimeUtc = lastEnqueuedTimeUtc;
+    }
 
-    long getLastEnqueuedSequenceNumber();
+    public String getEventHubPath() {
+        return this.eventHubPath;
+    }
 
-    String getLastEnqueuedOffset();
+    public String getPartitionId() {
+        return this.partitionId;
+    }
 
-    Instant getLastEnqueuedTimeUtc();
+    public long getBeginSequenceNumber() {
+        return this.beginSequenceNumber;
+    }
+
+    public long getLastEnqueuedSequenceNumber() {
+        return this.lastEnqueuedSequenceNumber;
+    }
+
+    public String getLastEnqueuedOffset() {
+        return this.lastEnqueuedOffset;
+    }
+
+    public Instant getLastEnqueuedTimeUtc() {
+        return this.lastEnqueuedTimeUtc;
+    }
 }
