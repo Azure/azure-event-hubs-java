@@ -110,14 +110,18 @@ public class ReceivePumpEventHubTest extends ApiTestBase
 			ehClient.closeSync();
 	}
 	
-	public static final class InvokeOnReceiveEventValidator extends PartitionReceiveHandler
+	public static final class InvokeOnReceiveEventValidator implements PartitionReceiveHandler
 	{
 		final CompletableFuture<Void> signalInvoked;
 		
 		public InvokeOnReceiveEventValidator(final CompletableFuture<Void> signalInvoked)
 		{
-			super(50);
 			this.signalInvoked = signalInvoked;
+		}
+
+		@Override
+		public int getMaxEventCount() {
+			return 50;
 		}
 
 		@Override

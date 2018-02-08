@@ -44,7 +44,11 @@ public class ReceivePumpTest
 						return "0";
 					}
 				},
-				new PartitionReceiveHandler(10) {
+				new PartitionReceiveHandler() {
+					@Override
+					public int getMaxEventCount() {
+						return 10;
+					}
 					@Override public void onReceive(Iterable<? extends EventData> events)
 					{
 						assertion = IteratorUtil.sizeEquals(events, 1); 
@@ -78,7 +82,11 @@ public class ReceivePumpTest
 						return "0";
 					}
 				},
-				new PartitionReceiveHandler(10) {
+				new PartitionReceiveHandler() {
+					@Override
+					public int getMaxEventCount() {
+						return 10;
+					}
 					@Override public void onReceive(Iterable<? extends EventData> events)
 					{						
 					}
@@ -108,7 +116,11 @@ public class ReceivePumpTest
 						return "0";
 					}
 				},
-				new PartitionReceiveHandler(10) {
+				new PartitionReceiveHandler() {
+					@Override
+					public int getMaxEventCount() {
+						return 10;
+					}
 					@Override public void onReceive(Iterable<? extends EventData> events)
 					{						
 					}
@@ -139,7 +151,11 @@ public class ReceivePumpTest
 						return "0";
 					}
 				},
-				new PartitionReceiveHandler(10) {
+				new PartitionReceiveHandler() {
+					@Override
+					public int getMaxEventCount() {
+						return 10;
+					}
 					@Override public void onReceive(Iterable<? extends EventData> events)
 					{
 						throw new RuntimeException(runtimeExceptionMsg);

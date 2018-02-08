@@ -154,7 +154,7 @@ public class SendTest extends ApiTestBase
 		ehClient.closeSync();
 	}
 	
-	public static class PartitionKeyValidator extends PartitionReceiveHandler
+	public static class PartitionKeyValidator implements PartitionReceiveHandler
 	{
 		final CompletableFuture<Void> validateSignal;
 		final String partitionKey;
@@ -163,10 +163,14 @@ public class SendTest extends ApiTestBase
 		
 		protected PartitionKeyValidator(final CompletableFuture<Void> validateSignal, final String partitionKey, final int eventCount)
 		{
-			super(50);
 			this.validateSignal = validateSignal;
 			this.partitionKey = partitionKey;
 			this.eventCount = eventCount;
+		}
+
+		@Override
+		public int getMaxEventCount() {
+			return 50;
 		}
 
 		@Override
@@ -195,7 +199,7 @@ public class SendTest extends ApiTestBase
 		}
 	}
 	
-	public static class OrderValidator extends PartitionReceiveHandler
+	public static class OrderValidator implements PartitionReceiveHandler
 	{
 		final CompletableFuture<Void> validateSignal;
 		final int netEventCount;
@@ -204,9 +208,13 @@ public class SendTest extends ApiTestBase
 		
 		public OrderValidator(final CompletableFuture<Void> validateSignal, final int netEventCount)
 		{
-			super(100);
 			this.validateSignal = validateSignal;
 			this.netEventCount = netEventCount;
+		}
+
+		@Override
+		public int getMaxEventCount() {
+			return 100;
 		}
 
 		@Override

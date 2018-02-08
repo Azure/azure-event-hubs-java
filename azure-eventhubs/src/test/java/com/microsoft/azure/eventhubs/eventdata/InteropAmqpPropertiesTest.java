@@ -138,7 +138,7 @@ public class InteropAmqpPropertiesTest extends ApiTestBase
 				"receiver1", 
 				connStrBuilder.getEventHubName() + "/ConsumerGroups/" + TestContext.getConsumerGroupName() + "/Partitions/" + partitionId,
 				100,
-				(PartitionReceiverImpl) ehClient.createReceiver(TestContext.getConsumerGroupName(), partitionId, EventPosition.fromOffset(reSentAndReceivedEvent.getSystemProperties().getOffset(), false)).get()).get();
+				(IReceiverSettingsProvider) ehClient.createReceiver(TestContext.getConsumerGroupName(), partitionId, EventPosition.fromOffset(reSentAndReceivedEvent.getSystemProperties().getOffset(), false)).get()).get();
                 
                 reSendAndReceivedMessage = msgReceiver.receive(10).get().iterator().next();
 	}
