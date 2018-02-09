@@ -463,7 +463,7 @@ public final class EventProcessorHost
 			}
             catch (InvalidKeyException | URISyntaxException | StorageException e)
             {
-                TRACE_LOGGER.warn(this.hostContext.withHost("Failure initializing Storage lease manager."));
+                TRACE_LOGGER.error(this.hostContext.withHost("Failure initializing default lease and checkpoint manager."));
             	throw new RuntimeException("Failure initializing Storage lease manager", e);
 			}
         }

@@ -359,14 +359,14 @@ class PartitionPump extends PartitionReceiveHandler
     	}
     	else
     	{
-            TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionContext, "partitionReceiver is null in cleanup"));
+            TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(this.partitionContext, "partitionReceiver is null in cleanup"));
     		cleanupFuture = CompletableFuture.completedFuture(null);
     	}
     	cleanupFuture = cleanupFuture.handleAsync((empty, e) ->
     	{
     		if (e != null)
     		{
-				TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionContext,
+				TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(this.partitionContext,
 						"Got exception when ReceiveHandler is set to null."), LoggingUtils.unwrapException(e, null));
     		}
     		return null; // stop propagation of exceptions
@@ -398,7 +398,7 @@ class PartitionPump extends PartitionReceiveHandler
 			this.eventHubClient = null;
 			if (eventHubClientTemp == null)
 			{
-	            TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionContext,
+	            TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(this.partitionContext,
 	                    "eventHubClient is null in cleanup"));
 			}
 			return eventHubClientTemp;
@@ -411,7 +411,7 @@ class PartitionPump extends PartitionReceiveHandler
     	{
     		if (e != null)
     		{
-				TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionContext, "Closing EH client failed."),
+				TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(this.partitionContext, "Closing EH client failed."),
 						LoggingUtils.unwrapException(e, null));
 			}
             return null; // stop propagation of exceptions
@@ -597,7 +597,7 @@ class PartitionPump extends PartitionReceiveHandler
 		}
 		if (error instanceof ReceiverDisconnectedException)
 		{
-			TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(this.partitionContext,
+			TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionContext,
 					"EventHub client disconnected, probably another host took the partition"));
 		}
 		else

@@ -175,12 +175,12 @@ class PartitionManager
     			Throwable notifyWith = LoggingUtils.unwrapException(e, outAction);
     			if (outAction.length() > 0)
     			{
-    	    		TRACE_LOGGER.warn(this.hostContext.withHost(
+    	    		TRACE_LOGGER.error(this.hostContext.withHost(
     	                    "Exception while initializing stores (" + outAction.toString() + "), not starting partition manager"), notifyWith);
     			}
     			else
     			{
-    	    		TRACE_LOGGER.warn(this.hostContext.withHost("Exception while initializing stores, not starting partition manager"), notifyWith);
+    	    		TRACE_LOGGER.error(this.hostContext.withHost("Exception while initializing stores, not starting partition manager"), notifyWith);
     			}
     		}
     	}, this.hostContext.getExecutor())
@@ -417,7 +417,7 @@ class PartitionManager
             		{
             			resultsAreComplete.value = false;
                 		Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
-                		TRACE_LOGGER.debug(this.hostContext.withHost("Failure getting/acquiring lease, skipping"), notifyWith);
+                		TRACE_LOGGER.warn(this.hostContext.withHost("Failure getting/acquiring lease, skipping"), notifyWith);
                 		this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), notifyWith,
                 				EventProcessorHostActionStrings.CHECKING_LEASES, ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION);
             		}

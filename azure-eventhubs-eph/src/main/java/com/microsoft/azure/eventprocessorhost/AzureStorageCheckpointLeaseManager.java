@@ -326,7 +326,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     		{
 		    	// returns true if the container was created, false if it already existed -- we don't care
 				this.eventHubContainer.createIfNotExists(options, null);
-				TRACE_LOGGER.info(this.hostContext.withHost("Created lease store OK"));
+				TRACE_LOGGER.info(this.hostContext.withHost("Created lease store OK or it already existed"));
     		}
     		catch (StorageException e)
     		{
@@ -531,7 +531,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     				 (extendedErrorInfo.getErrorCode().compareTo(StorageErrorCodeStrings.LEASE_ID_MISSING) == 0))) // occurs when somebody else already has leased the blob
     		{
     			// The blob already exists.
-    			TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(partitionId, "Lease already exists"));
+    			TRACE_LOGGER.info(this.hostContext.withHostAndPartition(partitionId, "Lease already exists"));
         		returnLease = getLeaseInternal(partitionId, options);
     		}
     		else
@@ -548,7 +548,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     {
     	return CompletableFuture.runAsync(() ->
     	{
-	    	TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(lease,"Deleting lease"));
+	    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(lease,"Deleting lease"));
 	    	try
 	    	{
 				((AzureBlobLease)lease).getBlob().deleteIfExists();

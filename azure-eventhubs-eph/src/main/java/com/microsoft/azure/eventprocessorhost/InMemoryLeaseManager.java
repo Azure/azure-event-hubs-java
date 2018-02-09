@@ -170,7 +170,7 @@ public class InMemoryLeaseManager implements ILeaseManager
 	            	// Make change in both persisted lease and live lease!
 	            	InMemoryLeaseStore.singleton.stealLease(leaseInStore, this.hostContext.getHostName());
 	            	leaseToAcquire.setOwner(this.hostContext.getHostName());
-	            	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(leaseToAcquire,
+	            	TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(leaseToAcquire,
                             "acquireLease() stole lease from " + oldOwner));
 	            }
 	            long newExpiration = System.currentTimeMillis() + getLeaseDurationInMilliseconds();
@@ -223,7 +223,7 @@ public class InMemoryLeaseManager implements ILeaseManager
         	}
         	else
             {
-            	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(leaseToRenew,
+            	TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(leaseToRenew,
                         "renewLease() not renewed because we don't own lease"));
             	retval = false;
             }
@@ -297,7 +297,7 @@ public class InMemoryLeaseManager implements ILeaseManager
 		    		}
 		    		else
 		    		{
-			    		TRACE_LOGGER.info(this.hostContext.withHostAndPartition(leaseToUpdate,
+			    		TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(leaseToUpdate,
 	                            "updateLease() not updated because we don't own lease"));
 		    			retval = false;
 		    		}
