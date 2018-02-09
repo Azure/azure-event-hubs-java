@@ -204,7 +204,7 @@ class PartitionPump extends PartitionReceiveHandler
     {
     	int seconds = this.hostContext.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds(); 
 		this.leaseRenewerFuture = this.hostContext.getExecutor().schedule(() -> leaseRenewer(), seconds, TimeUnit.SECONDS);
-    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.lease,
+    	TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(this.lease,
     			"scheduling leaseRenewer in " + seconds));
     }
 
@@ -450,7 +450,7 @@ class PartitionPump extends PartitionReceiveHandler
         	{
         		if (e != null)
     	        {
-    	        	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionContext,
+    	        	TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(this.partitionContext,
     	        			"Failure releasing lease on pump shutdown"), LoggingUtils.unwrapException(e, null));
     			}
         		return null; // stop propagation of exceptions
@@ -484,7 +484,7 @@ class PartitionPump extends PartitionReceiveHandler
     
     private void leaseRenewer()
     {
-    	TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.lease, "leaseRenewer()"));
+    	TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(this.lease, "leaseRenewer()"));
     	
     	// Theoretically, if the future is cancelled then this method should never fire, but
     	// there's no harm in being sure.
@@ -517,7 +517,7 @@ class PartitionPump extends PartitionReceiveHandler
         		// Failure renewing lease due to storage exception or whatever.
         		// Trace error and leave scheduleNext as true to schedule another try.
         		Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
-        		TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(this.lease, "Transient failure renewing lease"), notifyWith);
+        		TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.lease, "Transient failure renewing lease"), notifyWith);
         		// Notify the general error handler rather than calling this.processor.onError so we can provide context (RENEWING_LEASE)
         		this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), notifyWith, EventProcessorHostActionStrings.RENEWING_LEASE,
         				this.lease.getPartitionId());

@@ -309,7 +309,6 @@ public final class EventProcessorHost
             this.weOwnExecutor = true;
             this.executorService = Executors.newScheduledThreadPool(this.executorServicePoolSize);
         }
-        TRACE_LOGGER.info(LoggingUtils.threadPoolStatusReport(hostName, this.executorService));
         
         this.hostContext = new HostContext(this.executorService,
         		this, hostName,

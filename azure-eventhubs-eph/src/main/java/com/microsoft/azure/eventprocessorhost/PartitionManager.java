@@ -346,7 +346,7 @@ class PartitionManager
     // throwOnFailure is true 
     private Void scan()
     {
-    	TRACE_LOGGER.info(this.hostContext.withHost("Starting lease scan"));
+    	TRACE_LOGGER.debug(this.hostContext.withHost("Starting lease scan"));
 
     	// DO NOT check whether this.scanFuture is cancelled. The first execution of this method is scheduled
     	// with 0 delay and can occur before this.scanFuture is set to the result of the schedule() call.
@@ -397,7 +397,7 @@ class PartitionManager
             		{
             			resultsAreComplete.value = false;
                 		Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
-                		TRACE_LOGGER.warn(this.hostContext.withHost("Failure getting/acquiring lease, skipping"), notifyWith);
+                		TRACE_LOGGER.debug(this.hostContext.withHost("Failure getting/acquiring lease, skipping"), notifyWith);
                 		this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), notifyWith,
                 				EventProcessorHostActionStrings.CHECKING_LEASES, ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION);
             		}
@@ -416,7 +416,7 @@ class PartitionManager
         // Stage D: consume the counting done by the per-lease stage to decide whether and what lease to steal
         .thenApplyAsync((empty) ->
         {
-        	TRACE_LOGGER.info(this.hostContext.withHost("Lease scan steal check"));
+        	TRACE_LOGGER.debug(this.hostContext.withHost("Lease scan steal check"));
         	
             // Grab more leases if available and needed for load balancing, but only if all leases were checked OK.
             // Don't try to steal if numbers are in doubt due to errors in the previous stage. 
@@ -438,7 +438,7 @@ class PartitionManager
         {
             if (stealSucceeded)
             {
-        		TRACE_LOGGER.info(this.hostContext.withHostAndPartition(lease, "Stole lease"));
+        		TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(lease, "Stole lease"));
         		this.pump.addPump(lease);
             }
             return lease;
@@ -472,7 +472,7 @@ class PartitionManager
 	        	{
 	        		int seconds = this.hostContext.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds();
 	    	    	this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(), seconds, TimeUnit.SECONDS);
-	    	    	TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds));
+	    	    	TRACE_LOGGER.debug(this.hostContext.withHost("Scheduling lease scanner in " + seconds));
 	        	}
             }
         }, this.hostContext.getExecutor());
@@ -513,7 +513,7 @@ class PartitionManager
     			if (l.isOwnedBy(biggestOwner))
     			{
     				stealThisLease = l;
-    				TRACE_LOGGER.info(this.hostContext.withHost("Proposed to steal lease for partition " + l.getPartitionId() + " from " + biggestOwner));
+    				TRACE_LOGGER.debug(this.hostContext.withHost("Proposed to steal lease for partition " + l.getPartitionId() + " from " + biggestOwner));
   					break;
     			}
     		}
@@ -553,9 +553,9 @@ class PartitionManager
     	}
     	for (String owner : counts.keySet())
     	{
-    		TRACE_LOGGER.info(this.hostContext.withHost("host " + owner + " owns " + counts.get(owner) + " leases")); // HASHMAP
+    		TRACE_LOGGER.debug(this.hostContext.withHost("host " + owner + " owns " + counts.get(owner) + " leases")); // HASHMAP
     	}
-    	TRACE_LOGGER.info(this.hostContext.withHost("total hosts in sorted list: " + counts.size()));
+    	TRACE_LOGGER.debug(this.hostContext.withHost("total hosts in sorted list: " + counts.size()));
     	
     	return counts;
     }
