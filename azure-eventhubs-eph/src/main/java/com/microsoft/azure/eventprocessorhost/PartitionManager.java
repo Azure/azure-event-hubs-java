@@ -29,7 +29,7 @@ class PartitionManager
 {
 	// Protected instead of private for testability
     protected final HostContext hostContext;
-    protected Pump pump;
+    protected Pump pump = null;
     protected volatile String partitionIds[] = null;
     
     final private Object scanFutureSynchronizer = new Object(); 
@@ -124,27 +124,38 @@ class PartitionManager
     	// Stop the lease scanner.
     	synchronized (this.scanFutureSynchronizer)
     	{
-    		this.scanFuture.cancel(true);
+    		if (this.scanFuture != null)
+    		{
+    			this.scanFuture.cancel(true);
+    		}
     	}
 
     	// Stop any partition pumps that are running.
-    	TRACE_LOGGER.info(this.hostContext.withHost("Shutting down all pumps"));
-    	CompletableFuture<?>[] pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
-    	return CompletableFuture.allOf(pumpRemovals).whenCompleteAsync((empty, e) ->
+    	CompletableFuture<Void> retval = CompletableFuture.completedFuture(null);
+    	
+    	if (this.pump != null)
     	{
-    		if (e != null)
-    		{
-    			Throwable notifyWith = LoggingUtils.unwrapException(e, null);
-    			TRACE_LOGGER.warn(this.hostContext.withHost("Failure during shutdown"), notifyWith);
-    			if (notifyWith instanceof Exception)
-    			{
-    				this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), (Exception) notifyWith,
-    						EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
-
-    			}
-    		}
-	        TRACE_LOGGER.info(this.hostContext.withHost("Partition manager exiting"));
-    	}, this.hostContext.getExecutor());
+	    	TRACE_LOGGER.info(this.hostContext.withHost("Shutting down all pumps"));
+	    	CompletableFuture<?>[] pumpRemovals = this.pump.removeAllPumps(CloseReason.Shutdown);
+	    	retval = CompletableFuture.allOf(pumpRemovals).whenCompleteAsync((empty, e) ->
+	    	{
+	    		if (e != null)
+	    		{
+	    			Throwable notifyWith = LoggingUtils.unwrapException(e, null);
+	    			TRACE_LOGGER.warn(this.hostContext.withHost("Failure during shutdown"), notifyWith);
+	    			if (notifyWith instanceof Exception)
+	    			{
+	    				this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), (Exception) notifyWith,
+	    						EventProcessorHostActionStrings.PARTITION_MANAGER_CLEANUP);
+	
+	    			}
+	    		}
+		        TRACE_LOGGER.info(this.hostContext.withHost("Partition manager exiting"));
+	    	}, this.hostContext.getExecutor());
+    	}
+    	// else no pumps to shut down
+    	
+    	return retval;
     }
     
     public CompletableFuture<Void> initialize()
@@ -236,7 +247,9 @@ class PartitionManager
     // the exceptional swallowing and allows fatal errors in earlier chains to be propagated all the way to the end.
     class FinalException extends CompletionException
     {
-    	FinalException(CompletionException e)
+		private static final long serialVersionUID = -4600271981700687166L;
+
+		FinalException(CompletionException e)
     	{
     		super(e);
     	}
@@ -320,15 +333,22 @@ class PartitionManager
     	{
     		if (e != null)
     		{
-        		if (partitionId != null)
-        		{
-        			TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(partitionId, finalFailureMessage));
-        		}
-        		else
-        		{
-        			TRACE_LOGGER.warn(this.hostContext.withHost(finalFailureMessage));
-        		}
-        		throw LoggingUtils.wrapExceptionWithMessage(e, finalFailureMessage, action);
+    			if (e instanceof FinalException)
+    			{
+    				throw (FinalException)e;
+    			}
+    			else
+    			{
+	        		if (partitionId != null)
+	        		{
+	        			TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(partitionId, finalFailureMessage));
+	        		}
+	        		else
+	        		{
+	        			TRACE_LOGGER.warn(this.hostContext.withHost(finalFailureMessage));
+	        		}
+	        		throw new FinalException(LoggingUtils.wrapExceptionWithMessage(LoggingUtils.unwrapException(e, null), finalFailureMessage, action));
+    			}
     		}
     		return (e == null) ? r : null;
     	}, this.hostContext.getExecutor());
