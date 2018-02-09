@@ -151,7 +151,8 @@ public class SendTest extends ApiTestBase
 	@AfterClass
 	public static void cleanupClient() throws EventHubException
 	{
-		ehClient.closeSync();
+		if (ehClient != null)
+			ehClient.closeSync();
 	}
 	
 	public static class PartitionKeyValidator implements PartitionReceiveHandler
