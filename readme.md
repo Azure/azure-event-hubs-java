@@ -18,9 +18,12 @@ Refer to [General Overview document](Overview.md) for a general overview of Even
 
 ## Using the library 
 
-This library is available for use in Maven projects from the Maven Central Repository, and can be referenced using the
-following dependency declaration. The dependency declaration will in turn pull further required dependencies, specifically 
-the required version of Apache Qpid Proton-J, and the cryptography library BCPKIX by the Legion of Bouncy Castle.   
+Two java packages are released to Maven Central Repository from this GitHub repository.
+
+### Microsoft Azure EventHubs Java Client
+
+This library exposes the send and receive APIs. This library will in turn pull further required dependencies, specifically 
+the required versions of Apache Qpid Proton-J, and the cryptography library BCPKIX by the Legion of Bouncy Castle.   
 
 ```XML
    	<dependency> 
@@ -29,6 +32,11 @@ the required version of Apache Qpid Proton-J, and the cryptography library BCPKI
    		<version>0.15.1</version>
    	</dependency>
 ```
+
+### Microsoft Azure EventHubs Java Event Processor Host library
+
+This library exposes an out-of-the-box distributed partition processor for Event Hubs.
+It pulls the required versions of Event Hubs, Azure Storage and GSon libraries.
 
 ```XML
    	<dependency> 
