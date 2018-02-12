@@ -44,7 +44,7 @@ final class PartitionReceiverImpl extends ClientEntity implements IReceiverSetti
     private boolean isEpochReceiver;
     private ReceivePump receivePump;
     private ReceiverOptions receiverOptions;
-    private ReceiverRuntimeInformation runtimeInformation;
+    private PartitionEndOfStreamInformation runtimeInformation;
 
     private PartitionReceiverImpl(MessagingFactory factory,
                               final String eventHubName,
@@ -68,7 +68,7 @@ final class PartitionReceiverImpl extends ClientEntity implements IReceiverSetti
         this.receiverOptions = receiverOptions;
 
         if (this.receiverOptions != null && this.receiverOptions.getReceiverRuntimeMetricEnabled())
-            this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
+            this.runtimeInformation = new PartitionEndOfStreamInformation(partitionId);
     }
 
     static CompletableFuture<PartitionReceiver> create(MessagingFactory factory,
@@ -142,7 +142,7 @@ final class PartitionReceiverImpl extends ClientEntity implements IReceiverSetti
         return this.epoch;
     }
 
-    public final ReceiverRuntimeInformation getRuntimeInformation() {
+    public final PartitionEndOfStreamInformation getEndOfStreamInformation() {
 
         return this.runtimeInformation;
     }

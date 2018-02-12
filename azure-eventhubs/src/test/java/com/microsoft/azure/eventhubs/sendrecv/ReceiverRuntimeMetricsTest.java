@@ -63,23 +63,23 @@ public class ReceiverRuntimeMetricsTest  extends ApiTestBase {
         for (EventData eData: receivedEventsWithOptions)
             offsets.add(eData.getSystemProperties().getOffset());
         
-        Assert.assertTrue(receiverWithOptions.getRuntimeInformation() != null);
-        Assert.assertTrue(offsets.contains(receiverWithOptions.getRuntimeInformation().getLastEnqueuedOffset()));
-        Assert.assertTrue(receiverWithOptions.getRuntimeInformation().getLastSequenceNumber() >= receivedEventsWithOptions.iterator().next().getSystemProperties().getSequenceNumber());
+        Assert.assertTrue(receiverWithOptions.getEndOfStreamInformation() != null);
+        Assert.assertTrue(offsets.contains(receiverWithOptions.getEndOfStreamInformation().getLastEnqueuedOffset()));
+        Assert.assertTrue(receiverWithOptions.getEndOfStreamInformation().getLastEnqueuedSequenceNumber() >= receivedEventsWithOptions.iterator().next().getSystemProperties().getSequenceNumber());
     }
 
     @Test()
     public void testRuntimeMetricsWhenDisabled() throws EventHubException {
 
         receiverWithOptionsDisabled.receiveSync(10);
-        Assert.assertTrue(receiverWithOptionsDisabled.getRuntimeInformation() == null);
+        Assert.assertTrue(receiverWithOptionsDisabled.getEndOfStreamInformation() == null);
     }
     
     @Test()
     public void testRuntimeMetricsDefaultDisabled() throws EventHubException {
 
         receiverWithoutOptions.receiveSync(10);
-        Assert.assertTrue(receiverWithoutOptions.getRuntimeInformation() == null);
+        Assert.assertTrue(receiverWithoutOptions.getEndOfStreamInformation() == null);
     }
     
     @AfterClass()

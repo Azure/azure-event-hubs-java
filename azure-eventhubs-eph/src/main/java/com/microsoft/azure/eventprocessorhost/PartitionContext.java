@@ -10,7 +10,7 @@ import java.util.function.Function;
 
 import com.microsoft.azure.eventhubs.EventData;
 import com.microsoft.azure.eventhubs.EventPosition;
-import com.microsoft.azure.eventhubs.ReceiverRuntimeInformation;
+import com.microsoft.azure.eventhubs.PartitionEndOfStreamInformation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +29,7 @@ public class PartitionContext
     private Lease lease;
     private String offset = null;
     private long sequenceNumber = 0;
-    private ReceiverRuntimeInformation runtimeInformation;
+    private PartitionEndOfStreamInformation runtimeInformation;
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionContext.class);
     
@@ -38,7 +38,7 @@ public class PartitionContext
         this.hostContext = hostContext;
         this.partitionId = partitionId;
 
-        this.runtimeInformation = new ReceiverRuntimeInformation(partitionId);
+        this.runtimeInformation = new PartitionEndOfStreamInformation(partitionId);
     }
 
     /***
@@ -75,14 +75,14 @@ public class PartitionContext
      * If receiver runtime metrics have been enabled in EventProcessorHost, this method
      * gets the metrics as they come in.  
      * 
-     * @return See ReceiverRuntimeInformation.
+     * @return See PartitionEndOfStreamInformation.
      */
-    public ReceiverRuntimeInformation getRuntimeInformation()
+    public PartitionEndOfStreamInformation getEndOfStreamInformation()
     {
         return this.runtimeInformation;
     }
     
-    void setRuntimeInformation(ReceiverRuntimeInformation value)
+    void setRuntimeInformation(PartitionEndOfStreamInformation value)
     {
         this.runtimeInformation = value;
     }

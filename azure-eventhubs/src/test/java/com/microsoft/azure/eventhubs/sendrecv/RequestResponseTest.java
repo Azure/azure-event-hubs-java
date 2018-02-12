@@ -209,7 +209,7 @@ public class RequestResponseTest  extends ApiTestBase {
     	}
     	
     	for (String id : ehInfo.getPartitionIds()) {
-	    	EventHubPartitionRuntimeInformation partInfo = ehc.getPartitionRuntimeInformation(id).get();
+	    	PartitionRuntimeInformation partInfo = ehc.getPartitionRuntimeInformation(id).get();
 	    	
 	    	Assert.assertNotNull(partInfo);
 	    	Assert.assertTrue(connectionString.getEventHubName().equalsIgnoreCase(partInfo.getEventHubPath()));
@@ -344,13 +344,13 @@ public class RequestResponseTest  extends ApiTestBase {
 
     	try {
     		ehc.getRuntimeInformation().get();
-    		Assert.fail("getRuntimeInformation did not throw as expected");
+    		Assert.fail("getEndOfStreamInformation did not throw as expected");
     	}
     	catch (IllegalStateException e) {
     		// Success
     	}
     	catch (Exception e) {
-    		Assert.fail("Unexpected exception from getRuntimeInformation " + e.toString());
+    		Assert.fail("Unexpected exception from getEndOfStreamInformation " + e.toString());
     	}
 
     	try {

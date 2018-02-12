@@ -16,7 +16,7 @@ public final class ReceiverOptions {
 
     /**
      * Knob to enable/disable runtime metric of the receiver. If this is set to true and is passed to {@link EventHubClient#createReceiver},
-     * after the first {@link PartitionReceiver#receive(int)} call, {@link PartitionReceiver#getRuntimeInformation()} is populated.
+     * after the first {@link PartitionReceiver#receive(int)} call, {@link PartitionReceiver#getEndOfStreamInformation()} is populated.
      * <p>
      * Enabling this knob will add 3 additional properties to all {@link EventData}'s received on the {@link EventHubClient#createReceiver}.
      *
@@ -29,7 +29,7 @@ public final class ReceiverOptions {
 
     /**
      * Knob to enable/disable runtime metric of the receiver. If this is set to true and is passed to {@link EventHubClient#createReceiver},
-     * after the first {@link PartitionReceiver#receive(int)} call, {@link PartitionReceiver#getRuntimeInformation()} is populated.
+     * after the first {@link PartitionReceiver#receive(int)} call, {@link PartitionReceiver#getEndOfStreamInformation()} is populated.
      * <p>
      * Enabling this knob will add 3 additional properties to all {@link EventData}'s received on the {@link EventHubClient#createReceiver}.
      *
