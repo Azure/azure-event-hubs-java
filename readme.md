@@ -62,9 +62,11 @@ Here are few general topics, which we thought developers would need help with:
 
 ### Running Integration tests
 
-Set these Environment variables to be able to run unit tests targeting Microsoft Azure EventHubs service:
-  * EVENT_HUB_CONNECTION_STRING
-  * EPHTESTSTORAGE
+Set the following two Environment variables to be able to run unit tests targeting Microsoft Azure EventHubs service:
+
+  * EVENT_HUB_CONNECTION_STRING - the event hub connection string to which the tests should target. the format of the connection string is: `Endpoint=----NAMESPACE_ENDPOINT------;EntityPath=----EVENTHUB_NAME----;SharedAccessKeyName=----KEY_NAME----;SharedAccessKey=----KEY_VALUE----`. [Here's how to create an Event Hub on Azure Portal and get the connection string](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-create).
+
+  * EPHTESTSTORAGE - the Microsoft Azure Storage account connection string to use while running EPH tests. The format of the connection string is: `DefaultEndpointsProtocol=https;AccountName=---STORAGE_ACCOUNT_NAME---;AccountKey=---ACCOUNT_KEY---;EndpointSuffix=---ENPOINT_SUFFIX---`. For more details on this visit - [how to create an Azure Storage account connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string#create-a-connection-string-for-an-azure-storage-account).
 
 ### Explore the client library with IDEs
 
