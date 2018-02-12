@@ -17,19 +17,33 @@ Refer to the [online documentation](https://azure.microsoft.com/services/event-h
 
 ## How to provide feedback
 
-See our [Contribution Guidelines](./.github/CONTRIBUTING.md).
+First, if you experience any issues with the runtime behavior of the Azure Event Hubs service, please consider filing a support request
+right away. Your options for [getting support are enumerated here](https://azure.microsoft.com/support/options/). In the Azure portal, 
+you can file a support request from the "Help and support" menu in the upper right hand corner of the page.   
+
+If you find issues in this library or have suggestions for improvement of code or documentation, you can [file an issue in the project's 
+GitHub repository](https://github.com/Azure/azure-event-hubs/issues) or send across a pull request - see our [Contribution Guidelines](./.github/CONTRIBUTING.md). 
+
+Issues related to runtime behavior of the service, such as sporadic exceptions or apparent service-side performance or reliability issues can not be handled here.
+
+Generally, if you want to discuss Azure Event Hubs or this client library with the community and the maintainers, you can turn to 
+[stackoverflow.com under the #azure-eventhub tag](http://stackoverflow.com/questions/tagged/azure-eventhub) or the 
+[MSDN Service Bus Forum](https://social.msdn.microsoft.com/Forums/en-US/home?forum=servbus). 
+
+## Samples
+Additional samples are provided here: [azure/azure-event-hubs](https://github.com/Azure/azure-event-hubs/tree/master/samples)
 
 ## Overview
 
 This Java client library for Azure Event Hubs allows for both sending events to and receiving events from an Azure Event Hub. 
 
 An **event publisher** is a source of telemetry data, diagnostics information, usage logs, or other log data, as 
-part of an emvbedded device solution, a mobile device application, a game title running on a console or other device, 
+part of an embedded device solution, a mobile device application, a game title running on a console or other device, 
 some client or server based business solution, or a web site.  
 
 An **event consumer** picks up such information from the Event Hub and processes it. Processing may involve aggregation, complex 
 computation and filtering. Processing may also involve distribution or storage of the information in a raw or transformed fashion.
-Event Hub consumers are often robust and high-scale platform infrastructure parts with built-in analytics capabilites, like Azure 
+Event Hub consumers are often robust and high-scale platform infrastructure parts with built-in analytics capabilities, like Azure 
 Stream Analytics, Apache Spark, or Apache Storm.   
    
 Most applications will act either as an event publisher or an event consumer, but rarely both. The exception are event 
@@ -44,7 +58,7 @@ the [Publishing Events](PublishingEvents.md) and [Consuming Events](ConsumingEve
 The vast majority of Event Hub applications using this and other client libraries are and will be event publishers. 
 And for most of these publishers, publishing events is extremely simple. 
 
-With your Java application referencing this client library,
+With your Java application referencing this client library,	
 which is quite simple in a Maven build [as we explain in the guide](PublishingEvents.md), you'll need to import the 
 *com.microsoft.azure.eventhubs* package with the *EventData* and *EventHubClient* classes.  
  
@@ -74,7 +88,7 @@ Once you have the client in hands, you can package any arbitrary payload as a pl
 ```
          
 The entire client API is built for Java 8's concurrent task model, generally returning 
-[*CompleteableFuture<T>*](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html), so the library has these methods suffixed with *Sync* as their Synchronous counterparts/varaints.
+[*CompletableFuture<T>*](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/CompletableFuture.html), so the library has these methods suffixed with *Sync* as their Synchronous counterparts/varaints.
 
 Learn more about publishing events, including advanced options, and when you should and shouldn't use those options, 
 [in the event publisher guide](PublishingEvents.md).
@@ -135,14 +149,9 @@ the [Consuming Events](ConsumingEvents.md) guide.
 
 ## Using the library 
 
-You will generally not have to build this client library yourself. The build model and options are documented in the 
-[Contributor's Guide](developer.md), which also explains how to create and submit proposed patches and extensions, and how to 
-build a private version of the client library using a snapshot version of the foundational Apache Qpid Proton-J library, which 
-this library uses as its AMQP 1.0 protocol core. 
-
 This library is available for use in Maven projects from the Maven Central Repository, and can be referenced using the
-following dependency declaration. The dependency declaration will in turn pull futrher required dependencies, specifically 
-the required version of Apache Qpid Proton-J, and the crytography library BCPKIX by the Legion of Bouncy Castle.   
+following dependency declaration. The dependency declaration will in turn pull further required dependencies, specifically 
+the required version of Apache Qpid Proton-J, and the cryptography library BCPKIX by the Legion of Bouncy Castle.   
 
 ```XML
    	<dependency> 
@@ -155,33 +164,22 @@ the required version of Apache Qpid Proton-J, and the crytography library BCPKIX
  For different types of build environments, the latest released JAR files can also be [explicitly obtained from the 
  Maven Central Repository]() or from [the Release distribution point on GitHub]().  
 
-### Explore the client library with the Eclipse IDE 
+## Build & contribute to the library
 
-1. Maven is expected to be installed and configured - version > 3.3.9
-2. After git-clone'ing to the project, open the shell and navigate to the location where the 'pom.xml' is present
-3. Run these commands to prepare this maven project to be opened in Eclipse:
-  - mvn -Declipse.workspace=<path_to_workspace> eclipse:configure-workspace
-  - mvn eclipse:eclipse
-4. Open Eclipse and use "Import Existing Maven projects" to open the project.
-5. If you see any Build Errors - make sure the Execution Environment is set to java sdk version 1.8 or higher
-  * [go to Project > Properties > 'Java Build Path' > Libraries tab. Click on 'JRE System Library (V x.xx)' and Edit this to be 1.8 or higher]
-6. Set these Environment variables to be able to run unit tests:
+You will generally not have to build this client library yourself. This library is available on maven central.
+If you have any specific requirement for which you want to contribute or need to generate a SNAPSHOT version, this section is for you.
+
+We adopted maven build model and strive to keep the project model intuitive enough to developers. 
+If you need any help with any specific IDE or cannot get the build going in any environment - please open an issue.
+Here are few general topics, which we thought developers would need help with:
+
+### Running Integration tests
+
+Set these Environment variables to be able to run unit tests targeting Microsoft Azure EventHubs service:
   * EVENT_HUB_CONNECTION_STRING
   * EPHTESTSTORAGE
 
-## Samples
-Additional samples are provided here: [azure/azure-event-hubs](https://github.com/Azure/azure-event-hubs/tree/master/samples)
+### Explore the client library with IDEs
 
-## How to provide feedback
+* If you see any Build Errors - make sure the Execution Environment is set to JDK version 1.8 or higher
 
-First, if you experience any issues with the runtime behavior of the Azure Event Hubs service, please consider filing a support request
-right away. Your options for [getting support are enumerated here](https://azure.microsoft.com/support/options/). In the Azure portal, 
-you can file a support request from the "Help and support" menu in the upper right hand corner of the page.   
-
-If you find issues in this library or have suggestions for improvement of code or documentation, [you can file an issue in the project's 
-GitHub repository.](https://github.com/Azure/azure-event-hubs/issues). Issues related to runtime behavior of the service, such as 
-sporadic exceptions or apparent service-side performance or reliability issues can not be handled here.
-
-Generally, if you want to discuss Azure Event Hubs or this client library with the community and the maintainers, you can turn to 
-[stackoverflow.com under the #azure-eventhub tag](http://stackoverflow.com/questions/tagged/azure-eventhub) or the 
-[MSDN Service Bus Forum](https://social.msdn.microsoft.com/Forums/en-US/home?forum=servbus). 
