@@ -16,9 +16,6 @@ Azure Event Hubs is a highly scalable publish-subscribe service that can ingest 
 Refer to the [online documentation](https://azure.microsoft.com/services/event-hubs/) to learn more about Event Hubs in general.
 Refer to [General Overview document](Overview.md) for a general overview of Event Hubs Client for Java.
 
-## Samples
-Additional samples are provided here: [azure/azure-event-hubs](https://github.com/Azure/azure-event-hubs/tree/master/samples)
-
 ## Using the library 
 
 This library is available for use in Maven projects from the Maven Central Repository, and can be referenced using the
@@ -31,10 +28,21 @@ the required version of Apache Qpid Proton-J, and the cryptography library BCPKI
    		<artifactId>azure-eventhubs</artifactId> 
    		<version>0.15.1</version>
    	</dependency>
- ```
+```
+
+```XML
+   	<dependency> 
+   		<groupId>com.microsoft.azure</groupId> 
+   		<artifactId>azure-eventhubs-eph</artifactId> 
+   		<version>0.15.1</version>
+   	</dependency>
+```
  
  For different types of build environments, the latest released JAR files can also be [explicitly obtained from the 
  Maven Central Repository]() or from [the Release distribution point on GitHub]().  
+
+## Samples
+Additional samples are provided here: [azure/azure-event-hubs](https://github.com/Azure/azure-event-hubs/tree/master/samples)
 
 ## How to provide feedback
 
