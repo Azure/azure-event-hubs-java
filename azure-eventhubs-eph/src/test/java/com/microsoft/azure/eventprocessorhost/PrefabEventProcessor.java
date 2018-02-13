@@ -48,26 +48,23 @@ public class PrefabEventProcessor implements IEventProcessor
 	{
 		int batchSize = 0;
 		EventData lastEvent = null;
-                if (messages != null && messages.iterator().hasNext())
-                    this.factory.setOnEventsContext(context);
-                
-		for (EventData event : messages)
-		{
-			this.eventCount++;
-			batchSize++;
-			if (((this.eventCount % 10) == 0) && this.doMarker)
-			{
-				TestUtilities.log("P" + context.getPartitionId() + ": " + this.eventCount + "\n");
+		if (messages != null && messages.iterator().hasNext()) {
+			this.factory.setOnEventsContext(context);
+
+			for (EventData event : messages) {
+				this.eventCount++;
+				batchSize++;
+				if (((this.eventCount % 10) == 0) && this.doMarker) {
+					TestUtilities.log("P" + context.getPartitionId() + ": " + this.eventCount + "\n");
+				}
+				if (this.logEveryMessage) {
+					TestUtilities.log("P" + context.getPartitionId() + " " + new String(event.getBytes()) + " @ " + event.getSystemProperties().getOffset() + "\n");
+				}
+				if (Arrays.equals(event.getBytes(), this.telltaleBytes)) {
+					this.factory.setTelltaleFound(context.getPartitionId());
+				}
+				lastEvent = event;
 			}
-			if (this.logEveryMessage)
-			{
-				TestUtilities.log("P" + context.getPartitionId() + " " + new String(event.getBytes()) + " @ " + event.getSystemProperties().getOffset() + "\n");
-			}
-			if (Arrays.equals(event.getBytes(), this.telltaleBytes))
-			{
-				this.factory.setTelltaleFound(context.getPartitionId());
-			}
-			lastEvent = event;
 		}
 		if (batchSize == 0)
 		{
