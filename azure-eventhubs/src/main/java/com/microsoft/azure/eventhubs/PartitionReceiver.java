@@ -72,7 +72,7 @@ public interface PartitionReceiver  {
      *
      * @return receiver runtime information
      */
-    ReceiverRuntimeInformation getReceiverRuntimeInformation();
+    ReceiverRuntimeInformation getRuntimeInformation();
 
     /**
      * Synchronous version of {@link #receive}.

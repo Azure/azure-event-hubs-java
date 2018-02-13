@@ -142,7 +142,7 @@ final class PartitionReceiverImpl extends ClientEntity implements IReceiverSetti
         return this.epoch;
     }
 
-    public final ReceiverRuntimeInformation getReceiverRuntimeInformation() {
+    public final ReceiverRuntimeInformation getRuntimeInformation() {
 
         return this.runtimeInformation;
     }

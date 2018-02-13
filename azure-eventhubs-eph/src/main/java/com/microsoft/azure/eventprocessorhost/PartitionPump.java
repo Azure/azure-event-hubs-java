@@ -538,7 +538,7 @@ class PartitionPump implements PartitionReceiveHandler
 	{
         if (this.hostContext.getEventProcessorOptions().getReceiverRuntimeMetricEnabled())
         {
-            this.partitionContext.setRuntimeInformation(this.partitionReceiver.getReceiverRuntimeInformation());
+            this.partitionContext.setRuntimeInformation(this.partitionReceiver.getRuntimeInformation());
         }
         
         // This method is called on the thread that the Java EH client uses to run the pump.

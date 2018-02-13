@@ -77,7 +77,7 @@ public class PartitionContext
      * 
      * @return See ReceiverRuntimeInformation.
      */
-    public ReceiverRuntimeInformation getReceiverRuntimeInformation()
+    public ReceiverRuntimeInformation getRuntimeInformation()
     {
         return this.runtimeInformation;
     }
