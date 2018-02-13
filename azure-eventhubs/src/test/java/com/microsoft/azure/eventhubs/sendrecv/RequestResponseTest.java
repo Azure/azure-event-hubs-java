@@ -344,13 +344,13 @@ public class RequestResponseTest  extends ApiTestBase {
 
     	try {
     		ehc.getRuntimeInformation().get();
-    		Assert.fail("getEndOfStreamInformation did not throw as expected");
+    		Assert.fail("getReceiverRuntimeInformation did not throw as expected");
     	}
     	catch (IllegalStateException e) {
     		// Success
     	}
     	catch (Exception e) {
-    		Assert.fail("Unexpected exception from getEndOfStreamInformation " + e.toString());
+    		Assert.fail("Unexpected exception from getReceiverRuntimeInformation " + e.toString());
     	}
 
     	try {

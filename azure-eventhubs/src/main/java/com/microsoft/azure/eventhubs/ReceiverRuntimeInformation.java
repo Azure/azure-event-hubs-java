@@ -6,7 +6,7 @@ package com.microsoft.azure.eventhubs;
 
 import java.time.Instant;
 
-public final class PartitionEndOfStreamInformation {
+public final class ReceiverRuntimeInformation {
 
     private final String partitionId;
 
@@ -15,7 +15,7 @@ public final class PartitionEndOfStreamInformation {
     private String lastEnqueuedOffset;
     private Instant retrievalTime;
 
-    public PartitionEndOfStreamInformation(final String partitionId) {
+    public ReceiverRuntimeInformation(final String partitionId) {
 
         this.partitionId = partitionId;
     }

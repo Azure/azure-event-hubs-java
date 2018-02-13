@@ -66,13 +66,13 @@ public interface PartitionReceiver  {
     long getEpoch();
 
     /**
-     * Gets the temporal {@link PartitionEndOfStreamInformation} for this EventHub partition.
+     * Gets the temporal {@link ReceiverRuntimeInformation} for this EventHub partition.
      * In general, this information is a representation of, where this {@link PartitionReceiver}'s end of stream is,
-     * at the time {@link PartitionEndOfStreamInformation#getRetrievalTime()}.
+     * at the time {@link ReceiverRuntimeInformation#getRetrievalTime()}.
      *
      * @return receiver runtime information
      */
-    PartitionEndOfStreamInformation getEndOfStreamInformation();
+    ReceiverRuntimeInformation getReceiverRuntimeInformation();
 
     /**
      * Synchronous version of {@link #receive}.

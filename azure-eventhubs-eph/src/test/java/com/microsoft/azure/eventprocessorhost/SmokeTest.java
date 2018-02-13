@@ -46,8 +46,8 @@ public class SmokeTest extends TestBase
 		waitForTelltale(settings);
 
                 // correctness of runtimeInfo is already tested in javaclient - this is only testing for presence of non-default value
-		Assert.assertTrue(settings.outProcessorFactory.getOnEventsContext().getEndOfStreamInformation() != null);
-                Assert.assertTrue(settings.outProcessorFactory.getOnEventsContext().getEndOfStreamInformation().getLastEnqueuedSequenceNumber() > 0);
+		Assert.assertTrue(settings.outProcessorFactory.getOnEventsContext().getReceiverRuntimeInformation() != null);
+                Assert.assertTrue(settings.outProcessorFactory.getOnEventsContext().getReceiverRuntimeInformation().getLastEnqueuedSequenceNumber() > 0);
 
    testFinish(settings, SmokeTest.ANY_NONZERO_COUNT);
 	}

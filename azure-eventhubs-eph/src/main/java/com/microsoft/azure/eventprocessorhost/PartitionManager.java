@@ -76,7 +76,7 @@ class PartitionManager
 					}
 					else
 					{
-						throw new CompletionException(new TimeoutException("getEndOfStreamInformation returned null"));
+						throw new CompletionException(new TimeoutException("getReceiverRuntimeInformation returned null"));
 					}
 				}, this.hostContext.getExecutor())
 				// Stage 3: RUN REGARDLESS OF EXCEPTIONS -- if there was an error, wrap it in IllegalEntityException and throw

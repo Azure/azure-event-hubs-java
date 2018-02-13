@@ -466,7 +466,7 @@ public interface EventHubClient {
      * details. Retries until it reaches the operation timeout, then either rethrows the last error if available or
      * returns null to indicate timeout.
      *
-     * @param partitionId  Partition to get information about. Must be one of the partition ids returned by getEndOfStreamInformation.
+     * @param partitionId  Partition to get information about. Must be one of the partition ids returned by getReceiverRuntimeInformation.
      * @return CompletableFuture which returns an PartitionRuntimeInformation on success, or null on timeout.
      */
     CompletableFuture<PartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId);
