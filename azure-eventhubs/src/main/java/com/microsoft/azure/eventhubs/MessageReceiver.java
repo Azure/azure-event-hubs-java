@@ -471,7 +471,7 @@ public final class MessageReceiver extends ClientEntity implements IAmqpReceiver
             @Override
             public void accept(ErrorCondition t, Exception u) {
                 if (t != null)
-                    onError((t != null && t.getCondition() != null) ? ExceptionUtil.toException(t) : null);
+                    onError((t.getCondition() != null) ? ExceptionUtil.toException(t) : null);
                 else if (u != null)
                     onError(u);
             }
