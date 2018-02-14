@@ -18,7 +18,7 @@ public final class ProtonUtil {
     public static Reactor reactor(ReactorHandler reactorHandler) throws IOException {
 
         final ReactorOptions reactorOptions = new ReactorOptions();
-        reactorOptions.setMaxFrameSize(AmqpConstants.MAX_FRAME_SIZE);
+        reactorOptions.setMaxFrameSize(4 * 1024);
         reactorOptions.setEnableSaslByDefault(true);
 
         final Reactor reactor = Proton.reactor(reactorOptions, reactorHandler);

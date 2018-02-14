@@ -18,12 +18,13 @@ import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Connection;
 import org.apache.qpid.proton.engine.EndpointState;
 import org.apache.qpid.proton.engine.Event;
-import org.apache.qpid.proton.engine.Sasl;
+import org.apache.qpid.proton.engine.impl.TransportInternal;
 import org.apache.qpid.proton.engine.SslDomain;
 import org.apache.qpid.proton.engine.Transport;
 import org.apache.qpid.proton.reactor.Handshaker;
 
 import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.ext.impl.WebSocketImpl;
 
 // ServiceBus <-> ProtonReactor interaction handles all
 // amqp_connection/transport related events from reactor
@@ -67,6 +68,15 @@ public final class ConnectionHandler extends BaseHandler {
     public void onConnectionBound(Event event) {
 
         final Transport transport = event.getTransport();
+
+        boolean useWebSockets = true; // todo: pass from ehclient
+        if (useWebSockets) {
+            final WebSocketImpl webSocket = new WebSocketImpl();
+            webSocket.configure(
+                    event.getConnection().getHostname(), "/$servicebus/websocket",0, "AMQPWSB10", null, null);
+
+            ((TransportInternal)transport).addTransportLayer(webSocket);
+        }
 
         final SslDomain domain = makeDomain(SslDomain.Mode.CLIENT);
         transport.ssl(domain);
