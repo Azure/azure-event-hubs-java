@@ -61,7 +61,8 @@ public interface EventHubClient {
      * <p>The {@link EventHubClient} created from this method creates a Sender instance internally, which is used by the {@link #send(EventData)} methods.
      *
      * @param connectionString The connection string to be used. See {@link ConnectionStringBuilder} to construct a connectionString.
-     * @return EventHubClient which can be used to create Senders and Receivers to EventHub
+     * @param executor An {@link Executor} to run all tasks performed by {@link EventHubClient}.
+     * @return CompletableFuture{@literal <EventHubClient>} which can be used to create Senders and Receivers to EventHub
      * @throws EventHubException If Service Bus service encountered problems during connection creation.
      * @throws IOException         If the underlying Proton-J layer encounter network errors.
      */
@@ -462,14 +463,14 @@ public interface EventHubClient {
     CompletableFuture<EventHubRuntimeInformation> getRuntimeInformation();
 
     /**
-     * Retrieves dynamic information about a partition of an event hub (see {@link EventHubPartitionRuntimeInformation} for
+     * Retrieves dynamic information about a partition of an event hub (see {@link PartitionRuntimeInformation} for
      * details. Retries until it reaches the operation timeout, then either rethrows the last error if available or
      * returns null to indicate timeout.
      *
-     * @param partitionId  Partition to get information about. Must be one of the partition ids returned by getRuntimeInformation.
-     * @return CompletableFuture which returns an EventHubPartitionRuntimeInformation on success, or null on timeout.
+     * @param partitionId  Partition to get information about. Must be one of the partition ids returned by {@link #getRuntimeInformation}.
+     * @return CompletableFuture which returns an PartitionRuntimeInformation on success, or null on timeout.
      */
-    CompletableFuture<EventHubPartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId);
+    CompletableFuture<PartitionRuntimeInformation> getPartitionRuntimeInformation(String partitionId);
 
     CompletableFuture<Void> close();
 
