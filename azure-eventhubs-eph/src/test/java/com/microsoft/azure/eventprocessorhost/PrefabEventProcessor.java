@@ -5,9 +5,9 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import com.microsoft.azure.eventhubs.EventData;
-
 import java.util.Arrays;
+
+import com.microsoft.azure.eventhubs.EventData;
 
 public class PrefabEventProcessor implements IEventProcessor
 {

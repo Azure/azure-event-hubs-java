@@ -23,45 +23,22 @@ public class BaseLinkHandler extends BaseHandler {
 
     @Override
     public void onLinkLocalClose(Event event) {
-        Link link = event.getLink();
-        if (link != null) {
-            if (TRACE_LOGGER.isInfoEnabled()) {
-                TRACE_LOGGER.info(String.format("linkName[%s]", link.getName()));
-            }
-            closeSession(link);
+        final Link link = event.getLink();
+        if (TRACE_LOGGER.isInfoEnabled()) {
+            TRACE_LOGGER.info(String.format("linkName[%s]", link.getName()));
         }
 
+        closeSession(link);
     }
 
     @Override
     public void onLinkRemoteClose(Event event) {
-        final Link link = event.getLink();
-        if (link != null) {
-            if (link.getLocalState() != EndpointState.CLOSED) {
-                link.close();
-            }
-
-            ErrorCondition condition = link.getRemoteCondition();
-            this.processOnClose(link, condition);
-            closeSession(link);
-        }
-
+        handleRemoteLinkClosed(event);
     }
 
     @Override
     public void onLinkRemoteDetach(Event event) {
-        final Link link = event.getLink();
-
-        if (link != null) {
-            if (link.getLocalState() != EndpointState.CLOSED) {
-                link.close();
-            }
-
-            this.processOnClose(link, link.getRemoteCondition());
-            closeSession(link);
-        }
-
-
+        handleRemoteLinkClosed(event);
     }
 
     public void processOnClose(Link link, ErrorCondition condition) {
@@ -80,5 +57,18 @@ public class BaseLinkHandler extends BaseHandler {
     private void closeSession(Link link) {
         if (link.getSession() != null && link.getSession().getLocalState() != EndpointState.CLOSED)
             link.getSession().close();
+    }
+
+    private void handleRemoteLinkClosed(final Event event) {
+        final Link link = event.getLink();
+
+        if (link.getLocalState() != EndpointState.CLOSED) {
+            link.close();
+        }
+
+        final ErrorCondition condition = link.getRemoteCondition();
+        this.processOnClose(link, condition);
+
+        closeSession(link);
     }
 }
