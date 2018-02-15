@@ -61,7 +61,7 @@ public class SendTest extends ApiTestBase
 		receiver.setReceiveHandler(new OrderValidator(validator, batchSize));
                 
                 // run out of messages in that specific partition - to account for clock-skew with Instant.now() on test machine vs eventhubs service
-                Iterable<? extends EventData> clockSkewEvents;
+                Iterable<EventData> clockSkewEvents;
                 do {
                     clockSkewEvents = receiver.receiveSync(100);
                 } while (clockSkewEvents != null && clockSkewEvents.iterator().hasNext());
@@ -86,7 +86,7 @@ public class SendTest extends ApiTestBase
                         
             // run out of messages in that specific partition - to account for clock-skew with Instant.now() on test machine vs eventhubs service
             receiver.setReceiveTimeout(Duration.ofSeconds(5));
-            Iterable<? extends EventData> clockSkewEvents;
+            Iterable<EventData> clockSkewEvents;
             do {
                 clockSkewEvents = receiver.receiveSync(100);
             } while (clockSkewEvents != null && clockSkewEvents.iterator().hasNext());
@@ -113,7 +113,7 @@ public class SendTest extends ApiTestBase
 			
                         // run out of messages in that specific partition - to account for clock-skew with Instant.now() on test machine vs eventhubs service
                         receiver.setReceiveTimeout(Duration.ofSeconds(5));
-                        Iterable<? extends EventData> clockSkewEvents;
+                        Iterable<EventData> clockSkewEvents;
                         do {
                             clockSkewEvents = receiver.receiveSync(100);
                         } while (clockSkewEvents != null && clockSkewEvents.iterator().hasNext());
@@ -174,7 +174,7 @@ public class SendTest extends ApiTestBase
 		}
 
 		@Override
-		public void onReceive(Iterable<? extends EventData> events)
+		public void onReceive(Iterable<EventData> events)
 		{
 			if (events != null & events.iterator().hasNext())
 			{
@@ -218,7 +218,7 @@ public class SendTest extends ApiTestBase
 		}
 
 		@Override
-		public void onReceive(Iterable<? extends EventData> events)
+		public void onReceive(Iterable<EventData> events)
 		{
 			if (events != null)
 				for(EventData event: events)

@@ -161,7 +161,7 @@ class PartitionPump implements PartitionReceiveHandler
     			return done ? CompletableFuture.completedFuture(done) : openClients();
     		}, this.hostContext.getExecutor());
     	}
-    	// Stage final: on success, hook up the user's message handler to start receiving messages. On error,
+    	// Stage final: on success, hook up the user's event handler to start receiving events. On error,
     	// trace exceptions from the final attempt, or ReceiverDisconnectedException.
     	return retryResult.handleAsync((r,e) ->
     	{
@@ -534,7 +534,7 @@ class PartitionPump implements PartitionReceiveHandler
 	}
 
 	@Override
-	public void onReceive(Iterable<? extends EventData> events)
+	public void onReceive(Iterable<EventData> events)
 	{
         if (this.hostContext.getEventProcessorOptions().getReceiverRuntimeMetricEnabled())
         {
@@ -544,21 +544,21 @@ class PartitionPump implements PartitionReceiveHandler
         // This method is called on the thread that the Java EH client uses to run the pump.
         // There is one pump per EventHubClient. Since each PartitionPump creates a new EventHubClient,
         // using that thread to call onEvents does no harm. Even if onEvents is slow, the pump will
-        // get control back each time onEvents returns, and be able to receive a new batch of messages
+        // get control back each time onEvents returns, and be able to receive a new batch of events
         // with which to make the next onEvents call. The pump gains nothing by running faster than onEvents.
 
         // The underlying client returns null if there are no events, but the contract for IEventProcessor
         // is different and is expecting an empty iterable if there are no events (and invoke processor after
         // receive timeout is turned on).
         
-        Iterable<? extends EventData> effectiveEvents = events;
+        Iterable<EventData> effectiveEvents = events;
         if (effectiveEvents == null)
         {
         	effectiveEvents = new ArrayList<EventData>();
         }
         
     	// Update offset and sequence number in the PartitionContext to support argument-less overload of PartitionContext.checkpoint()
-		Iterator<? extends EventData> iter = effectiveEvents.iterator();
+		Iterator<EventData> iter = effectiveEvents.iterator();
 		EventData last = null;
 		while (iter.hasNext())
 		{

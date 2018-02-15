@@ -73,7 +73,7 @@ public class ReceiveParallelManualTest extends ApiTestBase
                 e.printStackTrace();
             }
 
-            Iterable<? extends EventData> receivedEvents;
+            Iterable<EventData> receivedEvents;
             long totalEvents = 0L;
             while (true) {
                 try {
