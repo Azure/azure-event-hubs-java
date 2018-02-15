@@ -28,9 +28,8 @@ public class BaseLinkHandler extends BaseHandler {
             if (TRACE_LOGGER.isInfoEnabled()) {
                 TRACE_LOGGER.info(String.format("linkName[%s]", link.getName()));
             }
+            closeSession(link);
         }
-
-        closeSession(link);
     }
 
     @Override
