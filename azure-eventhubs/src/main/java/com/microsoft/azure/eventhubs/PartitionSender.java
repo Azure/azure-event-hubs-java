@@ -14,9 +14,16 @@ import java.util.concurrent.Executor;
  * if you do not care about sending events to specific partitions. Instead, use {@link EventHubClient#send} method.
  *
  * @see EventHubClient#createPartitionSender(String)
- * @see EventHubClient#createFromConnectionString(String, Executor)
+ * @see EventHubClient#create(String, Executor)
  */
 public interface PartitionSender {
+
+    /**
+     * The partition id that will receive events from this sender.
+     *
+     * @return the partition id the PartitionSender is connected to.
+     */
+    String getPartitionId();
 
     /**
      * Creates an Empty Collection of {@link EventData}.
@@ -94,7 +101,7 @@ public interface PartitionSender {
      * Sample code (sample uses sync version of the api but concept are identical):
      * <pre>
      * Gson gson = new GsonBuilder().create();
-     * EventHubClient client = EventHubClient.createFromConnectionStringSync("__connection__");
+     * EventHubClient client = EventHubClient.createSync("__connection__");
      * PartitionSender senderToPartitionOne = client.createPartitionSenderSync("1");
      *
      * while (true)

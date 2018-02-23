@@ -60,7 +60,11 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
         this.senderCreateSync = new Object();
     }
 
-    public static CompletableFuture<EventHubClient> createFromConnectionString(
+    public String getEventHubName() {
+        return eventHubName;
+    }
+
+    public static CompletableFuture<EventHubClient> create(
             final String connectionString, final RetryPolicy retryPolicy, final Executor executor)
             throws EventHubException, IOException {
         final ConnectionStringBuilder connStr = new ConnectionStringBuilder(connectionString);

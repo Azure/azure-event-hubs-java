@@ -31,9 +31,9 @@ public final class ConnectionHandler extends BaseHandler {
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ConnectionHandler.class);
 
-    private final IAmqpConnection messagingFactory;
+    private final AmqpConnection messagingFactory;
 
-    public ConnectionHandler(final IAmqpConnection messagingFactory) {
+    public ConnectionHandler(final AmqpConnection messagingFactory) {
 
         add(new Handshaker());
         this.messagingFactory = messagingFactory;

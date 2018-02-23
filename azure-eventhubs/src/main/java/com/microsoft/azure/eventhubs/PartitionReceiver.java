@@ -24,9 +24,10 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface PartitionReceiver  {
 
-    // Both constants should be removed before 1.0.0 release
-    public static String START_OF_STREAM = "-1";
-    public static String END_OF_STREAM = "@latest";
+    int MINIMUM_PREFETCH_COUNT = 10;
+    int DEFAULT_PREFETCH_COUNT = 999;
+
+    long NULL_EPOCH = 0;
 
     /**
      * Get EventHubs partition identifier.
@@ -90,7 +91,7 @@ public interface PartitionReceiver  {
      * <p>
      * Sample code (sample uses sync version of the api but concept are identical):
      * <pre>
-     * EventHubClient client = EventHubClient.createFromConnectionStringSync("__connection__");
+     * EventHubClient client = EventHubClient.createSync("__connection__");
      * PartitionReceiver receiver = client.createPartitionReceiverSync("ConsumerGroup1", "1");
      * Iterable{@literal<}EventData{@literal>} receivedEvents = receiver.receiveSync();
      *

@@ -52,13 +52,13 @@ class PartitionManager
     	}
     	else
         {
-    		// This try-catch is necessary because EventHubClient.createFromConnectionString can directly throw
+    		// This try-catch is necessary because EventHubClient.create can directly throw
     		// EventHubException or IOException, in addition to whatever failures may occur when the result of
     		// the CompletableFuture is evaluated.
     		try
     		{
     			// Stage 0: get EventHubClient for the event hub
-				retval = EventHubClient.createFromConnectionString(this.hostContext.getEventHubConnectionString(), this.hostContext.getRetryPolicy(), this.hostContext.getExecutor())
+				retval = EventHubClient.create(this.hostContext.getEventHubConnectionString(), this.hostContext.getRetryPolicy(), this.hostContext.getExecutor())
 				// Stage 1: use the client to get runtime info for the event hub 
 				.thenComposeAsync((ehClient) -> ehClient.getRuntimeInformation(), this.hostContext.getExecutor())
 				// Stage 2: extract the partition ids from the runtime info or throw on null (timeout)
@@ -386,52 +386,69 @@ class PartitionManager
         	{
         		final Lease workingLease = l;
         		
-        		// Stage B.0: is the lease expired?
-        		CompletableFuture<Lease> oneResult = workingLease.isExpired()
-        		// Stage B.1: if it is expired, attempt to acquire it.
-        		.thenComposeAsync((expired) ->
+        		if (workingLease != null)
         		{
-        			return expired ? this.hostContext.getLeaseManager().acquireLease(workingLease) : CompletableFuture.completedFuture(false);
-        		}, this.hostContext.getExecutor())
-        		// Stage B.2: if it was acquired, start a pump and do the counting.
-        		.thenApplyAsync((acquired) ->
-				{
-	        		if (acquired)
+	        		// Stage B.0: is the lease expired?
+	        		CompletableFuture<Lease> oneResult = workingLease.isExpired()
+	        		// Stage B.1: if it is expired, attempt to acquire it.
+	        		.thenComposeAsync((expired) ->
 	        		{
-	        			this.pump.addPump(workingLease);
-	        		}
-	        		if (workingLease.isOwnedBy(this.hostContext.getHostName()))
-	        		{
-	        			ourLeasesCount.getAndIncrement(); // count leases owned by this host
-	        		}
-	        		else
-	        		{
-	        			leasesOwnedByOthers.put(workingLease.getPartitionId(), workingLease); // save leases owned by other hosts
-	        		}
-	        		return workingLease;
-				}, this.hostContext.getExecutor())
-            	// Stage B.3: ALWAYS RUN REGARDLESS OF EXCEPTIONS -- log/notify if exception occurred
-            	.whenCompleteAsync((lease, e) ->
-            	{
-            		if (e != null)
-            		{
-            			resultsAreComplete.value = false;
-                		Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
-                		TRACE_LOGGER.warn(this.hostContext.withHost("Failure getting/acquiring lease, skipping"), notifyWith);
-                		this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), notifyWith,
-                				EventProcessorHostActionStrings.CHECKING_LEASES, ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION);
-            		}
-            	}, this.hostContext.getExecutor());
-
-        		transformedLeases.add(oneResult);
+	        			return expired ? this.hostContext.getLeaseManager().acquireLease(workingLease) : CompletableFuture.completedFuture(false);
+	        		}, this.hostContext.getExecutor())
+	        		// Stage B.2: if it was acquired, start a pump and do the counting.
+	        		.thenApplyAsync((acquired) ->
+					{
+		        		if (acquired)
+		        		{
+		        			this.pump.addPump(workingLease);
+		        		}
+		        		if (workingLease.isOwnedBy(this.hostContext.getHostName()))
+		        		{
+		        			ourLeasesCount.getAndIncrement(); // count leases owned by this host
+		        		}
+		        		else
+		        		{
+		        			leasesOwnedByOthers.put(workingLease.getPartitionId(), workingLease); // save leases owned by other hosts
+		        		}
+		        		return workingLease;
+					}, this.hostContext.getExecutor())
+	            	// Stage B.3: ALWAYS RUN REGARDLESS OF EXCEPTIONS -- log/notify if exception occurred
+	            	.whenCompleteAsync((lease, e) ->
+	            	{
+	            		if (e != null)
+	            		{
+	            			resultsAreComplete.value = false;
+	                		Exception notifyWith = (Exception)LoggingUtils.unwrapException(e, null);
+	                		TRACE_LOGGER.warn(this.hostContext.withHost("Failure getting/acquiring lease, skipping"), notifyWith);
+	                		this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), notifyWith,
+	                				EventProcessorHostActionStrings.CHECKING_LEASES, ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION);
+	            		}
+	            	}, this.hostContext.getExecutor());
+	
+	        		transformedLeases.add(oneResult);
+        		}
+        		else
+        		{
+        			TRACE_LOGGER.warn(this.hostContext.withHost("null lease during scan"));
+        		}
         	}
         	return transformedLeases;
         }, this.hostContext.getExecutor())
         // Stage C: get a future that waits for all the results
         .thenComposeAsync((transformedLeases) ->
         {
-            CompletableFuture<?>[] dummy = new CompletableFuture<?>[transformedLeases.size()];
-            return CompletableFuture.allOf(transformedLeases.toArray(dummy));
+        	CompletableFuture<Void> result = null;
+        	if (transformedLeases.size() > 0)
+        	{
+                CompletableFuture<?>[] dummy = new CompletableFuture<?>[transformedLeases.size()];
+                result = CompletableFuture.allOf(transformedLeases.toArray(dummy));
+        	}
+        	else
+        	{
+        		TRACE_LOGGER.warn(this.hostContext.withHost("all leases were null during scan"));
+        		result = CompletableFuture.completedFuture(null);
+        	}
+        	return result;
         }, this.hostContext.getExecutor())
         // Stage D: consume the counting done by the per-lease stage to decide whether and what lease to steal
         .thenApplyAsync((empty) ->
