@@ -197,7 +197,20 @@ public class PartitionContext
     {
     	return persistCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
     }
-    
+
+    /**
+     * Writes the position of the provided Checkpoint instance to the checkpoint store via the checkpoint manager.
+     *
+     * It is important to check the result in order to detect failures.
+     *
+     * @param checkpoint  a checkpoint
+     * @return CompletableFuture {@literal ->} null when the checkpoint has been persisted successfully, completes exceptionally on error.
+     */
+    public CompletableFuture<Void> checkpoint(Checkpoint checkpoint)
+    {
+        return persistCheckpoint(checkpoint);
+    }
+
     private CompletableFuture<Void> persistCheckpoint(Checkpoint persistThis)
     {
     	TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(persistThis.getPartitionId(),
