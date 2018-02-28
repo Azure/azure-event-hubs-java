@@ -159,7 +159,7 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                                         public void onError(Exception error) {
                                             if (TRACE_LOGGER.isInfoEnabled()) {
                                                 TRACE_LOGGER.info(String.format(Locale.US,
-                                                                "path[%s], linkName[%s] - tokenRenewalFailure[%s]", sendPath, sendLink.getName(), error.getMessage()));
+                                                                "path[%s], linkName[%s] - tokenRenewalFailure[%s]", sendPath, sendLink.getName(), ExceptionUtil.normalizeLog(error.getMessage())));
                                             }
                                         }
                                     });

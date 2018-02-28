@@ -17,6 +17,9 @@ import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 
 public final class ExceptionUtil {
+
+    static final String TRACE_DELIMITER = "__";
+
     static Exception toException(ErrorCondition errorCondition) {
         if (errorCondition == null) {
             throw new IllegalArgumentException("'null' errorCondition cannot be translated to EventHubException");
@@ -103,31 +106,36 @@ public final class ExceptionUtil {
 
         if (!StringUtil.isNullOrEmpty(customErrorMessage)) {
             builder.append(customErrorMessage);
-            builder.append(System.lineSeparator());
+            builder.append(TRACE_DELIMITER);
         }
 
-        builder.append(exception.getMessage());
+        builder.append(normalizeLog(exception.getMessage()));
         final StackTraceElement[] stackTraceElements = exception.getStackTrace();
         if (stackTraceElements != null) {
             for (final StackTraceElement ste : stackTraceElements) {
-                builder.append(System.lineSeparator());
+                builder.append(TRACE_DELIMITER);
                 builder.append(ste.toString());
             }
         }
 
         final Throwable innerException = exception.getCause();
         if (innerException != null) {
-            builder.append("Cause: " + innerException.getMessage());
+            builder.append("Cause: " + normalizeLog(innerException.getMessage()));
             final StackTraceElement[] innerStackTraceElements = innerException.getStackTrace();
             if (innerStackTraceElements != null) {
                 for (final StackTraceElement ste : innerStackTraceElements) {
-                    builder.append(System.lineSeparator());
+                    builder.append(TRACE_DELIMITER);
                     builder.append(ste.toString());
                 }
             }
         }
 
         return builder.toString();
+    }
+
+    static String normalizeLog(final String message) {
+        return message.replaceAll("\n", TRACE_DELIMITER)
+                .replaceAll("\r", TRACE_DELIMITER);
     }
 
     public static Throwable getExceptionFromCompletedFuture(
