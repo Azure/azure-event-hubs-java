@@ -74,16 +74,14 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
     private final Timer timer;
 
     private volatile int maxMessageSize;
-
-    private Sender sendLink;
-    private CompletableFuture<MessageSender> linkFirstOpen;
-    private int linkCredit;
-    private TimeoutTracker openLinkTracker;
-    private Exception lastKnownLinkError;
-    private Instant lastKnownErrorReportedAt;
-    private boolean creatingLink;
-    private CompletableFuture<?> closeTimer;
-    private CompletableFuture<?> openTimer;
+    private volatile Sender sendLink;
+    private volatile CompletableFuture<MessageSender> linkFirstOpen;
+    private volatile TimeoutTracker openLinkTracker;
+    private volatile Exception lastKnownLinkError;
+    private volatile Instant lastKnownErrorReportedAt;
+    private volatile boolean creatingLink;
+    private volatile CompletableFuture<?> closeTimer;
+    private volatile CompletableFuture<?> openTimer;
 
     public static CompletableFuture<MessageSender> create(
             final MessagingFactory factory,
@@ -126,7 +124,6 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
         this.pendingSendLock = new Object();
         this.pendingSendsData = new ConcurrentHashMap<>();
         this.pendingSends = new PriorityQueue<>(1000, new DeliveryTagComparator());
-        this.linkCredit = 0;
 
         this.linkClose = new CompletableFuture<>();
 
@@ -390,7 +387,6 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
 
     @Override
     public void onError(final Exception completionException) {
-        this.linkCredit = 0;
         this.underlyingFactory.deregisterForConnectionError(this.sendLink);
 
         if (this.getIsClosingOrClosed()) {
@@ -709,7 +705,6 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                     this.sendPath, this.sendLink.getName(), creditIssued, numberOfSendsWaitingforCredit, this.pendingSendsData.size() - numberOfSendsWaitingforCredit));
         }
 
-        this.linkCredit = this.linkCredit + creditIssued;
         this.sendWork.onEvent();
     }
 
@@ -728,7 +723,7 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
         }
 
         while (this.sendLink.getLocalState() == EndpointState.ACTIVE && this.sendLink.getRemoteState() == EndpointState.ACTIVE
-                && this.linkCredit > 0) {
+                && this.sendLink.getCredit() > 0) {
             final WeightedDeliveryTag weightedDelivery;
             final ReplayableWorkItem<Void> sendData;
             final String deliveryTag;
@@ -769,7 +764,6 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                 }
 
                 if (linkAdvance) {
-                    this.linkCredit--;
                     sendData.setWaitingForAck();
                 } else {
                     if (TRACE_LOGGER.isDebugEnabled()) {

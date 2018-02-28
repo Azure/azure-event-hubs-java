@@ -50,17 +50,17 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
     private final SharedAccessSignatureTokenProvider tokenProvider;
     private final ReactorFactory reactorFactory;
 
+    private volatile Connection connection;
+    private volatile Duration operationTimeout;
+    private volatile RetryPolicy retryPolicy;
+    private volatile CompletableFuture<MessagingFactory> open;
+    private volatile CompletableFuture<?> openTimer;
+    private volatile CompletableFuture<?> closeTimer;
+
     private Reactor reactor;
     private ReactorDispatcher reactorScheduler;
-    private Connection connection;
     private CBSChannel cbsChannel;
     private ManagementChannel mgmtChannel;
-
-    private Duration operationTimeout;
-    private RetryPolicy retryPolicy;
-    private CompletableFuture<MessagingFactory> open;
-    private CompletableFuture<?> openTimer;
-    private CompletableFuture<?> closeTimer;
 
     MessagingFactory(final ConnectionStringBuilder builder,
                      final RetryPolicy retryPolicy,
