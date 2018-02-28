@@ -294,10 +294,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                     this.startReactor(new ReactorHandler());
                 }
             } catch (IOException e) {
-                TRACE_LOGGER.error("messagingFactory[%s], hostName[%s], error[%s]",
+                TRACE_LOGGER.error(String.format(Locale.US, "messagingFactory[%s], hostName[%s], error[%s]",
                         this.getClientId(),
                         this.getHostName(),
-                        ExceptionUtil.toStackTraceString(e, "Re-starting reactor failed with error"));
+                        ExceptionUtil.toStackTraceString(e, "Re-starting reactor failed with error")));
 
                 this.onReactorError(cause);
             }
@@ -364,10 +364,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                                 @Override
                                 public void onComplete(Void result) {
                                     if (TRACE_LOGGER.isInfoEnabled()) {
-                                        TRACE_LOGGER.info("messagingFactory[%s], hostName[%s], info[%s]",
+                                        TRACE_LOGGER.info(String.format(Locale.US, "messagingFactory[%s], hostName[%s], info[%s]",
                                                 getClientId(),
                                                 getHostName(),
-                                                "cbsChannel closed");
+                                                "cbsChannel closed"));
                                     }
                                 }
 
@@ -375,10 +375,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                                 public void onError(Exception error) {
 
                                     if (TRACE_LOGGER.isWarnEnabled()) {
-                                        TRACE_LOGGER.warn("messagingFactory[%s], hostName[%s], cbsChannelCloseError[%s]",
+                                        TRACE_LOGGER.warn(String.format(Locale.US, "messagingFactory[%s], hostName[%s], cbsChannelCloseError[%s]",
                                                 getClientId(),
                                                 getHostName(),
-                                                error.getMessage());
+                                                error.getMessage()));
                                     }
                                 }
                             });
@@ -395,10 +395,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                                 @Override
                                 public void onComplete(Void result) {
                                     if (TRACE_LOGGER.isInfoEnabled()) {
-                                        TRACE_LOGGER.info("messagingFactory[%s], hostName[%s], info[%s]",
+                                        TRACE_LOGGER.info(String.format(Locale.US, "messagingFactory[%s], hostName[%s], info[%s]",
                                                 getClientId(),
                                                 getHostName(),
-                                                "mgmtChannel closed");
+                                                "mgmtChannel closed"));
                                     }
                                 }
 
@@ -406,10 +406,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                                 public void onError(Exception error) {
 
                                     if (TRACE_LOGGER.isWarnEnabled()) {
-                                        TRACE_LOGGER.warn("messagingFactory[%s], hostName[%s], mgmtChannelCloseError[%s]",
+                                        TRACE_LOGGER.warn(String.format(Locale.US, "messagingFactory[%s], hostName[%s], mgmtChannelCloseError[%s]",
                                                 getClientId(),
                                                 getHostName(),
-                                                error.getMessage());
+                                                error.getMessage()));
                                     }
                                 }
                             });
@@ -435,10 +435,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
 
         public void run() {
             if (TRACE_LOGGER.isInfoEnabled() && !this.hasStarted) {
-                TRACE_LOGGER.info("messagingFactory[%s], hostName[%s], info[%s]",
+                TRACE_LOGGER.info(String.format(Locale.US, "messagingFactory[%s], hostName[%s], info[%s]",
                         getClientId(),
                         getHostName(),
-                        "starting reactor instance.");
+                        "starting reactor instance."));
             }
 
             boolean reScheduledReactor = false;
@@ -455,10 +455,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                         reScheduledReactor = true;
                     } catch (RejectedExecutionException exception) {
                         if (TRACE_LOGGER.isWarnEnabled()) {
-                            TRACE_LOGGER.warn("messagingFactory[%s], hostName[%s], error[%s]",
+                            TRACE_LOGGER.warn(String.format(Locale.US, "messagingFactory[%s], hostName[%s], error[%s]",
                                     getClientId(),
                                     getHostName(),
-                                    ExceptionUtil.toStackTraceString(exception, "scheduling reactor failed"));
+                                    ExceptionUtil.toStackTraceString(exception, "scheduling reactor failed")));
                         }
 
                         this.rctr.attachments().set(RejectedExecutionException.class, RejectedExecutionException.class, exception);
@@ -475,10 +475,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                 }
 
                 if (TRACE_LOGGER.isWarnEnabled()) {
-                    TRACE_LOGGER.warn("messagingFactory[%s], hostName[%s], error[%s]",
+                    TRACE_LOGGER.warn(String.format(Locale.US, "messagingFactory[%s], hostName[%s], error[%s]",
                             getClientId(),
                             getHostName(),
-                            ExceptionUtil.toStackTraceString(handlerException, "UnHandled exception while processing events in reactor:"));
+                            ExceptionUtil.toStackTraceString(handlerException, "UnHandled exception while processing events in reactor:")));
                 }
 
                 final String message = !StringUtil.isNullOrEmpty(cause.getMessage()) ?
