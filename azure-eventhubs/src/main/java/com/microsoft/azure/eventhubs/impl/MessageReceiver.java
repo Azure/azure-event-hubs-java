@@ -149,7 +149,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                                             if (TRACE_LOGGER.isInfoEnabled()) {
                                                 TRACE_LOGGER.info(
                                                         String.format(Locale.US,
-                                                                "path[%s], linkName[%s], tokenRenewalFailure[%s]", receivePath, receiveLink.getName(), error.getMessage()));
+                                                                "path[%s], linkName[%s], tokenRenewalFailure[%s]", receivePath, receiveLink.getName(), ExceptionUtil.normalizeLog(error.getMessage())));
                                             }
                                         }
                                     });
