@@ -1,27 +1,26 @@
 package com.microsoft.azure.eventhubs.impl;
 
-import java.util.function.BiConsumer;
-
-import com.microsoft.azure.eventhubs.AmqpException;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.Session;
 
+import java.util.function.BiConsumer;
+
 public class RequestResponseOpener implements Operation<RequestResponseChannel> {
-	private final SessionProvider sessionProvider;
-	private final String sessionName;
-	private final String linkName;
-	private final String endpointAddress;
-	private final AmqpConnection eventDispatcher;
-	
-	public RequestResponseOpener(final SessionProvider sessionProvider, final String sessionName, final String linkName,
+    private final SessionProvider sessionProvider;
+    private final String sessionName;
+    private final String linkName;
+    private final String endpointAddress;
+    private final AmqpConnection eventDispatcher;
+
+    public RequestResponseOpener(final SessionProvider sessionProvider, final String sessionName, final String linkName,
                                  final String endpointAddress, final AmqpConnection eventDispatcher) {
-		this.sessionProvider = sessionProvider;
-		this.sessionName = sessionName;
-		this.linkName = linkName;
-		this.endpointAddress = endpointAddress;
-		this.eventDispatcher = eventDispatcher;
-	}
-	
+        this.sessionProvider = sessionProvider;
+        this.sessionName = sessionName;
+        this.linkName = linkName;
+        this.endpointAddress = endpointAddress;
+        this.eventDispatcher = eventDispatcher;
+    }
+
     @Override
     public void run(OperationResult<RequestResponseChannel, Exception> operationCallback) {
 
@@ -32,7 +31,7 @@ public class RequestResponseOpener implements Operation<RequestResponseChannel> 
                     @Override
                     public void accept(ErrorCondition error, Exception exception) {
                         if (error != null)
-                            operationCallback.onError(new AmqpException(error));
+                            operationCallback.onError(ExceptionUtil.toException(error));
                         else if (exception != null)
                             operationCallback.onError(exception);
                     }
