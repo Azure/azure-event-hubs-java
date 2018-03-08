@@ -180,7 +180,7 @@ public class PartitionContext
     	else
     	{
 	    	Checkpoint capturedCheckpoint = new Checkpoint(this.partitionId, this.offset, this.sequenceNumber);
-	    	result = persistCheckpoint(capturedCheckpoint);
+	    	result = checkpoint(capturedCheckpoint);
     	}
     	return result;
     }
@@ -195,7 +195,7 @@ public class PartitionContext
      */
     public CompletableFuture<Void> checkpoint(EventData event)
     {
-    	return persistCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
+    	return checkpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
     }
 
     /**
@@ -208,14 +208,9 @@ public class PartitionContext
      */
     public CompletableFuture<Void> checkpoint(Checkpoint checkpoint)
     {
-        return persistCheckpoint(checkpoint);
-    }
+    	TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(checkpoint.getPartitionId(),
+                "Saving checkpoint: " + checkpoint.getOffset() + "//" + checkpoint.getSequenceNumber()));
 
-    private CompletableFuture<Void> persistCheckpoint(Checkpoint persistThis)
-    {
-    	TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(persistThis.getPartitionId(),
-                "Saving checkpoint: " + persistThis.getOffset() + "//" + persistThis.getSequenceNumber()));
-		
-        return this.hostContext.getCheckpointManager().updateCheckpoint(this.lease, persistThis);
+        return this.hostContext.getCheckpointManager().updateCheckpoint(this.lease, checkpoint);
     }
 }
