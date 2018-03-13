@@ -4,16 +4,9 @@
  */
 package com.microsoft.azure.eventhubs.impl;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
-
 import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Connection;
 import org.apache.qpid.proton.engine.EndpointState;
@@ -22,6 +15,12 @@ import org.apache.qpid.proton.engine.impl.TransportInternal;
 import org.apache.qpid.proton.engine.SslDomain;
 import org.apache.qpid.proton.engine.Transport;
 import org.apache.qpid.proton.reactor.Handshaker;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import com.microsoft.azure.eventhubs.ext.impl.WebSocketImpl;
 
@@ -37,6 +36,16 @@ public final class ConnectionHandler extends BaseHandler {
 
         add(new Handshaker());
         this.messagingFactory = messagingFactory;
+    }
+
+    private static SslDomain makeDomain(SslDomain.Mode mode) {
+
+        final SslDomain domain = Proton.sslDomain();
+        domain.init(mode);
+
+        // TODO: VERIFY_PEER_NAME support
+        domain.setPeerAuthentication(SslDomain.VerifyMode.ANONYMOUS_PEER);
+        return domain;
     }
 
     @Override
@@ -182,15 +191,5 @@ public final class ConnectionHandler extends BaseHandler {
         }
 
         this.messagingFactory.onConnectionError(error);
-    }
-
-    private static SslDomain makeDomain(SslDomain.Mode mode) {
-
-        final SslDomain domain = Proton.sslDomain();
-        domain.init(mode);
-
-        // TODO: VERIFY_PEER_NAME support
-        domain.setPeerAuthentication(SslDomain.VerifyMode.ANONYMOUS_PEER);
-        return domain;
     }
 }

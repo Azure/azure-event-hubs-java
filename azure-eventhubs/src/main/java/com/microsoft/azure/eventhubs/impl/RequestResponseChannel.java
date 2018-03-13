@@ -4,28 +4,21 @@
  */
 package com.microsoft.azure.eventhubs.impl;
 
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.HashMap;
-import java.util.UUID;
-
-import com.microsoft.azure.eventhubs.AmqpException;
+import com.microsoft.azure.eventhubs.OperationCancelledException;
+import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.UnsignedLong;
 import org.apache.qpid.proton.amqp.messaging.Source;
 import org.apache.qpid.proton.amqp.messaging.Target;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.amqp.transport.ReceiverSettleMode;
 import org.apache.qpid.proton.amqp.transport.SenderSettleMode;
-import org.apache.qpid.proton.engine.BaseHandler;
-import org.apache.qpid.proton.engine.Delivery;
-import org.apache.qpid.proton.engine.Receiver;
-import org.apache.qpid.proton.engine.Sender;
-import org.apache.qpid.proton.engine.Session;
+import org.apache.qpid.proton.engine.*;
 import org.apache.qpid.proton.message.Message;
-import org.apache.qpid.proton.Proton;
-import org.apache.qpid.proton.engine.EndpointState;
 
-import com.microsoft.azure.eventhubs.OperationCancelledException;
+import java.util.HashMap;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class RequestResponseChannel implements IOObject {
 
@@ -141,7 +134,7 @@ public class RequestResponseChannel implements IOObject {
                     final ErrorCondition error = (this.sendLink.getRemoteCondition() != null && this.sendLink.getRemoteCondition().getCondition() != null)
                             ? this.sendLink.getRemoteCondition()
                             : this.receiveLink.getRemoteCondition();
-                    onOpen.onError(new AmqpException(error));
+                    onOpen.onError(ExceptionUtil.toException(error));
                 }
             }
     }
@@ -205,7 +198,7 @@ public class RequestResponseChannel implements IOObject {
             if (condition == null || condition.getCondition() == null)
                 onLinkCloseComplete(null);
             else
-                onError(new AmqpException(condition));
+                onError(ExceptionUtil.toException(condition));
         }
 
     }
@@ -253,9 +246,8 @@ public class RequestResponseChannel implements IOObject {
 
                 if (onClose != null)
                     onLinkCloseComplete(null);
-            }
-            else {
-                this.onError(new AmqpException(condition));
+            } else {
+                this.onError(ExceptionUtil.toException(condition));
             }
         }
 
