@@ -155,7 +155,7 @@ public class PartitionContext {
             result.completeExceptionally(new RuntimeException("Cannot checkpoint until at least one event has been received on this partition"));
         } else {
             Checkpoint capturedCheckpoint = new Checkpoint(this.partitionId, this.offset, this.sequenceNumber);
-            result = persistCheckpoint(capturedCheckpoint);
+            result = checkpoint(capturedCheckpoint);
         }
         return result;
     }
@@ -169,13 +169,34 @@ public class PartitionContext {
      * @return CompletableFuture {@literal ->} null when the checkpoint has been persisted successfully, completes exceptionally on error.
      */
     public CompletableFuture<Void> checkpoint(EventData event) {
-        return persistCheckpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
+    	CompletableFuture<Void> result = null;
+    	if (event == null) {
+    		result = new CompletableFuture<Void>();
+    		result.completeExceptionally(new IllegalArgumentException("Cannot checkpoint with null EventData"));
+    	} else {
+        	result = checkpoint(new Checkpoint(this.partitionId, event.getSystemProperties().getOffset(), event.getSystemProperties().getSequenceNumber()));
+    	}
+    	return result;
     }
 
-    private CompletableFuture<Void> persistCheckpoint(Checkpoint persistThis) {
-        TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(persistThis.getPartitionId(),
-                "Saving checkpoint: " + persistThis.getOffset() + "//" + persistThis.getSequenceNumber()));
-
-        return this.hostContext.getCheckpointManager().updateCheckpoint(this.lease, persistThis);
+    /**
+     * Writes the position of the provided Checkpoint instance to the checkpoint store via the checkpoint manager.
+     *
+     * It is important to check the result in order to detect failures.
+     *
+     * @param checkpoint  a checkpoint
+     * @return CompletableFuture {@literal ->} null when the checkpoint has been persisted successfully, completes exceptionally on error.
+     */
+    public CompletableFuture<Void> checkpoint(Checkpoint checkpoint) {
+    	CompletableFuture<Void> result = null;
+    	if (checkpoint == null) {
+    		result = new CompletableFuture<Void>();
+    		result.completeExceptionally(new IllegalArgumentException("Cannot checkpoint with null Checkpoint"));
+    	} else {
+	        TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(checkpoint.getPartitionId(),
+	                "Saving checkpoint: " + checkpoint.getOffset() + "//" + checkpoint.getSequenceNumber()));
+	        result = this.hostContext.getCheckpointManager().updateCheckpoint(this.lease, checkpoint);
+    	}
+    	return result;
     }
 }
