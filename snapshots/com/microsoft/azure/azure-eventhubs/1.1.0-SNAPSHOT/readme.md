@@ -1,6 +1,6 @@
 ## How to use this repository
 
-In your pom.xml file add the below section.
+Step-1. In your pom.xml file add the below section.
 
 ```  
   <repositories>
@@ -11,7 +11,7 @@ In your pom.xml file add the below section.
   </repositories>
 ```
 
-& add this section in `dependencies`
+Step-2. & add this section in `dependencies`
 
 ```
   <dependency>
@@ -19,6 +19,14 @@ In your pom.xml file add the below section.
     <artifactId>azure-eventhubs</artifactId>
     <version>1.1.0-SNAPSHOT</version>
   </dependency>
+```
+
+Step-3. Configure proxy settings in your java application using the below code snippet. This code should precede `EventHubClient` creation.
+
+```
+  EventHubClientImpl.PROXY_HOST_NAME = "10.71.124.142"; // PROXY ADDRESS
+  EventHubClientImpl.PROXY_HOST_PORT = 8888; // PROXY PORT
+  EventHubClientImpl.PROXY_AUTHORIZATION_HEADER = "Basic MTox"; // PROXY AUTHORIZATION HEADER; for Basic auth it is - Basic Base64Encoding(username:password)
 ```
 
 ### General Notes
