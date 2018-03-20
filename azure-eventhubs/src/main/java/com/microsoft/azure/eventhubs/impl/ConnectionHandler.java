@@ -31,11 +31,13 @@ public final class ConnectionHandler extends BaseHandler {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ConnectionHandler.class);
 
     private final AmqpConnection messagingFactory;
+    private final String hostName;
 
-    public ConnectionHandler(final AmqpConnection messagingFactory) {
+    public ConnectionHandler(final AmqpConnection messagingFactory, final String hostName) {
 
         add(new Handshaker());
         this.messagingFactory = messagingFactory;
+        this.hostName = hostName;
     }
 
     private static SslDomain makeDomain(SslDomain.Mode mode) {
@@ -52,9 +54,7 @@ public final class ConnectionHandler extends BaseHandler {
     public void onConnectionInit(Event event) {
 
         final Connection connection = event.getConnection();
-        final String hostName = event.getReactor().getConnectionAddress(connection);
-
-        connection.setHostname(hostName);
+        connection.setHostname(this.hostName);
         connection.setContainer(StringUtil.getRandomString());
 
         final Map<Symbol, Object> connectionProperties = new HashMap<>();

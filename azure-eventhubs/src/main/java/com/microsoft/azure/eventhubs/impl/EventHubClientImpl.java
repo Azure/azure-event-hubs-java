@@ -26,6 +26,11 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
      * It will be truncated to 128 characters
      */
     public static String USER_AGENT = null;
+
+    public static String PROXY_HOST_NAME = null;
+    public static int PROXY_HOST_PORT = 0;
+    public static String PROXY_AUTHORIZATION_HEADER = null;
+
     private final String eventHubName;
     private final Object senderCreateSync;
     private volatile boolean isSenderCreateStarted;

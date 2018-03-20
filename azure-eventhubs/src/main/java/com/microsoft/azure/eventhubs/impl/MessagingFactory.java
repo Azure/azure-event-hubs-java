@@ -8,6 +8,7 @@ import com.microsoft.azure.eventhubs.*;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.*;
 import org.apache.qpid.proton.reactor.Reactor;
+import org.apache.qpid.proton.reactor.impl.Address;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +68,7 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
         this.retryPolicy = retryPolicy;
         this.registeredLinks = new LinkedList<>();
         this.reactorLock = new Object();
-        this.connectionHandler = new ConnectionHandler(this);
+        this.connectionHandler = new ConnectionHandler(this, hostName);
         this.cbsChannelCreateLock = new Object();
         this.mgmtChannelCreateLock = new Object();
         this.tokenProvider = builder.getSharedAccessSignature() == null
@@ -155,6 +156,14 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
 
                 final Reactor r = e.getReactor();
                 connection = r.connectionToHost(hostName, 443, connectionHandler);
+
+                if (EventHubClientImpl.PROXY_HOST_NAME != null) {
+                    final Address addr = new Address();
+                    addr.setHost(EventHubClientImpl.PROXY_HOST_NAME);
+                    addr.setPort(Integer.toString(EventHubClientImpl.PROXY_HOST_PORT));
+                    connection.attachments().set("pn_reactor_connection_peer_address", Address.class, addr);
+                    connection.attachments().set("eh_proxy_authorization_header", String.class, EventHubClientImpl.PROXY_AUTHORIZATION_HEADER);
+                }
             }
         });
     }
