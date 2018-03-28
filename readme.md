@@ -23,7 +23,9 @@ Refer to the [online documentation](https://azure.microsoft.com/services/event-h
 
 ## Using the library 
 
-### [Code samples are here](https://github.com/Azure/azure-event-hubs/tree/master/samples/Java).
+### Samples
+
+Code samples are [here](https://github.com/Azure/azure-event-hubs/tree/master/samples/Java).
 
 ### Referencing the library
 
@@ -35,6 +37,7 @@ This library exposes the send and receive APIs. This library will in turn pull f
 the required versions of Apache Qpid Proton-J, and the cryptography library BCPKIX by the Legion of Bouncy Castle.   
 
 |Package|Package Version|
+|--------|------------------|
 |azure-eventhubs|[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs)
 
 ```XML
@@ -51,6 +54,7 @@ This library exposes an out-of-the-box distributed partition processor for Event
 It pulls the required versions of Event Hubs, Azure Storage and GSon libraries.
 
 |Package|Package Version|
+|--------|------------------|
 |azure-eventhubs-eph|[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs-eph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs-eph)
 
 ```XML
