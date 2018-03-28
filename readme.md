@@ -10,15 +10,12 @@
   <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
         <img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Follow%20@azureeventhubs"
             alt="follow on Twitter"></a>
-  <a href="https://github.com/Azure/azure-event-hubs/tree/master/samples/Java">Samples</a>
 </p></h1>
 
-|Build/Package|Status|
+|Branch|Status|
 |------|-------------|
 |master|[![Build status](https://ci.appveyor.com/api/projects/status/3prh8sm3stn4o5vj/branch/master?svg=true)](https://ci.appveyor.com/project/jtaubensee/azure-event-hubs-java/branch/master)|
 |dev|[![Build status](https://ci.appveyor.com/api/projects/status/3prh8sm3stn4o5vj/branch/dev?svg=true)](https://ci.appveyor.com/project/jtaubensee/azure-event-hubs-java/branch/dev)|
-|azure-eventhubs|[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs)
-|azure-eventhubs-eph|[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs-eph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs-eph)
 
 Azure Event Hubs is a hyper-scale data ingestion service, fully-managed by Microsoft, that enables you to collect, store and process trillions of events from websites, apps, IoT devices, and any stream of data.
 
@@ -26,12 +23,19 @@ Refer to the [online documentation](https://azure.microsoft.com/services/event-h
 
 ## Using the library 
 
-[Code samples are here](https://github.com/Azure/azure-event-hubs/tree/master/samples/Java). Two java packages are released to Maven Central Repository from this GitHub repository.
+### [Code samples are here](https://github.com/Azure/azure-event-hubs/tree/master/samples/Java).
 
-### Microsoft Azure EventHubs Java Client
+### Referencing the library
+
+Two java packages are released to Maven Central Repository from this GitHub repository.
+
+#### Microsoft Azure EventHubs Java Client
 
 This library exposes the send and receive APIs. This library will in turn pull further required dependencies, specifically 
 the required versions of Apache Qpid Proton-J, and the cryptography library BCPKIX by the Legion of Bouncy Castle.   
+
+|Package|Package Version|
+|azure-eventhubs|[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs)
 
 ```XML
    	<dependency> 
@@ -41,10 +45,13 @@ the required versions of Apache Qpid Proton-J, and the cryptography library BCPK
    	</dependency>
 ```
 
-### Microsoft Azure EventHubs Java Event Processor Host library
+#### Microsoft Azure EventHubs Java Event Processor Host library
 
 This library exposes an out-of-the-box distributed partition processor for Event Hubs.
 It pulls the required versions of Event Hubs, Azure Storage and GSon libraries.
+
+|Package|Package Version|
+|azure-eventhubs-eph|[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs-eph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs-eph)
 
 ```XML
    	<dependency> 
