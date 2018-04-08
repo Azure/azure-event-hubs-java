@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeoutException;
@@ -25,6 +28,7 @@ class PartitionManager {
     protected Pump pump = null;
     protected volatile String partitionIds[] = null;
     private ScheduledFuture<?> scanFuture = null;
+    private final int waitStaggerMax = 60;
 
     PartitionManager(HostContext hostContext) {
         this.hostContext = hostContext;
@@ -150,7 +154,7 @@ class PartitionManager {
                 {
                     // Schedule the first scan right away.
                     synchronized (this.scanFutureSynchronizer) {
-                        this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(), 0, TimeUnit.SECONDS);
+                        this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(true), 0, TimeUnit.SECONDS);
                     }
 
                     onInitializeCompleteTestHook();
@@ -279,204 +283,36 @@ class PartitionManager {
 
     // Return Void so it can be called from a lambda.
     // throwOnFailure is true
-    private Void scan() {
+    private Void scan(boolean isFirst) {
         TRACE_LOGGER.debug(this.hostContext.withHost("Starting lease scan"));
 
         // DO NOT check whether this.scanFuture is cancelled. The first execution of this method is scheduled
         // with 0 delay and can occur before this.scanFuture is set to the result of the schedule() call.
 
-        // These are final so they can be used in the lambdas below.
-        final AtomicInteger ourLeasesCount = new AtomicInteger();
-        final ConcurrentHashMap<String, Lease> leasesOwnedByOthers = new ConcurrentHashMap<String, Lease>();
-        final BoolWrapper resultsAreComplete = new BoolWrapper(true);
-
-        // Stage A: get the list of all leases
-        CompletableFuture<Lease> leaseToStealFuture = this.hostContext.getLeaseManager().getAllLeases()
-                // Stage B: check the state of each lease in parallel, acquiring those which are expired
-                .thenApplyAsync((leaseList) ->
-                {
-                    ArrayList<CompletableFuture<Lease>> transformedLeases = new ArrayList<CompletableFuture<Lease>>();
-                    for (Lease l : leaseList) {
-                        final Lease workingLease = l;
-
-                        if (workingLease != null) {
-                            // Stage B.0: is the lease expired?
-                            CompletableFuture<Lease> oneResult = workingLease.isExpired()
-                                    // Stage B.1: if it is expired, attempt to acquire it.
-                                    .thenComposeAsync((expired) ->
-                                    {
-                                        return expired ? this.hostContext.getLeaseManager().acquireLease(workingLease) : CompletableFuture.completedFuture(false);
-                                    }, this.hostContext.getExecutor())
-                                    // Stage B.2: if it was acquired, start a pump and do the counting.
-                                    .thenApplyAsync((acquired) ->
-                                    {
-                                        if (acquired) {
-                                            this.pump.addPump(workingLease);
-                                        }
-                                        if (workingLease.isOwnedBy(this.hostContext.getHostName())) {
-                                            ourLeasesCount.getAndIncrement(); // count leases owned by this host
-                                        } else {
-                                            leasesOwnedByOthers.put(workingLease.getPartitionId(), workingLease); // save leases owned by other hosts
-                                        }
-                                        return workingLease;
-                                    }, this.hostContext.getExecutor())
-                                    // Stage B.3: ALWAYS RUN REGARDLESS OF EXCEPTIONS -- log/notify if exception occurred
-                                    .whenCompleteAsync((lease, e) ->
-                                    {
-                                        if (e != null) {
-                                            resultsAreComplete.value = false;
-                                            Exception notifyWith = (Exception) LoggingUtils.unwrapException(e, null);
-                                            TRACE_LOGGER.warn(this.hostContext.withHost("Failure getting/acquiring lease, skipping"), notifyWith);
-                                            this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), notifyWith,
-                                                    EventProcessorHostActionStrings.CHECKING_LEASES, ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION);
-                                        }
-                                    }, this.hostContext.getExecutor());
-
-                            transformedLeases.add(oneResult);
-                        } else {
-                            TRACE_LOGGER.warn(this.hostContext.withHost("null lease during scan"));
-                        }
-                    }
-                    return transformedLeases;
-                }, this.hostContext.getExecutor())
-                // Stage C: get a future that waits for all the results
-                .thenComposeAsync((transformedLeases) ->
-                {
-                    CompletableFuture<Void> result = null;
-                    if (transformedLeases.size() > 0) {
-                        CompletableFuture<?>[] dummy = new CompletableFuture<?>[transformedLeases.size()];
-                        result = CompletableFuture.allOf(transformedLeases.toArray(dummy));
-                    } else {
-                        TRACE_LOGGER.warn(this.hostContext.withHost("all leases were null during scan"));
-                        result = CompletableFuture.completedFuture(null);
-                    }
-                    return result;
-                }, this.hostContext.getExecutor())
-                // Stage D: consume the counting done by the per-lease stage to decide whether and what lease to steal
-                .thenApplyAsync((empty) ->
-                {
-                    TRACE_LOGGER.debug(this.hostContext.withHost("Lease scan steal check"));
-
-                    // Grab more leases if available and needed for load balancing, but only if all leases were checked OK.
-                    // Don't try to steal if numbers are in doubt due to errors in the previous stage.
-                    Lease stealThisLease = null;
-                    if ((leasesOwnedByOthers.size() > 0) && resultsAreComplete.value) {
-                        stealThisLease = whichLeaseToSteal(leasesOwnedByOthers.values(), ourLeasesCount.get());
-                    }
-                    return stealThisLease;
-                }, this.hostContext.getExecutor());
-
-        // Stage E: if D identified a candidate for stealing, attempt to steal it. Return true on successful stealing, false in all other cases
-        leaseToStealFuture.thenComposeAsync((stealThisLease) ->
+        (new PartitionScanner(this.hostContext, (lease) -> this.pump.addPump(lease))).scan(isFirst)
+        .whenCompleteAsync((lease, e) ->
         {
-            return (stealThisLease != null) ? this.hostContext.getLeaseManager().acquireLease(stealThisLease) : CompletableFuture.completedFuture(false);
-        }, this.hostContext.getExecutor())
-                // Stage F: consume results from E and D. Start a pump if a lease was stolen.
-                .thenCombineAsync(leaseToStealFuture, (stealSucceeded, lease) ->
-                {
-                    if (stealSucceeded) {
-                        TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(lease, "Stole lease"));
-                        this.pump.addPump(lease);
+            onPartitionCheckCompleteTestHook();
+
+            // Schedule the next scan unless the future has been cancelled.
+            synchronized (this.scanFutureSynchronizer) {
+                if (!this.scanFuture.isCancelled()) {
+                    int seconds = this.hostContext.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds();
+                    if (isFirst) {
+                    	// After the first pass, wait a larger, random amount of time before doing another scan.
+                    	// The longer wait is to allow as many other instances as possible to establish beachhead leases.
+                    	// The randomness is so that the second pass will be staggered, to minimize contention while
+                    	// instances take multiple unowned leases.
+                    	Random pickWait = new Random();
+                    	seconds += pickWait.nextInt(this.waitStaggerMax);
                     }
-                    return lease;
-                }, this.hostContext.getExecutor())
-                // Stage G: ALWAYS RUN REGARDLESS OF EXCEPTIONS -- log/notify, schedule next scan
-                .whenCompleteAsync((lease, e) ->
-                {
-                    if (e != null) {
-                        Exception notifyWith = (Exception) LoggingUtils.unwrapException(e, null);
-                        if (lease != null) {
-                            TRACE_LOGGER.warn(this.hostContext.withHost("Exception stealing lease for partition " + lease.getPartitionId()), notifyWith);
-                            this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), notifyWith,
-                                    EventProcessorHostActionStrings.STEALING_LEASE, lease.getPartitionId());
-                        } else {
-                            TRACE_LOGGER.warn(this.hostContext.withHost("Exception stealing lease"), notifyWith);
-                            this.hostContext.getEventProcessorOptions().notifyOfException(this.hostContext.getHostName(), notifyWith,
-                                    EventProcessorHostActionStrings.STEALING_LEASE, ExceptionReceivedEventArgs.NO_ASSOCIATED_PARTITION);
-                        }
-                    }
-
-                    onPartitionCheckCompleteTestHook();
-
-                    // Schedule the next scan unless the future has been cancelled.
-                    synchronized (this.scanFutureSynchronizer) {
-                        if (!this.scanFuture.isCancelled()) {
-                            int seconds = this.hostContext.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds();
-                            this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(), seconds, TimeUnit.SECONDS);
-                            TRACE_LOGGER.debug(this.hostContext.withHost("Scheduling lease scanner in " + seconds));
-                        }
-                    }
-                }, this.hostContext.getExecutor());
-
-        return null;
-    }
-
-    private Lease whichLeaseToSteal(Collection<Lease> stealableLeases, int haveLeaseCount) {
-        HashMap<String, Integer> countsByOwner = countLeasesByOwner(stealableLeases);
-        String biggestOwner = findBiggestOwner(countsByOwner);
-        int biggestCount = countsByOwner.get(biggestOwner); // HASHMAP
-        Lease stealThisLease = null;
-
-        // If the number of leases is a multiple of the number of hosts, then the desired configuration is
-        // that all hosts own the name number of leases, and the difference between the "biggest" owner and
-        // any other is 0.
-        //
-        // If the number of leases is not a multiple of the number of hosts, then the most even configuration
-        // possible is for some hosts to have (leases/hosts) leases and others to have ((leases/hosts) + 1).
-        // For example, for 16 partitions distributed over five hosts, the distribution would be 4, 3, 3, 3, 3,
-        // or any of the possible reorderings.
-        //
-        // In either case, if the difference between this host and the biggest owner is 2 or more, then the
-        // system is not in the most evenly-distributed configuration, so steal one lease from the biggest.
-        // If there is a tie for biggest, findBiggestOwner() picks whichever appears first in the list because
-        // it doesn't really matter which "biggest" is trimmed down.
-        //
-        // Stealing one at a time prevents flapping because it reduces the difference between the biggest and
-        // this host by two at a time. If the starting difference is two or greater, then the difference cannot
-        // end up below 0. This host may become tied for biggest, but it cannot become larger than the host that
-        // it is stealing from.
-
-        if ((biggestCount - haveLeaseCount) >= 2) {
-            for (Lease l : stealableLeases) {
-                if (l.isOwnedBy(biggestOwner)) {
-                    stealThisLease = l;
-                    TRACE_LOGGER.debug(this.hostContext.withHost("Proposed to steal lease for partition " + l.getPartitionId() + " from " + biggestOwner));
-                    break;
+                    this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(false), seconds, TimeUnit.SECONDS);
+                    TRACE_LOGGER.debug(this.hostContext.withHost("Scheduling lease scanner in " + seconds));
                 }
             }
-        }
-        return stealThisLease;
-    }
+        }, this.hostContext.getExecutor());
 
-    private String findBiggestOwner(HashMap<String, Integer> countsByOwner) {
-        int biggestCount = 0;
-        String biggestOwner = null;
-        for (String owner : countsByOwner.keySet()) {
-            if (countsByOwner.get(owner) > biggestCount) // HASHMAP
-            {
-                biggestCount = countsByOwner.get(owner); // HASHMAP
-                biggestOwner = owner;
-            }
-        }
-        return biggestOwner;
-    }
-
-    private HashMap<String, Integer> countLeasesByOwner(Iterable<Lease> leases) {
-        HashMap<String, Integer> counts = new HashMap<String, Integer>();
-        for (Lease l : leases) {
-            if (counts.containsKey(l.getOwner())) {
-                Integer oldCount = counts.get(l.getOwner()); // HASHMAP
-                counts.put(l.getOwner(), oldCount + 1);
-            } else {
-                counts.put(l.getOwner(), 1);
-            }
-        }
-        for (String owner : counts.keySet()) {
-            TRACE_LOGGER.debug(this.hostContext.withHost("host " + owner + " owns " + counts.get(owner) + " leases")); // HASHMAP
-        }
-        TRACE_LOGGER.debug(this.hostContext.withHost("total hosts in sorted list: " + counts.size()));
-
-        return counts;
+        return null;
     }
 
     // Exception wrapper that buildRetries() uses to indicate that a fatal error has occurred. The chain
@@ -492,14 +328,6 @@ class PartitionManager {
 
         CompletionException getInner() {
             return (CompletionException) this.getCause();
-        }
-    }
-
-    private class BoolWrapper {
-        public boolean value;
-
-        public BoolWrapper(boolean init) {
-            this.value = init;
         }
     }
 }
