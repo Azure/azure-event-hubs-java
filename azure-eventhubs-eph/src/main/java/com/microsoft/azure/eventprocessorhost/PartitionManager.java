@@ -28,7 +28,7 @@ class PartitionManager {
     protected Pump pump = null;
     protected volatile String partitionIds[] = null;
     private ScheduledFuture<?> scanFuture = null;
-    private final int waitStaggerMax = 60;
+    private final int waitStaggerMax = 20;
 
     PartitionManager(HostContext hostContext) {
         this.hostContext = hostContext;
@@ -152,9 +152,14 @@ class PartitionManager {
                 // Stage 3: schedule scan, which will find partitions and start pumps, if previous stages succeeded
                 .thenRunAsync(() ->
                 {
-                    // Schedule the first scan right away.
+                    // Schedule the first scan.
                     synchronized (this.scanFutureSynchronizer) {
-                        this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(true), 0, TimeUnit.SECONDS);
+                    	// Wait a random amount of time before doing the first scan.
+                    	// The random wait is to minimize contention while establishing beachhead leases.
+                    	Random pickWait = new Random();
+                    	int seconds = pickWait.nextInt(this.waitStaggerMax);
+                        TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds)); // FOO
+                        this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(true), seconds, TimeUnit.SECONDS);
                     }
 
                     onInitializeCompleteTestHook();
@@ -284,7 +289,8 @@ class PartitionManager {
     // Return Void so it can be called from a lambda.
     // throwOnFailure is true
     private Void scan(boolean isFirst) {
-        TRACE_LOGGER.debug(this.hostContext.withHost("Starting lease scan"));
+        TRACE_LOGGER.info(this.hostContext.withHost("Starting lease scan")); // FOO
+        long start = System.currentTimeMillis(); // FOO
 
         // DO NOT check whether this.scanFuture is cancelled. The first execution of this method is scheduled
         // with 0 delay and can occur before this.scanFuture is set to the result of the schedule() call.
@@ -307,7 +313,8 @@ class PartitionManager {
                     	seconds += pickWait.nextInt(this.waitStaggerMax);
                     }
                     this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(false), seconds, TimeUnit.SECONDS);
-                    TRACE_LOGGER.debug(this.hostContext.withHost("Scheduling lease scanner in " + seconds));
+                    TRACE_LOGGER.info(this.hostContext.withHost("Scanning took " + (System.currentTimeMillis() - start))); // FOO
+                    TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds)); // FOO
                 }
             }
         }, this.hostContext.getExecutor());

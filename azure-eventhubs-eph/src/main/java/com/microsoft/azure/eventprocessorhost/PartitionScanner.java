@@ -23,10 +23,18 @@ class PartitionScanner {
     private final Consumer<Lease> addPump;
     
     // Populated by getAllLeases()
-    private ArrayList<Lease> allLeases = null;
+    private class LeaseAndState {
+    	private Lease lease;
+    	private boolean state;
+    	public LeaseAndState(Lease l, boolean s) { this.lease = l; this.state = s; }
+    	public Lease getLease() { return this.lease; }
+    	public boolean isExpired() { return this.state; }
+    }
+    private ArrayList<LeaseAndState> allLeasesAndStates = null;
     
     // Values populated by initialCalcAndSort
     private int hostCount;
+    private int lowestUnowned;
 	final private AtomicInteger ourLeasesCount; // updated by acquireExpiredInChunksParallel
 	final private ConcurrentHashMap<String, Lease> leasesOwnedByOthers; // updated by acquireExpiredInChunksParallel
 	
@@ -34,14 +42,18 @@ class PartitionScanner {
 		this.hostContext = hostContext;
 		this.addPump = addPump;
 		
+		this.allLeasesAndStates = new ArrayList<LeaseAndState>();
+		
+		this.hostCount = 0;
+		this.lowestUnowned = -1;
 		this.ourLeasesCount = new AtomicInteger();
 		this.leasesOwnedByOthers = new ConcurrentHashMap<String, Lease>();
 	}
 	
 	public CompletableFuture<Lease> scan(boolean isFirst) {
-		return getAllLeases()
+		return getAllLeasesAndStates()
 			.thenApplyAsync((empty) -> { return initialCalcAndSort(isFirst); }, this.hostContext.getExecutor())
-			.thenComposeAsync((desiredLeaseCount) -> acquireExpiredInChunksParallel(0, desiredLeaseCount - ourLeasesCount.get()), this.hostContext.getExecutor())
+			.thenComposeAsync((desiredLeaseCount) -> acquireExpiredInChunksParallel(this.lowestUnowned, desiredLeaseCount - ourLeasesCount.get()), this.hostContext.getExecutor())
 			.thenApplyAsync((remainingNeeded) -> { return (remainingNeeded > 0) ? findLeaseToSteal() : null; }, this.hostContext.getExecutor())
 			.thenComposeAsync((leaseToSteal) -> stealALease(leaseToSteal), this.hostContext.getExecutor())
 	        .whenCompleteAsync((lease, e) -> {
@@ -60,53 +72,89 @@ class PartitionScanner {
 		        }, this.hostContext.getExecutor());
 	}
 	
-	private CompletableFuture<Void> getAllLeases() {
-		return this.hostContext.getLeaseManager().getAllLeases().thenAcceptAsync((leaseList) -> { this.allLeases = new ArrayList<Lease>(leaseList); });
+	private CompletableFuture<Void> getAllLeasesAndStates() {
+		return this.hostContext.getLeaseManager().getAllLeases().thenComposeAsync((leaseList) -> {
+				ArrayList<CompletableFuture<Void>> statesFutures = new ArrayList<CompletableFuture<Void>>();
+				for (Lease l : leaseList) {
+					final Lease workingLease = l;
+					statesFutures.add(workingLease.isExpired().thenAcceptAsync((isExpired) -> {
+							synchronized (this.allLeasesAndStates) {
+								this.allLeasesAndStates.add(new LeaseAndState(workingLease, isExpired));
+							}
+							//TRACE_LOGGER.info(this.hostContext.withHost("Lease for " + workingLease.getPartitionId() + " expired " + isExpired));
+						}, this.hostContext.getExecutor()));
+				}
+		        CompletableFuture<?>[] dummy = new CompletableFuture<?>[statesFutures.size()];
+				return CompletableFuture.allOf(statesFutures.toArray(dummy));
+			}, this.hostContext.getExecutor());
 	}
 	
 	private int initialCalcAndSort(boolean isFirst) {
 		HashSet<String> uniqueOwners = new HashSet<String>();
-		for (Lease l : this.allLeases) {
-			String owner = l.getOwner();
-			if ((owner != null) && !owner.isEmpty())
+		int addThisHost = 1;
+		int unownedCount = 0;
+		for (int i = 0; i < this.allLeasesAndStates.size(); i++) {
+			//TRACE_LOGGER.info(this.hostContext.withHost("LeaseAndState for " + i + " is " + this.allLeasesAndStates.get(i)));
+			boolean hasOwner = !this.allLeasesAndStates.get(i).isExpired();
+			String owner = this.allLeasesAndStates.get(i).getLease().getOwner();
+			boolean ownedByUs = hasOwner ? (owner.compareTo(this.hostContext.getHostName()) == 0) : false;
+			if (hasOwner)
 			{
-				uniqueOwners.add(owner);
-			}
-			if (l.isOwnedBy(this.hostContext.getHostName())) {
-				this.ourLeasesCount.getAndIncrement();
+				if (uniqueOwners.add(owner)) {
+					// Haven't seen this owner before, is it us?
+					if (ownedByUs) {
+						// It is us. Don't add one to hostCount for us.
+						addThisHost = 0;
+					}
+				}
 			} else {
-				this.leasesOwnedByOthers.put(l.getPartitionId(), l);
+				unownedCount++;
+			}
+			if (ownedByUs) {
+				this.ourLeasesCount.getAndIncrement();
+			} else if (hasOwner) {
+				this.leasesOwnedByOthers.put(this.allLeasesAndStates.get(i).getLease().getPartitionId(), this.allLeasesAndStates.get(i).getLease());
+			} else if (this.lowestUnowned < 0) {
+				this.lowestUnowned = i;
 			}
 		}
-		this.hostCount = uniqueOwners.size();
-		return isFirst ? 1 : (this.allLeases.size() / this.hostCount);
+		if (this.lowestUnowned < 0) {
+			this.lowestUnowned = this.allLeasesAndStates.size();
+		}
+		this.hostCount = uniqueOwners.size() + addThisHost;
+		int desiredCount = isFirst ? 1 : (this.allLeasesAndStates.size() / this.hostCount);
+		if (!isFirst && (unownedCount > 0) && (unownedCount < this.hostCount) && ((this.allLeasesAndStates.size() % this.hostCount) != 0)) {
+			// Distribute leftovers.
+			desiredCount++;
+		}
+		
+		TRACE_LOGGER.info(this.hostContext.withHost("Host count is " + this.hostCount + "  Desired owned count is " + desiredCount));
+		TRACE_LOGGER.info(this.hostContext.withHost("ourLeasesCount " + this.ourLeasesCount.get() + "  leasesOwnedByOthers " + this.leasesOwnedByOthers.size()
+		 	+ " unowned " + unownedCount));
+		
+		return desiredCount;
 	}
 	
 	private CompletableFuture<List<Lease>> findExpiredLeases(int startAt, int endAt) {
-		ArrayList<Lease> expiredLeases = new ArrayList<Lease>();
+		final ArrayList<Lease> expiredLeases = new ArrayList<Lease>();
+		TRACE_LOGGER.info(this.hostContext.withHost("Finding expired leases from " + startAt + " up to " + endAt));
 		
-		ArrayList<CompletableFuture<Void>> leaseStateFutures = new ArrayList<CompletableFuture<Void>>();
-		for (Lease l : this.allLeases.subList(startAt, endAt)) {
-			final Lease workingLease = l;
-			CompletableFuture<Void> isExpiredFuture = workingLease.isExpired()
-    			.thenAcceptAsync((isExpired) -> {
-    				if (isExpired) {
-    					expiredLeases.add(workingLease);
-    				}
-    			}, this.hostContext.getExecutor());
-			leaseStateFutures.add(isExpiredFuture);
+		for (LeaseAndState ls : this.allLeasesAndStates.subList(startAt, endAt)) {
+			if (ls.isExpired()) {
+				expiredLeases.add(ls.getLease());
+			}
 		}
 
-        CompletableFuture<?>[] dummy = new CompletableFuture<?>[leaseStateFutures.size()];
-        return CompletableFuture.allOf(leaseStateFutures.toArray(dummy)).thenApplyAsync((empty) -> { return expiredLeases; }, this.hostContext.getExecutor());
+		return CompletableFuture.completedFuture(expiredLeases);
 	}
 	
 	private CompletableFuture<Integer> acquireExpiredInChunksParallel(int startAt, int needed) {
 		CompletableFuture<Integer> resultFuture = CompletableFuture.completedFuture(needed);
+		TRACE_LOGGER.info(this.hostContext.withHost("Examining chunk at " + startAt + " need " + needed));
 		
-		if ((needed > 0) && (startAt < this.allLeases.size())) {
+		if ((needed > 0) && (startAt < this.allLeasesAndStates.size())) {
 			final AtomicInteger runningNeeded = new AtomicInteger(needed);
-			int endAt = Math.min(startAt + needed, this.allLeases.size());
+			int endAt = Math.min(startAt + needed, this.allLeasesAndStates.size());
 			
 			resultFuture = findExpiredLeases(startAt, endAt)
 				.thenComposeAsync((getThese) -> {
@@ -115,17 +163,22 @@ class PartitionScanner {
 							ArrayList<CompletableFuture<Void>> getFutures = new ArrayList<CompletableFuture<Void>>();
 							for (Lease l : getThese) {
 								final Lease workingLease = l;
-								CompletableFuture<Void> getOneFuture = this.hostContext.getLeaseManager().acquireLease(workingLease)
-									.thenAcceptAsync((acquired) -> {
-										if (acquired) {
-											runningNeeded.decrementAndGet();
-											this.ourLeasesCount.incrementAndGet();
-											this.addPump.accept(workingLease);
-										} else {
-											this.leasesOwnedByOthers.put(workingLease.getPartitionId(), workingLease);
-										}
-									}, this.hostContext.getExecutor());
-								getFutures.add(getOneFuture);
+								if (workingLease != null) {
+									CompletableFuture<Void> getOneFuture = this.hostContext.getLeaseManager().acquireLease(workingLease)
+										.thenAcceptAsync((acquired) -> {
+											if (acquired) {
+												runningNeeded.decrementAndGet();
+												TRACE_LOGGER.info(this.hostContext.withHostAndPartition(workingLease, "Acquired unowned/expired"));
+												this.ourLeasesCount.incrementAndGet();
+												this.addPump.accept(workingLease);
+											} else {
+												this.leasesOwnedByOthers.put(workingLease.getPartitionId(), workingLease);
+											}
+										}, this.hostContext.getExecutor());
+									getFutures.add(getOneFuture);
+								} else {
+									TRACE_LOGGER.info(this.hostContext.withHost("findExpiredLeases returned null lease"));
+								}
 							}
 							CompletableFuture<?>[] dummy = new CompletableFuture<?>[getFutures.size()];
 							acquireFuture = CompletableFuture.allOf(getFutures.toArray(dummy));
@@ -145,6 +198,8 @@ class PartitionScanner {
 				.thenComposeAsync((unused) -> {
 					return acquireExpiredInChunksParallel(endAt, runningNeeded.get());
 					}, this.hostContext.getExecutor());
+		} else {
+			TRACE_LOGGER.info(this.hostContext.withHost("Short circuit: needed is 0 or off end"));
 		}
 		
 		return resultFuture;
@@ -162,9 +217,9 @@ class PartitionScanner {
             }
         }
         for (String owner : countsByOwner.keySet()) {
-            TRACE_LOGGER.debug(this.hostContext.withHost("host " + owner + " owns " + countsByOwner.get(owner) + " leases")); // HASHMAP
+            TRACE_LOGGER.info(this.hostContext.withHost("host " + owner + " owns " + countsByOwner.get(owner) + " leases")); // FOO
         }
-        TRACE_LOGGER.debug(this.hostContext.withHost("total hosts in sorted list: " + countsByOwner.size()));
+        TRACE_LOGGER.info(this.hostContext.withHost("total hosts in sorted list: " + countsByOwner.size())); // FOO
 
         int biggestCount = 0;
         String biggestOwner = null;
@@ -199,7 +254,7 @@ class PartitionScanner {
             for (Lease l : this.leasesOwnedByOthers.values()) {
                 if (l.isOwnedBy(biggestOwner)) {
                     stealThisLease = l;
-                    TRACE_LOGGER.debug(this.hostContext.withHost("Proposed to steal lease for partition " + l.getPartitionId() + " from " + biggestOwner));
+                    TRACE_LOGGER.info(this.hostContext.withHost("Proposed to steal lease for partition " + l.getPartitionId() + " from " + biggestOwner)); // FOO
                     break;
                 }
             }
@@ -215,7 +270,7 @@ class PartitionScanner {
 			stealResult = this.hostContext.getLeaseManager().acquireLease(leaseToSteal)
 				.thenApplyAsync((acquired) -> {
 						if (acquired) {
-	                        TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(leaseToSteal, "Stole lease"));
+	                        TRACE_LOGGER.info(this.hostContext.withHostAndPartition(leaseToSteal, "Stole lease")); // FOO
 							this.addPump.accept(leaseToSteal);
 						}
 						return acquired ? leaseToSteal : null;
