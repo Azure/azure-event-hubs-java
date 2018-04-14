@@ -10,14 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.TimeoutException;
 
 class PartitionManager {
@@ -28,7 +23,7 @@ class PartitionManager {
     protected Pump pump = null;
     protected volatile String partitionIds[] = null;
     private ScheduledFuture<?> scanFuture = null;
-    private final int waitStaggerMax = 20;
+    private final int retryMax = 5;
 
     PartitionManager(HostContext hostContext) {
         this.hostContext = hostContext;
@@ -157,7 +152,7 @@ class PartitionManager {
                     	// Wait a random amount of time before doing the first scan.
                     	// The random wait is to minimize contention while establishing beachhead leases.
                     	Random pickWait = new Random();
-                    	int seconds = pickWait.nextInt(this.waitStaggerMax);
+                    	int seconds = pickWait.nextInt(this.hostContext.getPartitionManagerOptions().getFastScanIntervalInSeconds());
                         TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds)); // FOO
                         this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(true), seconds, TimeUnit.SECONDS);
                     }
@@ -170,29 +165,26 @@ class PartitionManager {
         ILeaseManager leaseManager = this.hostContext.getLeaseManager();
         ICheckpointManager checkpointManager = this.hostContext.getCheckpointManager();
 
-        // Stages 0 to N: create lease store if it doesn't exist
+        // let R = this.retryMax
+        // Stages 0 to R: create lease store if it doesn't exist
         CompletableFuture<?> initializeStoresFuture = buildRetries(CompletableFuture.completedFuture(null),
-                () -> leaseManager.createLeaseStoreIfNotExists(), null, "Failure creating lease store for this Event Hub, retrying",
-                "Out of retries creating lease store for this Event Hub", EventProcessorHostActionStrings.CREATING_LEASE_STORE, 5);
+                () -> leaseManager.createLeaseStoreIfNotExists(), "Failure creating lease store for this Event Hub, retrying",
+                "Out of retries creating lease store for this Event Hub", EventProcessorHostActionStrings.CREATING_LEASE_STORE, this.retryMax);
 
-        // Stages N+1 to M: create checkpoint store if it doesn't exist
-        initializeStoresFuture = buildRetries(initializeStoresFuture, () -> checkpointManager.createCheckpointStoreIfNotExists(), null,
+        // Stages R+1 to 2R: create checkpoint store if it doesn't exist
+        initializeStoresFuture = buildRetries(initializeStoresFuture, () -> checkpointManager.createCheckpointStoreIfNotExists(),
                 "Failure creating checkpoint store for this Event Hub, retrying", "Out of retries creating checkpoint store for this Event Hub",
-                EventProcessorHostActionStrings.CREATING_CHECKPOINT_STORE, 5);
-
-        // Stages M to whatever: by now, either the stores exist or one of them completed exceptionally and
-        // all these stages will be skipped
-        for (String id : this.partitionIds) {
-            final String iterationId = id;
-            // Stages X to X+N: create lease for partition <iterationId>
-            initializeStoresFuture = buildRetries(initializeStoresFuture, () -> leaseManager.createLeaseIfNotExists(iterationId), iterationId,
-                    "Failure creating lease for partition, retrying", "Out of retries creating lease for partition", EventProcessorHostActionStrings.CREATING_LEASE, 5);
-            // Stages X+N+1 to X+N+M: create checkpoint holder for partition <iterationId>
-            initializeStoresFuture = buildRetries(initializeStoresFuture, () -> checkpointManager.createCheckpointIfNotExists(iterationId), iterationId,
-                    "Failure creating checkpoint for partition, retrying", "Out of retries creating checkpoint blob for partition",
-                    EventProcessorHostActionStrings.CREATING_CHECKPOINT, 5);
-        }
-
+                EventProcessorHostActionStrings.CREATING_CHECKPOINT_STORE, this.retryMax);
+        
+        // Stages 2R+1 to 3R: create leases if they don't exist
+        initializeStoresFuture = buildRetries(initializeStoresFuture, () -> leaseManager.createAllLeasesIfNotExists(Arrays.asList(this.partitionIds)),
+                "Failure creating leases, retrying", "Out of retries creating leases", EventProcessorHostActionStrings.CREATING_LEASES, this.retryMax);
+        
+        // Stages 3R+1 to 4R: create checkpoint holders if they don't exist
+        initializeStoresFuture = buildRetries(initializeStoresFuture, () -> checkpointManager.createAllCheckpointsIfNotExists(Arrays.asList(this.partitionIds)),
+                "Failure creating checkpoint holders, retrying", "Out of retries creating checkpoint holders", 
+                EventProcessorHostActionStrings.CREATING_CHECKPOINTS, this.retryMax);
+        
         initializeStoresFuture.whenCompleteAsync((r, e) ->
         {
             // If an exception has propagated this far, it should be a FinalException, which is guaranteed to contain a CompletionException.
@@ -209,7 +201,7 @@ class PartitionManager {
 
     // CompletableFuture will be completed exceptionally if it runs out of retries.
     // If the lambda succeeds, then it will not be invoked again by following stages.
-    private CompletableFuture<?> buildRetries(CompletableFuture<?> buildOnto, Callable<CompletableFuture<?>> lambda, String partitionId, String retryMessage,
+    private CompletableFuture<?> buildRetries(CompletableFuture<?> buildOnto, Callable<CompletableFuture<?>> lambda, String retryMessage,
                                               String finalFailureMessage, String action, int maxRetries) {
         // Stage 0: first attempt
         CompletableFuture<?> retryChain = buildOnto.thenComposeAsync((unused) ->
@@ -236,11 +228,7 @@ class PartitionManager {
                                 // Propagate FinalException up to the end
                                 throw (FinalException) e;
                             } else {
-                                if (partitionId != null) {
-                                    TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(partitionId, retryMessage), LoggingUtils.unwrapException(e, null));
-                                } else {
-                                    TRACE_LOGGER.warn(this.hostContext.withHost(retryMessage), LoggingUtils.unwrapException(e, null));
-                                }
+                                TRACE_LOGGER.warn(this.hostContext.withHost(retryMessage), LoggingUtils.unwrapException(e, null));
                             }
                         } else {
                             // Some lambdas return null on success. Change to TRUE to skip retrying.
@@ -272,11 +260,7 @@ class PartitionManager {
                 if (e instanceof FinalException) {
                     throw (FinalException) e;
                 } else {
-                    if (partitionId != null) {
-                        TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(partitionId, finalFailureMessage));
-                    } else {
-                        TRACE_LOGGER.warn(this.hostContext.withHost(finalFailureMessage));
-                    }
+                    TRACE_LOGGER.warn(this.hostContext.withHost(finalFailureMessage));
                     throw new FinalException(LoggingUtils.wrapExceptionWithMessage(LoggingUtils.unwrapException(e, null), finalFailureMessage, action));
                 }
             }
@@ -296,21 +280,17 @@ class PartitionManager {
         // with 0 delay and can occur before this.scanFuture is set to the result of the schedule() call.
 
         (new PartitionScanner(this.hostContext, (lease) -> this.pump.addPump(lease))).scan(isFirst)
-        .whenCompleteAsync((lease, e) ->
+        .whenCompleteAsync((didSteal, e) ->
         {
             onPartitionCheckCompleteTestHook();
 
             // Schedule the next scan unless the future has been cancelled.
             synchronized (this.scanFutureSynchronizer) {
                 if (!this.scanFuture.isCancelled()) {
-                    int seconds = this.hostContext.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds();
+                    int seconds = didSteal ? this.hostContext.getPartitionManagerOptions().getFastScanIntervalInSeconds() :
+                    	this.hostContext.getPartitionManagerOptions().getSlowScanIntervalInSeconds();
                     if (isFirst) {
-                    	// After the first pass, wait a larger, random amount of time before doing another scan.
-                    	// The longer wait is to allow as many other instances as possible to establish beachhead leases.
-                    	// The randomness is so that the second pass will be staggered, to minimize contention while
-                    	// instances take multiple unowned leases.
-                    	Random pickWait = new Random();
-                    	seconds += pickWait.nextInt(this.waitStaggerMax);
+                    	seconds = this.hostContext.getPartitionManagerOptions().getStartupScanDelayInSeconds();
                     }
                     this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(false), seconds, TimeUnit.SECONDS);
                     TRACE_LOGGER.info(this.hostContext.withHost("Scanning took " + (System.currentTimeMillis() - start))); // FOO

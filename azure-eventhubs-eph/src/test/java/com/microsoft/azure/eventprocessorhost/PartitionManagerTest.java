@@ -10,6 +10,8 @@ import com.microsoft.azure.eventhubs.EventHubClient;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.junit.Test;
 import static org.junit.Assert.assertTrue;
@@ -35,7 +37,7 @@ public class PartitionManagerTest {
     public void partitionBalancingExactMultipleTest() throws Exception {
         TestUtilities.log("partitionBalancingExactMultipleTest");
 
-        setup(2, 4); // two hosts, four partitions
+        setup(2, 4, 0, 8); // two hosts, four partitions
         this.countOfChecks = 0;
         this.desiredDistributionDetected = 0;
         this.keepGoing = true;
@@ -69,7 +71,7 @@ public class PartitionManagerTest {
     public void partitionBalancingUnevenTest() throws Exception {
         TestUtilities.log("partitionBalancingUnevenTest");
 
-        setup(5, 16); // five hosts, sixteen partitions
+        setup(10, 201, 250, 8); // five hosts, sixteen partitions
         this.countOfChecks = 0;
         this.desiredDistributionDetected = 0;
         this.keepGoing = true;
@@ -103,7 +105,7 @@ public class PartitionManagerTest {
     public void partitionRebalancingTest() throws Exception {
         TestUtilities.log("partitionRebalancingTest");
 
-        setup(3, 8); // three hosts, eight partitions
+        setup(3, 8, 0, 8); // three hosts, eight partitions
 
         //
         // Start two hosts of three, expect 4/4/0.
@@ -180,7 +182,7 @@ public class PartitionManagerTest {
     public void partitionBalancingTooManyHostsTest() throws Exception {
         TestUtilities.log("partitionBalancingTooManyHostsTest");
 
-        setup(10, 4); // ten hosts, four partitions
+        setup(10, 4, 0, 8); // ten hosts, four partitions
         this.countOfChecks = 0;
         this.desiredDistributionDetected = 0;
         this.keepGoing = true;
@@ -284,7 +286,7 @@ public class PartitionManagerTest {
         }
     }
 
-    private void setup(int hostCount, int partitionCount) {
+    private void setup(int hostCount, int partitionCount, long latency, int threads) {
         this.leaseManagers = new ILeaseManager[hostCount];
         this.checkpointManagers = new ICheckpointManager[hostCount];
         this.hosts = new EventProcessorHost[hostCount];
@@ -298,10 +300,15 @@ public class PartitionManagerTest {
 
             // In order to test hosts competing for partitions, each host must have a unique name, but they must share the
             // target eventhub/consumer group.
+            ScheduledExecutorService threadpool = null;
+            if (threads > 0) {
+            	threadpool = Executors.newScheduledThreadPool(threads);
+            }
             this.hosts[i] = new EventProcessorHost("dummyHost" + String.valueOf(i), "NOTREAL", EventHubClient.DEFAULT_CONSUMER_GROUP_NAME,
-                    TestUtilities.syntacticallyCorrectDummyConnectionString, cm, lm);
+                    TestUtilities.syntacticallyCorrectDummyConnectionString, cm, lm, threadpool, null);
 
             lm.initialize(this.hosts[i].getHostContext());
+            lm.setLatency(latency);
             this.leaseManagers[i] = lm;
             cm.initialize(this.hosts[i].getHostContext());
             this.checkpointManagers[i] = cm;
@@ -314,6 +321,8 @@ public class PartitionManagerTest {
             // have to worry about storage latency, all lease operations are guaranteed to be fast.
             PartitionManagerOptions opts = new PartitionManagerOptions();
             opts.setLeaseDurationInSeconds(15);
+            //opts.setStartupScanDelayInSeconds(17);
+            //opts.setSlowScanIntervalInSeconds(15);
             this.hosts[i].setPartitionManagerOptions(opts);
         }
     }

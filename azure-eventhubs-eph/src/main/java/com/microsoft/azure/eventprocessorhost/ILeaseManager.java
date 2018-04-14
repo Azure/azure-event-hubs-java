@@ -69,15 +69,19 @@ public interface ILeaseManager {
      * @return CompletableFuture {@literal ->} list of Leases, completes exceptionally on error.
      */
     public CompletableFuture<List<Lease>> getAllLeases();
+    
+    public CompletableFuture<List<LeaseStateInfo>> getAllLeasesStateInfo();
+    
+    public CompletableFuture<Lease> getLease(String partitionId);
 
     /**
-     * Create in the store the lease for the given partition, if it does not exist. Do nothing if it exists
-     * in the store already.
+     * Create in the store a lease for each of the given partitions, if it does not exist. Do nothing for any
+     * lease which exists in the store already.
      *
-     * @param partitionId id of partition to create lease info for
-     * @return CompletableFuture {@literal ->} the existing or newly-created lease info for the partition, completes exceptionally on error
+     * @param partitionIds ids of partitions to create lease info for
+     * @return CompletableFuture {@literal ->} null on success, completes exceptionally on error
      */
-    public CompletableFuture<Lease> createLeaseIfNotExists(String partitionId);
+    public CompletableFuture<Void> createAllLeasesIfNotExists(List<String> partitionIds);
 
     /**
      * Delete the lease info for a partition from the store. If there is no stored lease for the given partition,
