@@ -179,6 +179,11 @@ public class InMemoryLeaseManager implements ILeaseManager {
     }
 
     @Override
+    public CompletableFuture<Lease> createLeaseIfNotExists(String partitionId) {
+        return null;
+    }
+
+    @Override
     public CompletableFuture<Void> deleteLease(Lease lease) {
         TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(lease, "deleteLease()"));
         InMemoryLeaseStore.singleton.removeLease((InMemoryLease) lease);

@@ -185,6 +185,11 @@ public class TestBase {
         }
 
         @Override
+        public CompletableFuture<Checkpoint> createCheckpointIfNotExists(String partitionId) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
         public CompletableFuture<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint) {
             return CompletableFuture.completedFuture(null);
         }
@@ -221,24 +226,29 @@ public class TestBase {
             return CompletableFuture.completedFuture(null);
         }
 
-		@Override
-		public CompletableFuture<Lease> getLease(String partitionId) {
+        @Override
+        public CompletableFuture<Lease> getLease(String partitionId) {
             return CompletableFuture.completedFuture(null);
-		}
+        }
 
         @Override
         public CompletableFuture<List<Lease>> getAllLeases() {
             return CompletableFuture.completedFuture(null);
         }
 
-		@Override
-		public CompletableFuture<List<LeaseStateInfo>> getAllLeasesStateInfo() {
+        @Override
+        public CompletableFuture<List<LeaseStateInfo>> getAllLeasesStateInfo() {
             return CompletableFuture.completedFuture(null);
-		}
+        }
 
         @Override
         public CompletableFuture<Void> createAllLeasesIfNotExists(List<String> partitionIds) {
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Lease> createLeaseIfNotExists(String partitionId) {
+            return null;
         }
 
         @Override

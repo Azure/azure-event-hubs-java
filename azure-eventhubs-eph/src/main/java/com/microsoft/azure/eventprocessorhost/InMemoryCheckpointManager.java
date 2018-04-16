@@ -108,6 +108,34 @@ public class InMemoryCheckpointManager implements ICheckpointManager {
     }
 
     @Override
+    public CompletableFuture<Checkpoint> createCheckpointIfNotExists(String partitionId) {
+        Checkpoint checkpointInStore = InMemoryCheckpointStore.singleton.getCheckpoint(partitionId);
+        Checkpoint returnCheckpoint = null;
+        if (checkpointInStore != null) {
+            TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(partitionId,
+                    "createCheckpointIfNotExists() found existing checkpoint, OK"));
+            if (checkpointInStore.getSequenceNumber() != -1) {
+                returnCheckpoint = new Checkpoint(checkpointInStore);
+            } else {
+                // The checkpoint is uninitialized so return null to match the behavior of AzureStorageCheckpointLeaseMananger.
+                returnCheckpoint = null;
+            }
+        } else {
+            TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(partitionId,
+                    "createCheckpointIfNotExists() creating new checkpoint"));
+            Checkpoint newStoreCheckpoint = new Checkpoint(partitionId);
+            newStoreCheckpoint.setOffset(null);
+            newStoreCheckpoint.setSequenceNumber(-1);
+            InMemoryCheckpointStore.singleton.setOrReplaceCheckpoint(newStoreCheckpoint);
+            // This API actually creates the holder, not the checkpoint itself. In this implementation, we do create a Checkpoint object
+            // and put it in the store, but the values are set to indicate that it is not initialized. Meanwhile, return null to match the
+            // behavior of AzureStorageCheckpointLeaseMananger.
+            returnCheckpoint = null;
+        }
+        return CompletableFuture.completedFuture(returnCheckpoint);
+    }
+
+    @Override
     public CompletableFuture<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint) {
         TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(checkpoint.getPartitionId(),
                 "updateCheckpoint() " + checkpoint.getOffset() + "//" + checkpoint.getSequenceNumber()));

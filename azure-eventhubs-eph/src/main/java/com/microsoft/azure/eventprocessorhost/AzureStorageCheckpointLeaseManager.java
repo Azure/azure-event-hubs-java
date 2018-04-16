@@ -23,6 +23,8 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseManager {
@@ -69,6 +71,23 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     // hence we don't want it in the constructor.
     void initialize(HostContext hostContext) throws InvalidKeyException, URISyntaxException, StorageException {
         this.hostContext = hostContext;
+
+        if (this.storageContainerName == null) {
+            this.storageContainerName = this.hostContext.getEventHubPath();
+        }
+
+        // Validate that the event hub name is also a legal storage container name.
+        // Regex pattern is copied from .NET version. The syntax for Java regexes seems to be the same.
+        // Error message is also copied from .NET version.
+        Pattern p = Pattern.compile("^(?-i)(?:[a-z0-9]|(?<=[0-9a-z])-(?=[0-9a-z])){3,63}$");
+        Matcher m = p.matcher(this.storageContainerName);
+        if (!m.find()) {
+            throw new IllegalArgumentException("EventHub names must conform to the following rules to be able to use it with EventProcessorHost: " +
+                    "Must start with a letter or number, and can contain only letters, numbers, and the dash (-) character. " +
+                    "Every dash (-) character must be immediately preceded and followed by a letter or number; consecutive dashes are not permitted in container names. " +
+                    "All letters in a container name must be lowercase. " +
+                    "Must be from 3 to 63 characters long.");
+        }
 
         this.storageClient = CloudStorageAccount.parse(this.storageConnectionString).createCloudBlobClient();
 
@@ -146,6 +165,13 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     	// Because we control the caller, we know that this method will only be called after createAllLeasesIfNotExists.
     	// In this implementation checkpoints are in the same blobs as leases, so the blobs will already exist if execution reaches here.
     	return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Checkpoint> createCheckpointIfNotExists(String partitionId) {
+        // Because we control the caller, we know that this method will only be called after createAllLeasesIfNotExists.
+        // In this implementation checkpoints are in the same blobs as leases, so the blobs will already exist if execution reaches here.
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -409,6 +435,11 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     			}
     			return createAllFuture;
     		}, this.hostContext.getExecutor());
+    }
+
+    @Override
+    public CompletableFuture<Lease> createLeaseIfNotExists(String partitionId) {
+        return null;
     }
 
     private AzureBlobLease createLeaseIfNotExistsInternal(String partitionId, BlobRequestOptions options) throws URISyntaxException, IOException, StorageException {

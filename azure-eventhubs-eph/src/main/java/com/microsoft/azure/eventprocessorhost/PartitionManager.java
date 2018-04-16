@@ -5,7 +5,10 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
-import com.microsoft.azure.eventhubs.*;
+import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.EventHubException;
+import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
+import com.microsoft.azure.eventhubs.IllegalEntityException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,17 +16,16 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.*;
-import java.util.concurrent.TimeoutException;
 
 class PartitionManager {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionManager.class);
     // Protected instead of private for testability
     protected final HostContext hostContext;
     final private Object scanFutureSynchronizer = new Object();
+    private final int retryMax = 5;
     protected Pump pump = null;
     protected volatile String partitionIds[] = null;
     private ScheduledFuture<?> scanFuture = null;
-    private final int retryMax = 5;
 
     PartitionManager(HostContext hostContext) {
         this.hostContext = hostContext;
@@ -149,10 +151,10 @@ class PartitionManager {
                 {
                     // Schedule the first scan.
                     synchronized (this.scanFutureSynchronizer) {
-                    	// Wait a random amount of time before doing the first scan.
-                    	// The random wait is to minimize contention while establishing beachhead leases.
-                    	Random pickWait = new Random();
-                    	int seconds = pickWait.nextInt(this.hostContext.getPartitionManagerOptions().getFastScanIntervalInSeconds());
+                        // Wait a random amount of time before doing the first scan.
+                        // The random wait is to minimize contention while establishing beachhead leases.
+                        Random pickWait = new Random();
+                        int seconds = 0;
                         TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds)); // FOO
                         this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(true), seconds, TimeUnit.SECONDS);
                     }
@@ -175,16 +177,16 @@ class PartitionManager {
         initializeStoresFuture = buildRetries(initializeStoresFuture, () -> checkpointManager.createCheckpointStoreIfNotExists(),
                 "Failure creating checkpoint store for this Event Hub, retrying", "Out of retries creating checkpoint store for this Event Hub",
                 EventProcessorHostActionStrings.CREATING_CHECKPOINT_STORE, this.retryMax);
-        
+
         // Stages 2R+1 to 3R: create leases if they don't exist
         initializeStoresFuture = buildRetries(initializeStoresFuture, () -> leaseManager.createAllLeasesIfNotExists(Arrays.asList(this.partitionIds)),
                 "Failure creating leases, retrying", "Out of retries creating leases", EventProcessorHostActionStrings.CREATING_LEASES, this.retryMax);
-        
+
         // Stages 3R+1 to 4R: create checkpoint holders if they don't exist
         initializeStoresFuture = buildRetries(initializeStoresFuture, () -> checkpointManager.createAllCheckpointsIfNotExists(Arrays.asList(this.partitionIds)),
-                "Failure creating checkpoint holders, retrying", "Out of retries creating checkpoint holders", 
+                "Failure creating checkpoint holders, retrying", "Out of retries creating checkpoint holders",
                 EventProcessorHostActionStrings.CREATING_CHECKPOINTS, this.retryMax);
-        
+
         initializeStoresFuture.whenCompleteAsync((r, e) ->
         {
             // If an exception has propagated this far, it should be a FinalException, which is guaranteed to contain a CompletionException.
@@ -280,24 +282,24 @@ class PartitionManager {
         // with 0 delay and can occur before this.scanFuture is set to the result of the schedule() call.
 
         (new PartitionScanner(this.hostContext, (lease) -> this.pump.addPump(lease))).scan(isFirst)
-        .whenCompleteAsync((didSteal, e) ->
-        {
-            onPartitionCheckCompleteTestHook();
+                .whenCompleteAsync((didSteal, e) ->
+                {
+                    onPartitionCheckCompleteTestHook();
 
-            // Schedule the next scan unless the future has been cancelled.
-            synchronized (this.scanFutureSynchronizer) {
-                if (!this.scanFuture.isCancelled()) {
-                    int seconds = didSteal ? this.hostContext.getPartitionManagerOptions().getFastScanIntervalInSeconds() :
-                    	this.hostContext.getPartitionManagerOptions().getSlowScanIntervalInSeconds();
-                    if (isFirst) {
-                    	seconds = this.hostContext.getPartitionManagerOptions().getStartupScanDelayInSeconds();
+                    // Schedule the next scan unless the future has been cancelled.
+                    synchronized (this.scanFutureSynchronizer) {
+                        if (!this.scanFuture.isCancelled()) {
+                            int seconds = didSteal ? this.hostContext.getPartitionManagerOptions().getFastScanIntervalInSeconds() :
+                                    this.hostContext.getPartitionManagerOptions().getSlowScanIntervalInSeconds();
+                            if (isFirst) {
+                                seconds = this.hostContext.getPartitionManagerOptions().getStartupScanDelayInSeconds();
+                            }
+                            this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(false), seconds, TimeUnit.SECONDS);
+                            TRACE_LOGGER.info(this.hostContext.withHost("Scanning took " + (System.currentTimeMillis() - start))); // FOO
+                            TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds)); // FOO
+                        }
                     }
-                    this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(false), seconds, TimeUnit.SECONDS);
-                    TRACE_LOGGER.info(this.hostContext.withHost("Scanning took " + (System.currentTimeMillis() - start))); // FOO
-                    TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds)); // FOO
-                }
-            }
-        }, this.hostContext.getExecutor());
+                }, this.hostContext.getExecutor());
 
         return null;
     }
