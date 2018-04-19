@@ -240,7 +240,7 @@ class PartitionScanner {
 
             // Grab stealCount partitions owned by bigVictim and return the infos.
             for (LeaseStateInfo candidate : this.allLeaseStates) {
-                if (candidate.getOwner().compareTo(bigVictim) == 0) {
+                if (candidate.getOwner() != null && candidate.getOwner().compareTo(bigVictim) == 0) {
                     stealInfos.add(candidate);
                     if (stealInfos.size() >= stealCount) {
                         break;
