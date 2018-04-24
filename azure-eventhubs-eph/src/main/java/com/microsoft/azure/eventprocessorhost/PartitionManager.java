@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Random;
 import java.util.concurrent.*;
 
 class PartitionManager {
@@ -149,14 +148,10 @@ class PartitionManager {
                 // Stage 3: schedule scan, which will find partitions and start pumps, if previous stages succeeded
                 .thenRunAsync(() ->
                 {
-                    // Schedule the first scan.
+                    // Schedule the first scan immediately.
                     synchronized (this.scanFutureSynchronizer) {
-                        // Wait a random amount of time before doing the first scan.
-                        // The random wait is to minimize contention while establishing beachhead leases.
-                        Random pickWait = new Random();
-                        int seconds = 0;
-                        TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds)); // FOO
-                        this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(true), seconds, TimeUnit.SECONDS);
+                        TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner first pass")); // FOO
+                        this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(true), 0, TimeUnit.SECONDS);
                     }
 
                     onInitializeCompleteTestHook();

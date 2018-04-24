@@ -223,7 +223,7 @@ class PartitionScanner {
         // Extract hosts which own more than the desired count
         ArrayList<String> bigOwners = new ArrayList<String>();
         for (Map.Entry<String, Integer> pair : hostOwns.entrySet()) {
-            if (pair.getValue() > (this.desiredCount + 1)) {
+            if (pair.getValue() > this.desiredCount) {
                 bigOwners.add(pair.getKey());
                 TRACE_LOGGER.info(this.hostContext.withHost("Big owner " + pair.getKey() + " has " + pair.getValue()));
             }
