@@ -41,7 +41,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private CloudBlobClient storageClient;
     private CloudBlobContainer eventHubContainer;
     private CloudBlobDirectory consumerGroupDirectory;
-    private ArrayList<String> partitionIds = null;
     private Gson gson;
 
     private Hashtable<String, Checkpoint> latestCheckpoint = new Hashtable<String, Checkpoint>();
@@ -168,13 +167,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     }
 
     @Override
-    public CompletableFuture<Checkpoint> createCheckpointIfNotExists(String partitionId) {
-        // Because we control the caller, we know that this method will only be called after createAllLeasesIfNotExists.
-        // In this implementation checkpoints are in the same blobs as leases, so the blobs will already exist if execution reaches here.
-        return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
     public CompletableFuture<Void> updateCheckpoint(Lease lease, Checkpoint checkpoint) {
         AzureBlobLease updatedLease = new AzureBlobLease((AzureBlobLease) lease);
         TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(checkpoint.getPartitionId(),
@@ -195,11 +187,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     public CompletableFuture<Void> deleteCheckpoint(String partitionId) {
         // Not currently used by EventProcessorHost.
         return CompletableFuture.completedFuture(null);
-    }
-
-    @Override
-    public int getLeaseRenewIntervalInMilliseconds() {
-        return this.hostContext.getPartitionManagerOptions().getLeaseRenewIntervalInSeconds() * 1000;
     }
 
 
@@ -324,43 +311,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 
         return retval;
     }
-
-    @Override
-    public CompletableFuture<List<Lease>> getAllLeases() {
-        CompletableFuture<ArrayList<CompletableFuture<Lease>>> intermediateFuture = cachePartitionIds()
-                .thenApplyAsync((empty) ->
-                {
-                    ArrayList<CompletableFuture<Lease>> leaseFutures = new ArrayList<CompletableFuture<Lease>>();
-                    for (String id : this.partitionIds) {
-                        leaseFutures.add(getLease(id));
-                    }
-                    return leaseFutures;
-                }, this.hostContext.getExecutor());
-
-        return intermediateFuture.thenComposeAsync((leaseFutures) ->
-        {
-            CompletableFuture<?>[] blah = new CompletableFuture<?>[leaseFutures.size()];
-            return CompletableFuture.allOf(leaseFutures.toArray(blah));
-        }, this.hostContext.getExecutor())
-                .thenCombineAsync(intermediateFuture, (empty, leaseFutures) ->
-                {
-                    ArrayList<Lease> leaseList = new ArrayList<Lease>();
-                    leaseFutures.forEach((lf) ->
-                    {
-                        try {
-                            leaseList.add(lf.get());
-                        } catch (Exception e) {
-                            throw new CompletionException(e);
-                        }
-                    });
-                    return leaseList;
-                }, this.hostContext.getExecutor());
-    }
-
-    private CompletableFuture<Void> cachePartitionIds() {
-        CompletableFuture<Void> result = CompletableFuture.completedFuture(null);
-        return result;
-    }
     
     @Override
     public CompletableFuture<List<LeaseStateInfo>> getAllLeasesStateInfo() {
@@ -389,8 +339,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 
     @Override
     public CompletableFuture<Void> createAllLeasesIfNotExists(List<String> partitionIds) {
-    	this.partitionIds = new ArrayList<String>(partitionIds);
-    	
     	return CompletableFuture.supplyAsync(() -> {
 		    	// Optimization: list the blobs currently existing in the directory. If there are the
 		    	// expected number of blobs, then we can skip doing the creates.
@@ -435,11 +383,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     			}
     			return createAllFuture;
     		}, this.hostContext.getExecutor());
-    }
-
-    @Override
-    public CompletableFuture<Lease> createLeaseIfNotExists(String partitionId) {
-        return null;
     }
 
     private AzureBlobLease createLeaseIfNotExistsInternal(String partitionId, BlobRequestOptions options) throws URISyntaxException, IOException, StorageException {
