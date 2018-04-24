@@ -72,22 +72,6 @@ public interface ICheckpointManager {
     public CompletableFuture<Void> createAllCheckpointsIfNotExists(List<String> partitionIds);
 
     /***
-     * If a checkpoint HOLDER for the given partition exists, return the checkpoint if there is one,
-     * or null if it has not been initialized. If the HOLDER doesn't exist, create it and return null.
-     *
-     * The semantics of this are complicated because it is possible to use the same store for both
-     * leases and checkpoints (the Azure Storage implementation does so) and it is required to
-     * have a lease for every partition but it is not required to have a checkpoint for a partition.
-     * It is a valid scenario to never use checkpoints at all, so it is important for the store to
-     * distinguish between creating the structure(s) that will hold a checkpoint and actually creating
-     * a checkpoint (storing an offset/sequence number pair in the structure).
-     *
-     * @param partitionId  Id of partition to create the checkpoint HOLDER for.
-     * @return CompletableFuture {@literal ->} the checkpoint for the given partition, if one exists, or null. Completes exceptionally on error.
-     */
-    public CompletableFuture<Checkpoint> createCheckpointIfNotExists(String partitionId);
-
-    /***
      * Update the checkpoint in the store with the offset/sequenceNumber in the provided checkpoint.
      *
      * The lease argument is necessary to make the Azure Storage implementation work correctly: the
