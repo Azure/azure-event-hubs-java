@@ -150,7 +150,7 @@ class PartitionManager {
                 {
                     // Schedule the first scan immediately.
                     synchronized (this.scanFutureSynchronizer) {
-                        TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner first pass")); // FOO
+                        TRACE_LOGGER.debug(this.hostContext.withHost("Scheduling lease scanner first pass"));
                         this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(true), 0, TimeUnit.SECONDS);
                     }
 
@@ -270,8 +270,8 @@ class PartitionManager {
     // Return Void so it can be called from a lambda.
     // throwOnFailure is true
     private Void scan(boolean isFirst) {
-        TRACE_LOGGER.info(this.hostContext.withHost("Starting lease scan")); // FOO
-        long start = System.currentTimeMillis(); // FOO
+        TRACE_LOGGER.debug(this.hostContext.withHost("Starting lease scan"));
+        long start = System.currentTimeMillis();
 
         // DO NOT check whether this.scanFuture is cancelled. The first execution of this method is scheduled
         // with 0 delay and can occur before this.scanFuture is set to the result of the schedule() call.
@@ -290,8 +290,8 @@ class PartitionManager {
                                 seconds = this.hostContext.getPartitionManagerOptions().getStartupScanDelayInSeconds();
                             }
                             this.scanFuture = this.hostContext.getExecutor().schedule(() -> scan(false), seconds, TimeUnit.SECONDS);
-                            TRACE_LOGGER.info(this.hostContext.withHost("Scanning took " + (System.currentTimeMillis() - start))); // FOO
-                            TRACE_LOGGER.info(this.hostContext.withHost("Scheduling lease scanner in " + seconds)); // FOO
+                            TRACE_LOGGER.debug(this.hostContext.withHost("Scanning took " + (System.currentTimeMillis() - start)));
+                            TRACE_LOGGER.debug(this.hostContext.withHost("Scheduling lease scanner in " + seconds));
                         }
                     }
                 }, this.hostContext.getExecutor());

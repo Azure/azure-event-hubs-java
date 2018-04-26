@@ -19,12 +19,14 @@ class PartitionScanner {
     private static final Random randomizer = new Random();
     private final HostContext hostContext;
     private final Consumer<Lease> addPump;
-    final private ConcurrentHashMap<String, LeaseStateInfo> leasesOwnedByOthers; // updated by acquireExpiredInChunksParallel
+    
     // Populated by getAllLeaseStates()
     private List<LeaseStateInfo> allLeaseStates = null;
+    
     // Values populated by sortLeasesAndCalculateDesiredCount
     private int desiredCount;
-    private int unownedCount;
+    private int unownedCount; // updated by acquireExpiredInChunksParallel
+    final private ConcurrentHashMap<String, LeaseStateInfo> leasesOwnedByOthers; // updated by acquireExpiredInChunksParallel
 
     PartitionScanner(HostContext hostContext, Consumer<Lease> addPump) {
         this.hostContext = hostContext;
@@ -44,7 +46,7 @@ class PartitionScanner {
                 .thenApplyAsync((remainingNeeded) -> {
                     ArrayList<LeaseStateInfo> stealThese = new ArrayList<LeaseStateInfo>();
                     if (remainingNeeded > 0) {
-                        TRACE_LOGGER.info(this.hostContext.withHost("Looking to steal: " + remainingNeeded));
+                        TRACE_LOGGER.debug(this.hostContext.withHost("Looking to steal: " + remainingNeeded));
                         stealThese = findLeasesToSteal(remainingNeeded);
                     }
                     return stealThese;
@@ -70,7 +72,7 @@ class PartitionScanner {
     }
 
     private int sortLeasesAndCalculateDesiredCount(boolean isFirst) {
-        TRACE_LOGGER.info(this.hostContext.withHost("Accounting input: allLeaseStates size is " + this.allLeaseStates.size()));
+        TRACE_LOGGER.debug(this.hostContext.withHost("Accounting input: allLeaseStates size is " + this.allLeaseStates.size()));
 
         HashSet<String> uniqueOwners = new HashSet<String>();
         uniqueOwners.add(this.hostContext.getHostName());
@@ -115,7 +117,7 @@ class PartitionScanner {
             startingPoint = countPerHost * hostOrdinal;
         }
         // Rotate allLeaseStates
-        TRACE_LOGGER.info(this.hostContext.withHost("Host ordinal: " + hostOrdinal + "  Rotating leases to start at " + startingPoint));
+        TRACE_LOGGER.debug(this.hostContext.withHost("Host ordinal: " + hostOrdinal + "  Rotating leases to start at " + startingPoint));
         if (startingPoint != 0) {
             ArrayList<LeaseStateInfo> rotatedList = new ArrayList<LeaseStateInfo>(this.allLeaseStates.size());
             for (int j = 0; j < this.allLeaseStates.size(); j++) {
@@ -124,8 +126,8 @@ class PartitionScanner {
             this.allLeaseStates = rotatedList;
         }
 
-        TRACE_LOGGER.info(this.hostContext.withHost("Host count is " + hostCount + "  Desired owned count is " + this.desiredCount));
-        TRACE_LOGGER.info(this.hostContext.withHost("ourLeasesCount " + ourLeasesCount + "  leasesOwnedByOthers " + this.leasesOwnedByOthers.size()
+        TRACE_LOGGER.debug(this.hostContext.withHost("Host count is " + hostCount + "  Desired owned count is " + this.desiredCount));
+        TRACE_LOGGER.debug(this.hostContext.withHost("ourLeasesCount " + ourLeasesCount + "  leasesOwnedByOthers " + this.leasesOwnedByOthers.size()
                 + " unowned " + unownedCount));
 
         return ourLeasesCount;
@@ -133,7 +135,7 @@ class PartitionScanner {
 
     private CompletableFuture<List<LeaseStateInfo>> findExpiredLeases(int startAt, int endAt) {
         final ArrayList<LeaseStateInfo> expiredLeases = new ArrayList<LeaseStateInfo>();
-        TRACE_LOGGER.info(this.hostContext.withHost("Finding expired leases from '" + this.allLeaseStates.get(startAt).getPartitionId() + "'[" + startAt + "] up to '" +
+        TRACE_LOGGER.debug(this.hostContext.withHost("Finding expired leases from '" + this.allLeaseStates.get(startAt).getPartitionId() + "'[" + startAt + "] up to '" +
                 ((endAt < this.allLeaseStates.size()) ? this.allLeaseStates.get(endAt).getPartitionId() : "end") + "'[" + endAt + "]"));
 
         for (LeaseStateInfo info : this.allLeaseStates.subList(startAt, endAt)) {
@@ -142,16 +144,16 @@ class PartitionScanner {
             }
         }
 
-        TRACE_LOGGER.info(this.hostContext.withHost("Found in range: " + expiredLeases.size()));
+        TRACE_LOGGER.debug(this.hostContext.withHost("Found in range: " + expiredLeases.size()));
         return CompletableFuture.completedFuture(expiredLeases);
     }
 
     private CompletableFuture<Integer> acquireExpiredInChunksParallel(int startAt, int needed) {
         CompletableFuture<Integer> resultFuture = CompletableFuture.completedFuture(needed);
         if (startAt < this.allLeaseStates.size()) {
-            TRACE_LOGGER.info(this.hostContext.withHost("Examining chunk at '" + this.allLeaseStates.get(startAt).getPartitionId() + "'[" + startAt + "] need " + needed));
+            TRACE_LOGGER.debug(this.hostContext.withHost("Examining chunk at '" + this.allLeaseStates.get(startAt).getPartitionId() + "'[" + startAt + "] need " + needed));
         } else {
-            TRACE_LOGGER.info(this.hostContext.withHost("Examining chunk skipping, startAt is off end: " + startAt));
+            TRACE_LOGGER.debug(this.hostContext.withHost("Examining chunk skipping, startAt is off end: " + startAt));
         }
 
         if ((needed > 0) && (this.unownedCount > 0) && (startAt < this.allLeaseStates.size())) {
@@ -173,7 +175,7 @@ class PartitionScanner {
                                         .thenAcceptAsync((acquired) -> {
                                             if (acquired) {
                                                 runningNeeded.decrementAndGet();
-                                                TRACE_LOGGER.info(this.hostContext.withHostAndPartition(workingInfo.getPartitionId(), "Acquired unowned/expired"));
+                                                TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(workingInfo.getPartitionId(), "Acquired unowned/expired"));
                                                 if (this.leasesOwnedByOthers.containsKey(workingInfo.getPartitionId())) {
                                                     this.leasesOwnedByOthers.remove(workingInfo.getPartitionId());
                                                     this.unownedCount--;
@@ -202,7 +204,7 @@ class PartitionScanner {
                     }, this.hostContext.getExecutor())
                     .thenComposeAsync((unused) -> acquireExpiredInChunksParallel(endAt, runningNeeded.get()), this.hostContext.getExecutor());
         } else {
-            TRACE_LOGGER.info(this.hostContext.withHost("Short circuit: needed is 0, unowned is 0, or off end"));
+            TRACE_LOGGER.debug(this.hostContext.withHost("Short circuit: needed is 0, unowned is 0, or off end"));
         }
 
         return resultFuture;
@@ -225,7 +227,7 @@ class PartitionScanner {
         for (Map.Entry<String, Integer> pair : hostOwns.entrySet()) {
             if (pair.getValue() > this.desiredCount) {
                 bigOwners.add(pair.getKey());
-                TRACE_LOGGER.info(this.hostContext.withHost("Big owner " + pair.getKey() + " has " + pair.getValue()));
+                TRACE_LOGGER.debug(this.hostContext.withHost("Big owner " + pair.getKey() + " has " + pair.getValue()));
             }
         }
 
@@ -236,7 +238,7 @@ class PartitionScanner {
             String bigVictim = bigOwners.get(PartitionScanner.randomizer.nextInt(bigOwners.size()));
             int victimExtra = hostOwns.get(bigVictim) - this.desiredCount - 1;
             int stealCount = Math.min(victimExtra, stealAsk);
-            TRACE_LOGGER.info(this.hostContext.withHost("Stealing " + stealCount + " from " + bigVictim));
+            TRACE_LOGGER.debug(this.hostContext.withHost("Stealing " + stealCount + " from " + bigVictim));
 
             // Grab stealCount partitions owned by bigVictim and return the infos.
             for (LeaseStateInfo candidate : this.allLeaseStates) {
@@ -248,7 +250,7 @@ class PartitionScanner {
                 }
             }
         } else {
-            TRACE_LOGGER.info(this.hostContext.withHost("No big owners found, skipping steal"));
+            TRACE_LOGGER.debug(this.hostContext.withHost("No big owners found, skipping steal"));
         }
 
         return stealInfos;
@@ -268,7 +270,7 @@ class PartitionScanner {
                         }, this.hostContext.getExecutor())
                         .thenAcceptAsync((acquired) -> {
                             if (acquired) {
-                                TRACE_LOGGER.info(this.hostContext.withHostAndPartition(workingInfo.getPartitionId(), "Stole lease"));
+                                TRACE_LOGGER.debug(this.hostContext.withHostAndPartition(workingInfo.getPartitionId(), "Stole lease"));
                                 this.addPump.accept(workingInfo.getLease());
                             }
                         }, this.hostContext.getExecutor());
