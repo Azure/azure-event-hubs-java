@@ -33,7 +33,7 @@ public class PartitionManagerTest {
     private int maxChecks;
     private boolean shuttingDown;
 
-    //@Test
+    @Test
     public void partitionBalancingExactMultipleTest() throws Exception {
         TestUtilities.log("partitionBalancingExactMultipleTest");
 
@@ -66,7 +66,7 @@ public class PartitionManagerTest {
         TestUtilities.log("DONE");
     }
 
-    //@Test
+    @Test
     public void partitionBalancingUnevenTest() throws Exception {
         TestUtilities.log("partitionBalancingUnevenTest");
 
@@ -210,7 +210,7 @@ public class PartitionManagerTest {
         TestUtilities.log("DONE");
     }
 
-    //@Test
+    @Test
     public void partitionBalancingTooManyHostsTest() throws Exception {
         TestUtilities.log("partitionBalancingTooManyHostsTest");
 
