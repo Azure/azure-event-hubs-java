@@ -441,7 +441,7 @@ public class PartitionManagerTest {
 
         @Override
         Pump createPumpTestHook() {
-            return new DummyPump(this.hostContext);
+            return new DummyPump(this.hostContext, this);
         }
 
         @Override
