@@ -310,10 +310,13 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
     }
 
     private CompletableFuture<Map<String, Object>> managementWithRetry(Map<String, Object> request) {
-        Instant endTime = Instant.now().plus(this.underlyingFactory.getOperationTimeout());
-        CompletableFuture<Map<String, Object>> rawdataFuture = new CompletableFuture<Map<String, Object>>();
+        final CompletableFuture<Map<String, Object>> rawdataFuture = new CompletableFuture<Map<String, Object>>();
 
-        ManagementRetry retrier = new ManagementRetry(rawdataFuture, endTime, this.underlyingFactory, request);
+        final ManagementRetry retrier = new ManagementRetry(
+                rawdataFuture,
+                new TimeoutTracker(this.underlyingFactory.getOperationTimeout(), true),
+                this.underlyingFactory,
+                request);
 
         final CompletableFuture<?> scheduledTask = this.timer.schedule(retrier, Duration.ZERO);
         if (scheduledTask.isCompletedExceptionally()) {
@@ -325,29 +328,34 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
 
     private class ManagementRetry implements Runnable {
         private final CompletableFuture<Map<String, Object>> finalFuture;
-        private final Instant endTime;
+        private final TimeoutTracker timeoutTracker;
         private final MessagingFactory mf;
         private final Map<String, Object> request;
 
-        ManagementRetry(CompletableFuture<Map<String, Object>> future, Instant endTime, MessagingFactory mf,
-                        Map<String, Object> request) {
+        ManagementRetry(final CompletableFuture<Map<String, Object>> future,
+                        final TimeoutTracker timeoutTracker,
+                        final MessagingFactory mf,
+                        final Map<String, Object> request) {
             this.finalFuture = future;
-            this.endTime = endTime;
+            this.timeoutTracker = timeoutTracker;
             this.mf = mf;
             this.request = request;
         }
 
         @Override
         public void run() {
-            CompletableFuture<Map<String, Object>> intermediateFuture = this.mf.getManagementChannel().request(this.mf.getReactorScheduler(), request);
-            intermediateFuture.whenComplete((Map<String, Object> result, Throwable error) -> {
+            final long timeLeft = this.timeoutTracker.remaining().toMillis();
+            final CompletableFuture<Map<String, Object>> intermediateFuture = this.mf.getManagementChannel()
+                    .request(this.mf.getReactorScheduler(),
+                            this.request,
+                            timeLeft > 0 ? timeLeft : 0);
+            intermediateFuture.whenComplete((final Map<String, Object> result, final Throwable error) -> {
                 if ((result != null) && (error == null)) {
                     // Success!
                     ManagementRetry.this.finalFuture.complete(result);
                 } else {
-                    Duration remainingTime = Duration.between(Instant.now(), ManagementRetry.this.endTime);
-                    Exception lastException;
-                    Throwable completeWith = error;
+                    final Exception lastException;
+                    final Throwable completeWith;
                     if (error == null) {
                         // Timeout, so fake up an exception to keep getNextRetryInternal happy.
                         // It has to be a EventHubException that is set to retryable or getNextRetryInterval will halt the retries.
@@ -364,8 +372,11 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
                         completeWith = lastException;
                     } else {
                         lastException = new Exception("got a throwable: " + error.toString());
+                        completeWith = error;
                     }
-                    Duration waitTime = ManagementRetry.this.mf.getRetryPolicy().getNextRetryInterval(ManagementRetry.this.mf.getClientId(), lastException, remainingTime);
+
+                    final Duration waitTime = ManagementRetry.this.mf.getRetryPolicy().getNextRetryInterval(
+                            ManagementRetry.this.mf.getClientId(), lastException, this.timeoutTracker.remaining());
                     if (waitTime == null) {
                         // Do not retry again, give up and report error.
                         if (completeWith == null) {
@@ -377,7 +388,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
                         // The only thing needed here is to schedule a new attempt. Even if the RequestResponseChannel has croaked,
                         // ManagementChannel uses FaultTolerantObject, so the underlying RequestResponseChannel will be recreated
                         // the next time it is needed.
-                        ManagementRetry retrier = new ManagementRetry(ManagementRetry.this.finalFuture, ManagementRetry.this.endTime,
+                        final ManagementRetry retrier = new ManagementRetry(ManagementRetry.this.finalFuture, ManagementRetry.this.timeoutTracker,
                                 ManagementRetry.this.mf, ManagementRetry.this.request);
                         EventHubClientImpl.this.timer.schedule(retrier, waitTime);
                     }
