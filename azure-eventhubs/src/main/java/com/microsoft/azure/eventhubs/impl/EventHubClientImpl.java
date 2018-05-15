@@ -4,13 +4,10 @@
  */
 package com.microsoft.azure.eventhubs.impl;
 
-import com.microsoft.azure.eventhubs.*;
-
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -19,6 +16,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
+
+import com.microsoft.azure.eventhubs.BatchOptions;
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.eventhubs.EventDataBatch;
+import com.microsoft.azure.eventhubs.EventHubClient;
+import com.microsoft.azure.eventhubs.EventHubException;
+import com.microsoft.azure.eventhubs.EventPosition;
+import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
+import com.microsoft.azure.eventhubs.PartitionReceiver;
+import com.microsoft.azure.eventhubs.PartitionRuntimeInformation;
+import com.microsoft.azure.eventhubs.PartitionSender;
+import com.microsoft.azure.eventhubs.ReceiverOptions;
+import com.microsoft.azure.eventhubs.RetryPolicy;
 
 public final class EventHubClientImpl extends ClientEntity implements EventHubClient {
 
@@ -35,7 +46,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
 
     private CompletableFuture<Void> createSender;
 
-    private EventHubClientImpl(final ConnectionStringBuilder connectionString, final Executor executor) throws IOException, IllegalEntityException {
+    private EventHubClientImpl(final ConnectionStringBuilder connectionString, final Executor executor) {
         super(StringUtil.getRandomString(), null, executor);
 
         this.eventHubName = connectionString.getEventHubName();
@@ -349,6 +360,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
                     .request(this.mf.getReactorScheduler(),
                             this.request,
                             timeLeft > 0 ? timeLeft : 0);
+
             intermediateFuture.whenComplete((final Map<String, Object> result, final Throwable error) -> {
                 if ((result != null) && (error == null)) {
                     // Success!

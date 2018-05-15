@@ -46,7 +46,6 @@ final class ManagementChannel {
         final Message requestMessage = Proton.message();
         final ApplicationProperties applicationProperties = new ApplicationProperties(request);
         requestMessage.setApplicationProperties(applicationProperties);
-
         final CompletableFuture<Map<String, Object>> resultFuture = new CompletableFuture<Map<String, Object>>();
         try {
             // schedule client-timeout on the request
@@ -56,7 +55,7 @@ final class ManagementChannel {
                         public void onEvent() {
                             final RequestResponseChannel channel = innerChannel.unsafeGetIfOpened();
                             final String errorMessage;
-                            if (channel.getState() == IOObject.IOObjectState.OPENED) {
+                            if (channel != null && channel.getState() == IOObject.IOObjectState.OPENED) {
                                 final String remoteContainerId = channel.getSendLink().getSession().getConnection().getRemoteContainer();
                                 errorMessage = String.format("Management request timed out (%sms), after not receiving response from service. TrackingId: %s",
                                         timeoutInMillis, StringUtil.isNullOrEmpty(remoteContainerId) ? "n/a" : remoteContainerId);
@@ -78,7 +77,7 @@ final class ManagementChannel {
 
         // if there isn't even 5 millis left - request will not make the round-trip
         // to the event hubs service. so don't schedule the request - let it timeout
-        if (timeoutInMillis > 5) {
+        if (timeoutInMillis > ClientConstants.MGMT_CHANNEL_MIN_RETRY_IN_MILLIS) {
             this.innerChannel.runOnOpenedObject(dispatcher,
                     new OperationResult<RequestResponseChannel, Exception>() {
                         @Override
