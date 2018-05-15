@@ -12,9 +12,9 @@ import org.apache.qpid.proton.message.Message;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeoutException;
 
 import com.microsoft.azure.eventhubs.OperationCancelledException;
+import com.microsoft.azure.eventhubs.TimeoutException;
 
 final class ManagementChannel {
 
