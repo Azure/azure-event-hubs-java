@@ -5,13 +5,16 @@
 package com.microsoft.azure.eventhubs.impl;
 
 import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.eventhubs.EventHubException;
 import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
 
 public class ReceivePump {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ReceivePump.class);
@@ -20,59 +23,94 @@ public class ReceivePump {
     private final PartitionReceiveHandler onReceiveHandler;
     private final boolean invokeOnTimeout;
     private final CompletableFuture<Void> stopPump;
+    private final Executor executor;
 
     private AtomicBoolean stopPumpRaised;
+    private volatile boolean isPumpHealthy = true;
 
     public ReceivePump(
             final IPartitionReceiver receiver,
             final PartitionReceiveHandler receiveHandler,
-            final boolean invokeOnReceiveWithNoEvents) {
+            final boolean invokeOnReceiveWithNoEvents,
+            final Executor executor) {
         this.receiver = receiver;
         this.onReceiveHandler = receiveHandler;
         this.invokeOnTimeout = invokeOnReceiveWithNoEvents;
         this.stopPump = new CompletableFuture<Void>();
+        this.executor = executor;
 
         this.stopPumpRaised = new AtomicBoolean(false);
     }
 
     public void run() {
-        boolean isPumpHealthy = true;
-        while (isPumpHealthy && !this.stopPumpRaised.get()) {
-            Iterable<EventData> receivedEvents = null;
+        if (this.shouldContinue()) {
+            this.receiver.receive(this.onReceiveHandler.getMaxEventCount())
+                .handleAsync(
+                    new BiFunction<Iterable<EventData>, Throwable, Void>() {
+                        @Override
+                        public Void apply(final Iterable<EventData> receivedEvents, final Throwable clientException) {
+
+                            if (clientException != null) {
+                                ReceivePump.this.isPumpHealthy = false;
+                                ReceivePump.this.onReceiveHandler.onError(clientException);
+
+                                if (TRACE_LOGGER.isWarnEnabled()) {
+                                    TRACE_LOGGER.warn(String.format(
+                                            "Receive pump for partition (%s) exiting after receive exception %s",
+                                            ReceivePump.this.receiver.getPartitionId(), clientException.toString()));
+                                }
+                            }
+
+                            try {
+                                // don't invoke user call back - if stop is already raised / pump is unhealthy
+                                if (ReceivePump.this.shouldContinue() &&
+                                        (receivedEvents != null
+                                        || (receivedEvents == null && ReceivePump.this.invokeOnTimeout))) {
+                                    ReceivePump.this.onReceiveHandler.onReceive(receivedEvents);
+                                }
+                            } catch (final Throwable userCodeError) {
+                                ReceivePump.this.isPumpHealthy = false;
+                                ReceivePump.this.onReceiveHandler.onError(userCodeError);
+
+                                if (userCodeError instanceof InterruptedException) {
+                                    if (TRACE_LOGGER.isInfoEnabled()) {
+                                        TRACE_LOGGER.info(String.format("Interrupting receive pump for partition (%s)",
+                                                ReceivePump.this.receiver.getPartitionId()));
+                                    }
+
+                                    Thread.currentThread().interrupt();
+                                } else {
+                                    TRACE_LOGGER.error(
+                                            String.format("Receive pump for partition (%s) exiting after user exception %s",
+                                                    ReceivePump.this.receiver.getPartitionId(), userCodeError.toString()));
+                                }
+                            }
+
+                            return null;
+                        }
+                    }, this.executor);
 
             try {
-                receivedEvents = this.receiver.receive(this.onReceiveHandler.getMaxEventCount());
-            } catch (Throwable clientException) {
-                isPumpHealthy = false;
-                this.onReceiveHandler.onError(clientException);
+                this.executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        this.run();
+                    }
+                });
+            } catch (final RejectedExecutionException rejectedException) {
+                this.isPumpHealthy = false;
+                this.onReceiveHandler.onError(rejectedException);
 
                 if (TRACE_LOGGER.isWarnEnabled()) {
-                    TRACE_LOGGER.warn(String.format("Receive pump for partition (%s) exiting after receive exception %s", this.receiver.getPartitionId(), clientException.toString()));
+                    TRACE_LOGGER.warn(String.format(
+                            "Receive pump for partition (%s) exiting with error: %s",
+                            this.receiver.getPartitionId(), rejectedException.toString()));
                 }
             }
-
-            try {
-                if (receivedEvents != null || (receivedEvents == null && this.invokeOnTimeout && isPumpHealthy)) {
-                    this.onReceiveHandler.onReceive(receivedEvents);
-                }
-            } catch (Throwable userCodeError) {
-                isPumpHealthy = false;
-                this.onReceiveHandler.onError(userCodeError);
-
-                if (userCodeError instanceof InterruptedException) {
-                    if (TRACE_LOGGER.isInfoEnabled()) {
-                        TRACE_LOGGER.info(String.format("Interrupting receive pump for partition (%s)", this.receiver.getPartitionId()));
-                    }
-
-                    Thread.currentThread().interrupt();
-                } else {
-                    TRACE_LOGGER.error(
-                            String.format("Receive pump for partition (%s) exiting after user exception %s", this.receiver.getPartitionId(), userCodeError.toString()));
-                }
-            }
+        } else {
+            // TODO: move whenCompleteAsyncs in codebase to handleAsync where appropriate
+            this.stopPump.complete(null);
         }
-
-        this.stopPump.complete(null);
     }
 
     public CompletableFuture<Void> stop() {
@@ -85,9 +123,13 @@ public class ReceivePump {
     }
 
     // partition receiver contract against which this pump works
-    public static interface IPartitionReceiver {
-        public String getPartitionId();
+    public interface IPartitionReceiver {
+        String getPartitionId();
 
-        public Iterable<EventData> receive(final int maxBatchSize) throws EventHubException;
+        CompletableFuture<Iterable<EventData>> receive(final int maxBatchSize);
+    }
+
+    private boolean shouldContinue() {
+        return this.isPumpHealthy && !this.stopPumpRaised.get();
     }
 }

@@ -185,8 +185,8 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                 this.receivePump = new ReceivePump(
                         new ReceivePump.IPartitionReceiver() {
                             @Override
-                            public Iterable<EventData> receive(int maxBatchSize) throws EventHubException {
-                                return PartitionReceiverImpl.this.receiveSync(maxBatchSize);
+                            public CompletableFuture<Iterable<EventData>> receive(int maxBatchSize) {
+                                return PartitionReceiverImpl.this.receive(maxBatchSize);
                             }
 
                             @Override
@@ -195,16 +195,15 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                             }
                         },
                         receiveHandler,
-                        invokeWhenNoEvents);
+                        invokeWhenNoEvents,
+                        this.executor);
 
-                final Thread onReceivePumpThread = new Thread(new Runnable() {
+                this.executor.execute(new Runnable() {
                     @Override
                     public void run() {
-                        receivePump.run();
+                        PartitionReceiverImpl.this.receivePump.run();
                     }
                 });
-
-                onReceivePumpThread.start();
             }
 
             return CompletableFuture.completedFuture(null);
