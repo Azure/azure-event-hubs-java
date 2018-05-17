@@ -66,13 +66,14 @@ public class ReceivePump {
 
                             if (clientException != null) {
                                 ReceivePump.this.isPumpHealthy = false;
-                                ReceivePump.this.onReceiveHandler.onError(clientException);
 
                                 if (TRACE_LOGGER.isWarnEnabled()) {
                                     TRACE_LOGGER.warn(String.format(
                                             "Receive pump for partition (%s) exiting after receive exception %s",
                                             ReceivePump.this.receiver.getPartitionId(), clientException.toString()));
                                 }
+
+                                ReceivePump.this.onReceiveHandler.onError(clientException);
                             }
 
                             try {
@@ -115,13 +116,14 @@ public class ReceivePump {
                 });
             } catch (final RejectedExecutionException rejectedException) {
                 this.isPumpHealthy = false;
-                this.onReceiveHandler.onError(rejectedException);
 
                 if (TRACE_LOGGER.isWarnEnabled()) {
                     TRACE_LOGGER.warn(String.format(
                             "Receive pump for partition (%s) exiting with error: %s",
                             this.receiver.getPartitionId(), rejectedException.toString()));
                 }
+
+                this.onReceiveHandler.onError(rejectedException);
             }
         } else {
             if (TRACE_LOGGER.isInfoEnabled()) {
