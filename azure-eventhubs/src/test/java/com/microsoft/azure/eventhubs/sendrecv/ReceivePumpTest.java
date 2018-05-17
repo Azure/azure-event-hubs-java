@@ -10,16 +10,18 @@ import com.microsoft.azure.eventhubs.PartitionReceiveHandler;
 import com.microsoft.azure.eventhubs.TimeoutException;
 import com.microsoft.azure.eventhubs.impl.IteratorUtil;
 import com.microsoft.azure.eventhubs.impl.ReceivePump;
+import com.microsoft.azure.eventhubs.lib.TestContext;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.LinkedList;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 public class ReceivePumpTest {
     private final String exceptionMessage = "receive Exception";
-    private boolean assertion = false;
+    private volatile boolean assertion = false;
 
     @Before
     public void initializeValidation() {
@@ -31,10 +33,10 @@ public class ReceivePumpTest {
         final ReceivePump receivePump = new ReceivePump(
                 new ReceivePump.IPartitionReceiver() {
                     @Override
-                    public Iterable<EventData> receive(int maxBatchSize) throws EventHubException {
-                        LinkedList<EventData> events = new LinkedList<EventData>();
+                    public CompletableFuture<Iterable<EventData>> receive(int maxBatchSize) {
+                        final LinkedList<EventData> events = new LinkedList<EventData>();
                         events.add(EventData.create("some".getBytes()));
-                        return events;
+                        return CompletableFuture.completedFuture(events);
                     }
 
                     @Override
@@ -61,7 +63,8 @@ public class ReceivePumpTest {
                         Assert.assertTrue(error instanceof PumpClosedException);
                     }
                 },
-                true);
+                true,
+                TestContext.EXECUTOR_SERVICE);
 
         receivePump.run();
         Assert.assertTrue(assertion);
@@ -72,8 +75,10 @@ public class ReceivePumpTest {
         final ReceivePump receivePump = new ReceivePump(
                 new ReceivePump.IPartitionReceiver() {
                     @Override
-                    public Iterable<EventData> receive(int maxBatchSize) throws EventHubException {
-                        throw new EventHubException(true, exceptionMessage);
+                    public CompletableFuture<Iterable<EventData>> receive(int maxBatchSize) {
+                        final CompletableFuture<Iterable<EventData>> result = new CompletableFuture<>();
+                        result.completeExceptionally(new RuntimeException(exceptionMessage));
+                        return result;
                     }
 
                     @Override
@@ -96,7 +101,8 @@ public class ReceivePumpTest {
                         assertion = error.getMessage().equals(exceptionMessage);
                     }
                 },
-                true);
+                false,
+                TestContext.EXECUTOR_SERVICE);
 
         receivePump.run();
         Assert.assertTrue(assertion);
@@ -107,8 +113,10 @@ public class ReceivePumpTest {
         final ReceivePump receivePump = new ReceivePump(
                 new ReceivePump.IPartitionReceiver() {
                     @Override
-                    public Iterable<EventData> receive(int maxBatchSize) throws EventHubException {
-                        throw new EventHubException(false, exceptionMessage);
+                    public CompletableFuture<Iterable<EventData>> receive(int maxBatchSize) {
+                        final CompletableFuture<Iterable<EventData>> result = new CompletableFuture<>();
+                        result.completeExceptionally(new RuntimeException(exceptionMessage));
+                        return result;
                     }
 
                     @Override
@@ -131,7 +139,8 @@ public class ReceivePumpTest {
                         assertion = error.getMessage().equals(exceptionMessage);
                     }
                 },
-                true);
+                true,
+                TestContext.EXECUTOR_SERVICE);
 
         receivePump.run();
         Assert.assertTrue(assertion);
@@ -143,8 +152,8 @@ public class ReceivePumpTest {
         final ReceivePump receivePump = new ReceivePump(
                 new ReceivePump.IPartitionReceiver() {
                     @Override
-                    public Iterable<EventData> receive(int maxBatchSize) throws EventHubException {
-                        return null;
+                    public CompletableFuture<Iterable<EventData>> receive(int maxBatchSize) {
+                        return CompletableFuture.completedFuture(null);
                     }
 
                     @Override
@@ -168,7 +177,8 @@ public class ReceivePumpTest {
                         assertion = error.getMessage().equals(runtimeExceptionMsg);
                     }
                 },
-                true);
+                true,
+                TestContext.EXECUTOR_SERVICE);
 
         receivePump.run();
         Assert.assertTrue(assertion);

@@ -250,7 +250,10 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
         this.throwIfClosed();
 
         if (maxMessageCount <= 0 || maxMessageCount > this.prefetchCount) {
-            throw new IllegalArgumentException(String.format(Locale.US, "parameter 'maxMessageCount' should be a positive number and should be less than prefetchCount(%s)", this.prefetchCount));
+            throw new IllegalArgumentException(String.format(
+                    Locale.US,
+                    "parameter 'maxMessageCount' should be a positive number and should be less than prefetchCount(%s)",
+                    this.prefetchCount));
         }
 
         if (this.pendingReceives.isEmpty()) {

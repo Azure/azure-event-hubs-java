@@ -96,7 +96,17 @@ public class ReceivePump {
                 this.executor.execute(new Runnable() {
                     @Override
                     public void run() {
-                        this.run();
+                        try {
+                            ReceivePump.this.run();
+                        } catch (Exception exception) {
+                            if (TRACE_LOGGER.isErrorEnabled()) {
+                                TRACE_LOGGER.error(
+                                        String.format("Receive pump for partition (%s) encountered unrecoverable error and exited with exception %s.",
+                                                ReceivePump.this.receiver.getPartitionId(), exception.toString()));
+                            }
+
+                            throw exception;
+                        }
                     }
                 });
             } catch (final RejectedExecutionException rejectedException) {
@@ -110,6 +120,12 @@ public class ReceivePump {
                 }
             }
         } else {
+            if (TRACE_LOGGER.isInfoEnabled()) {
+                TRACE_LOGGER.info(String.format("Stopping receive pump for partition (%s) as %s",
+                        ReceivePump.this.receiver.getPartitionId(),
+                        this.stopPumpRaised.get() ? "per the request." : "pump ran into errors."));
+            }
+
             this.stopPump.complete(null);
         }
     }
