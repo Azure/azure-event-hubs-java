@@ -558,13 +558,15 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                 }
                 , timeout.remaining());
 
-        this.openTimer.whenCompleteAsync(
+        this.openTimer.handleAsync(
                 (unUsed, exception) -> {
                     if (exception != null
                             && exception instanceof Exception
                             && !(exception instanceof CancellationException)) {
                         ExceptionUtil.completeExceptionally(linkOpen.getWork(), (Exception) exception, MessageReceiver.this);
                     }
+
+                    return null;
                 }, this.executor);
     }
 
@@ -593,11 +595,13 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                 }
                 , timeout.remaining());
 
-        this.closeTimer.whenCompleteAsync(
+        this.closeTimer.handleAsync(
                 (unUsed, exception) -> {
                     if (exception != null && exception instanceof Exception && !(exception instanceof CancellationException)) {
                         ExceptionUtil.completeExceptionally(linkClose, (Exception) exception, MessageReceiver.this);
                     }
+
+                    return null;
                 }, this.executor);
     }
 

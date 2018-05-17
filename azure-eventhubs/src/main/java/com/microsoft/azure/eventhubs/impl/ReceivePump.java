@@ -70,6 +70,12 @@ public class ReceivePump {
                                 }
                             } catch (final Throwable userCodeError) {
                                 ReceivePump.this.isPumpHealthy = false;
+                                if (TRACE_LOGGER.isErrorEnabled()) {
+                                    TRACE_LOGGER.error(
+                                            String.format("Receive pump for partition (%s) exiting after user-code exception %s",
+                                                    ReceivePump.this.receiver.getPartitionId(), userCodeError.toString()));
+                                }
+
                                 ReceivePump.this.onReceiveHandler.onError(userCodeError);
 
                                 if (userCodeError instanceof InterruptedException) {
@@ -79,10 +85,6 @@ public class ReceivePump {
                                     }
 
                                     Thread.currentThread().interrupt();
-                                } else {
-                                    TRACE_LOGGER.error(
-                                            String.format("Receive pump for partition (%s) exiting after user exception %s",
-                                                    ReceivePump.this.receiver.getPartitionId(), userCodeError.toString()));
                                 }
                             }
 
@@ -108,7 +110,6 @@ public class ReceivePump {
                 }
             }
         } else {
-            // TODO: move whenCompleteAsyncs in codebase to handleAsync where appropriate
             this.stopPump.complete(null);
         }
     }
