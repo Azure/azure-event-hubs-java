@@ -29,7 +29,8 @@ public class ReceivePumpTest {
     }
 
     @Test()
-    public void testPumpOnReceiveEventFlow() {
+    public void testPumpOnReceiveEventFlow() throws Exception {
+        final CompletableFuture<Void> pumpRun = new CompletableFuture<>();
         final ReceivePump receivePump = new ReceivePump(
                 new ReceivePump.IPartitionReceiver() {
                     @Override
@@ -61,17 +62,25 @@ public class ReceivePumpTest {
                     @Override
                     public void onError(Throwable error) {
                         Assert.assertTrue(error instanceof PumpClosedException);
+                        pumpRun.complete(null);
                     }
                 },
                 true,
                 TestContext.EXECUTOR_SERVICE);
 
-        receivePump.run();
+        try {
+            receivePump.run();
+            pumpRun.get();
+        } finally {
+            receivePump.stop().get();
+        }
+
         Assert.assertTrue(assertion);
     }
 
     @Test()
-    public void testPumpReceiveTransientErrorsPropagated() throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
+    public void testPumpReceiveTransientErrorsPropagated() throws Exception {
+        final CompletableFuture<Void> pumpRun = new CompletableFuture<>();
         final ReceivePump receivePump = new ReceivePump(
                 new ReceivePump.IPartitionReceiver() {
                     @Override
@@ -99,17 +108,25 @@ public class ReceivePumpTest {
                     @Override
                     public void onError(Throwable error) {
                         assertion = error.getMessage().equals(exceptionMessage);
+                        pumpRun.complete(null);
                     }
                 },
                 false,
                 TestContext.EXECUTOR_SERVICE);
 
-        receivePump.run();
+        try {
+            receivePump.run();
+            pumpRun.get();
+        } finally {
+            receivePump.stop().get();
+        }
+
         Assert.assertTrue(assertion);
     }
 
     @Test()
-    public void testPumpReceiveExceptionsPropagated() throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
+    public void testPumpReceiveExceptionsPropagated() throws Exception {
+        final CompletableFuture<Void> pumpRun = new CompletableFuture<>();
         final ReceivePump receivePump = new ReceivePump(
                 new ReceivePump.IPartitionReceiver() {
                     @Override
@@ -137,18 +154,26 @@ public class ReceivePumpTest {
                     @Override
                     public void onError(Throwable error) {
                         assertion = error.getMessage().equals(exceptionMessage);
+                        pumpRun.complete(null);
                     }
                 },
                 true,
                 TestContext.EXECUTOR_SERVICE);
 
-        receivePump.run();
+        try {
+            receivePump.run();
+            pumpRun.get();
+        } finally {
+            receivePump.stop().get();
+        }
+
         Assert.assertTrue(assertion);
     }
 
     @Test()
     public void testPumpOnReceiveExceptionsPropagated() throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
         final String runtimeExceptionMsg = "random exception";
+        final CompletableFuture<Void> pumpRun = new CompletableFuture<>();
         final ReceivePump receivePump = new ReceivePump(
                 new ReceivePump.IPartitionReceiver() {
                     @Override
@@ -175,12 +200,19 @@ public class ReceivePumpTest {
                     @Override
                     public void onError(Throwable error) {
                         assertion = error.getMessage().equals(runtimeExceptionMsg);
+                        pumpRun.complete(null);
                     }
                 },
                 true,
                 TestContext.EXECUTOR_SERVICE);
 
-        receivePump.run();
+        try {
+            receivePump.run();
+            pumpRun.get();
+        } finally {
+            receivePump.stop().get();
+        }
+
         Assert.assertTrue(assertion);
     }
 

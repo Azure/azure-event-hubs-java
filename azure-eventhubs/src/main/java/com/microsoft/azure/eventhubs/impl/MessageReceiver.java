@@ -249,18 +249,19 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     public CompletableFuture<Collection<Message>> receive(final int maxMessageCount) {
         this.throwIfClosed();
 
+        final CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<>();
         if (maxMessageCount <= 0 || maxMessageCount > this.prefetchCount) {
-            throw new IllegalArgumentException(String.format(
+            onReceive.completeExceptionally(new IllegalArgumentException(String.format(
                     Locale.US,
                     "parameter 'maxMessageCount' should be a positive number and should be less than prefetchCount(%s)",
-                    this.prefetchCount));
+                    this.prefetchCount)));
+            return onReceive;
         }
 
         if (this.pendingReceives.isEmpty()) {
             timer.schedule(this.onOperationTimedout, this.receiveTimeout);
         }
 
-        final CompletableFuture<Collection<Message>> onReceive = new CompletableFuture<>();
         pendingReceives.offer(new ReceiveWorkItem(onReceive, receiveTimeout, maxMessageCount));
 
         try {

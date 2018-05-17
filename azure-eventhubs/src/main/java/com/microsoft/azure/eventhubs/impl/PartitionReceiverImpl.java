@@ -201,7 +201,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                 this.executor.execute(new Runnable() {
                     @Override
                     public void run() {
-                        PartitionReceiverImpl.this.receivePump.run();
+                        PartitionReceiverImpl.this.receivePump.start();
                     }
                 });
             }
