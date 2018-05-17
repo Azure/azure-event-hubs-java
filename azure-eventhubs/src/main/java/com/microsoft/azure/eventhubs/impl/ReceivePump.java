@@ -16,7 +16,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiFunction;
 
-public class ReceivePump {
+public class ReceivePump implements Runnable {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ReceivePump.class);
 
     private final IPartitionReceiver receiver;
@@ -42,9 +42,9 @@ public class ReceivePump {
         this.stopPumpRaised = new AtomicBoolean(false);
     }
 
-    public void start() {
+    public void run() {
         try {
-            ReceivePump.this.run();
+            ReceivePump.this.receiveAndProcess();
         } catch (final Exception exception) {
             if (TRACE_LOGGER.isErrorEnabled()) {
                 TRACE_LOGGER.error(
@@ -56,7 +56,7 @@ public class ReceivePump {
         }
     }
 
-    public void run() {
+    public void receiveAndProcess() {
         if (this.shouldContinue()) {
             this.receiver.receive(this.onReceiveHandler.getMaxEventCount())
                 .handleAsync(
@@ -108,12 +108,7 @@ public class ReceivePump {
                     }, this.executor);
 
             try {
-                this.executor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        ReceivePump.this.start();
-                    }
-                });
+                this.executor.execute(this);
             } catch (final RejectedExecutionException rejectedException) {
                 this.isPumpHealthy = false;
 

@@ -69,7 +69,7 @@ public class ReceivePumpTest {
                 TestContext.EXECUTOR_SERVICE);
 
         try {
-            receivePump.run();
+            receivePump.receiveAndProcess();
             pumpRun.get();
         } finally {
             receivePump.stop().get();
@@ -115,7 +115,7 @@ public class ReceivePumpTest {
                 TestContext.EXECUTOR_SERVICE);
 
         try {
-            receivePump.run();
+            receivePump.receiveAndProcess();
             pumpRun.get();
         } finally {
             receivePump.stop().get();
@@ -161,7 +161,7 @@ public class ReceivePumpTest {
                 TestContext.EXECUTOR_SERVICE);
 
         try {
-            receivePump.run();
+            receivePump.receiveAndProcess();
             pumpRun.get();
         } finally {
             receivePump.stop().get();
@@ -207,7 +207,7 @@ public class ReceivePumpTest {
                 TestContext.EXECUTOR_SERVICE);
 
         try {
-            receivePump.run();
+            receivePump.receiveAndProcess();
             pumpRun.get();
         } finally {
             receivePump.stop().get();

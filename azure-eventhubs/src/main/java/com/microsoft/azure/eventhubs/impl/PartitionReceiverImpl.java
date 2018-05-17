@@ -198,12 +198,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                         invokeWhenNoEvents,
                         this.executor);
 
-                this.executor.execute(new Runnable() {
-                    @Override
-                    public void run() {
-                        PartitionReceiverImpl.this.receivePump.start();
-                    }
-                });
+                this.executor.execute(this.receivePump);
             }
 
             return CompletableFuture.completedFuture(null);
