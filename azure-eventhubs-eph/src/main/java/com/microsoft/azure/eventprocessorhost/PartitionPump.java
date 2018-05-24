@@ -6,6 +6,8 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.eventhubs.*;
+import com.microsoft.azure.eventhubs.impl.ClosableBase;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +19,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-class PartitionPump extends Closable implements PartitionReceiveHandler {
+class PartitionPump extends ClosableBase implements PartitionReceiveHandler {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionPump.class);
     protected final HostContext hostContext;
     final private CompletableFuture<Void> shutdownTriggerFuture;
@@ -32,8 +34,8 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
     private PartitionContext partitionContext = null;
     private ScheduledFuture<?> leaseRenewerFuture = null;
 
-    PartitionPump(HostContext hostContext, Lease lease, Closable parent) {
-    	super(parent);
+    PartitionPump(HostContext hostContext, Lease lease, ClosableBase parent) {
+    	super(parent, hostContext.getExecutor());
     	
         this.hostContext = hostContext;
         this.lease = lease;
@@ -460,6 +462,11 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
 
     @Override
     public void onReceive(Iterable<EventData> events) {
+    	// Do nothing if the pump is shutting down.
+    	if (getIsClosingOrClosed()) {
+    		return;
+    	}
+    	
         if (this.hostContext.getEventProcessorOptions().getReceiverRuntimeMetricEnabled()) {
             this.partitionContext.setRuntimeInformation(this.partitionReceiver.getRuntimeInformation());
         }
@@ -509,6 +516,11 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
 
     @Override
     public void onError(Throwable error) {
+    	// Do nothing if the pump is shutting down.
+    	if (getIsClosingOrClosed()) {
+    		return;
+    	}
+    	
         if (error == null) {
             error = new Throwable("No error info supplied by EventHub client");
         }
@@ -530,4 +542,10 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
         CompletableFuture.runAsync(() -> PartitionPump.this.processor.onError(PartitionPump.this.partitionContext, capturedError), this.hostContext.getExecutor())
                 .thenRunAsync(() -> internalShutdown(CloseReason.Shutdown, capturedError), this.hostContext.getExecutor());
     }
+
+	@Override
+	protected CompletableFuture<Void> onClose() {
+		// This class does not use the close/onClose pattern. It uses setClosing/setClosed directly.
+		return null;
+	}
 }
