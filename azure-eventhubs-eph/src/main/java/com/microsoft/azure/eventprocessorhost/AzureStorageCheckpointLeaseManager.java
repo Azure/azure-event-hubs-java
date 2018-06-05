@@ -36,6 +36,8 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private final BlobRequestOptions leaseOperationOptions = new BlobRequestOptions();
     private final BlobRequestOptions checkpointOperationOptions = new BlobRequestOptions();
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
+    private final ExecutorService mgrThreadpool;
+    
     private HostContext hostContext;
     private String storageContainerName;
     private CloudBlobClient storageClient;
@@ -63,6 +65,8 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
         // Convert all-whitespace prefix to empty string. Convert null prefix to empty string.
         // Then the rest of the code only has one case to worry about.
         this.storageBlobPrefix = (storageBlobPrefix != null) ? storageBlobPrefix.trim() : "";
+        
+        this.mgrThreadpool = Executors.newCachedThreadPool(new NamedThreadFactory("asclm-"));
     }
 
     // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
@@ -115,7 +119,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                     if (e != null) {
                         TRACE_LOGGER.error(this.hostContext.withHost("Failure while checking checkpoint store existence"), LoggingUtils.unwrapException(e, null));
                     }
-                }, this.hostContext.getExecutor());
+                }, this.mgrThreadpool);
     }
 
 
@@ -156,7 +160,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                 // else offset is null meaning no checkpoint stored for this partition so return null
             }
             return checkpoint;
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     @Override
@@ -180,7 +184,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                     if (!result) {
                         throw LoggingUtils.wrapException(new LeaseLostException(lease, "Lease lost"), EventProcessorHostActionStrings.UPDATING_CHECKPOINT);
                     }
-                }, this.hostContext.getExecutor());
+                }, this.mgrThreadpool);
     }
 
     @Override
@@ -207,7 +211,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                     if (e != null) {
                         TRACE_LOGGER.error(this.hostContext.withHost("Failure while checking lease store existence"), LoggingUtils.unwrapException(e, null));
                     }
-                }, this.hostContext.getExecutor());
+                }, this.mgrThreadpool);
     }
 
     private CompletableFuture<Boolean> leaseStoreExistsInternal(BlobRequestOptions options, String action) {
@@ -220,7 +224,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                 throw LoggingUtils.wrapException(e, action);
             }
             return result;
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     @Override
@@ -231,7 +235,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                     if (e != null) {
                         TRACE_LOGGER.error(this.hostContext.withHost("Failure while creating lease store"), LoggingUtils.unwrapException(e, null));
                     }
-                }, this.hostContext.getExecutor());
+                }, this.mgrThreadpool);
     }
 
     private CompletableFuture<Void> createLeaseStoreIfNotExistsInternal(BlobRequestOptions options, String action) {
@@ -244,7 +248,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
             } catch (StorageException e) {
                 throw LoggingUtils.wrapException(e, action);
             }
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     @Override
@@ -281,7 +285,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                 TRACE_LOGGER.error(this.hostContext.withHost("Failure while deleting lease store"), e);
                 throw new CompletionException(e);
             }
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     @Override
@@ -298,7 +302,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
             }
 
             return result;
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     private AzureBlobLease getLeaseInternal(String partitionId, BlobRequestOptions options) throws URISyntaxException, IOException, StorageException {
@@ -334,7 +338,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 			}
 	    	
 	    	return infos;
-    	}, this.hostContext.getExecutor());
+    	}, this.mgrThreadpool);
     }
 
     @Override
@@ -356,7 +360,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 					throw LoggingUtils.wrapException(e, EventProcessorHostActionStrings.CREATING_LEASES);
 				}
 				return (blobCount == partitionIds.size());
-	    	}, this.hostContext.getExecutor())
+	    	}, this.mgrThreadpool)
     	.thenComposeAsync((exists) -> {
     			CompletableFuture<Void> createAllFuture = CompletableFuture.completedFuture(null);
     			if (!exists) {
@@ -374,7 +378,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 				                    throw LoggingUtils.wrapException(e, EventProcessorHostActionStrings.CREATING_LEASES);
 				                }
 				                return returnLease;
-				            }, this.hostContext.getExecutor());
+				            }, this.mgrThreadpool);
 			            createFutures.add(oneCreate);
 			    	}
 			
@@ -382,7 +386,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
 			    	createAllFuture = CompletableFuture.allOf(createFutures.toArray(dummy));
     			}
     			return createAllFuture;
-    		}, this.hostContext.getExecutor());
+    		}, this.mgrThreadpool);
     }
 
     private AzureBlobLease createLeaseIfNotExistsInternal(String partitionId, BlobRequestOptions options) throws URISyntaxException, IOException, StorageException {
@@ -423,7 +427,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                 TRACE_LOGGER.error(this.hostContext.withHostAndPartition(lease, "Exception deleting lease"), e);
                 throw LoggingUtils.wrapException(e, EventProcessorHostActionStrings.DELETING_LEASE);
             }
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     @Override
@@ -438,7 +442,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                 throw LoggingUtils.wrapException(e, EventProcessorHostActionStrings.ACQUIRING_LEASE);
             }
             return result;
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     private boolean acquireLeaseInternal(AzureBlobLease lease) throws IOException, StorageException {
@@ -508,7 +512,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
             }
 
             return retval;
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     @Override
@@ -535,7 +539,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
             } catch (IOException ie) {
                 throw LoggingUtils.wrapException(ie, EventProcessorHostActionStrings.RELEASING_LEASE);
             }
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     @Override
@@ -546,7 +550,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
                     if (e != null) {
                         TRACE_LOGGER.warn(this.hostContext.withHostAndPartition(lease, "Failure updating lease"), LoggingUtils.unwrapException(e, null));
                     }
-                }, this.hostContext.getExecutor());
+                }, this.mgrThreadpool);
     }
 
     public CompletableFuture<Boolean> updateLeaseInternal(AzureBlobLease lease, BlobRequestOptions options, String action) {
@@ -581,7 +585,7 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
             }
 
             return true;
-        }, this.hostContext.getExecutor());
+        }, this.mgrThreadpool);
     }
 
     private AzureBlobLease downloadLease(CloudBlockBlob blob, BlobRequestOptions options) throws StorageException, IOException {
