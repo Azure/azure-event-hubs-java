@@ -28,7 +28,7 @@ class DummyPump extends PumpManager {
 
     @Override
     protected void removingPumpTestHook(String partitionId, Throwable e) {
-    	TestUtilities.log("Steal detected, host " + this.hostContext.getHostName() + " removing " + partitionId);
+    	TestBase.logInfo("Steal detected, host " + this.hostContext.getHostName() + " removing " + partitionId);
     }
 
 
