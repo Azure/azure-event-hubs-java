@@ -10,7 +10,7 @@ import java.util.concurrent.ThreadFactory;
 
 class NamedThreadFactory implements ThreadFactory {
 	private final String poolName;
-	private int threadCount = 0;
+	private volatile int threadCount = 0;
 	
 	NamedThreadFactory(String poolName) {
 		this.poolName = poolName;
