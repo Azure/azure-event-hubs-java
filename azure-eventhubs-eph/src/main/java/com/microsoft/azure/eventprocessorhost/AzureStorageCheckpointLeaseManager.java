@@ -36,9 +36,9 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
     private final BlobRequestOptions leaseOperationOptions = new BlobRequestOptions();
     private final BlobRequestOptions checkpointOperationOptions = new BlobRequestOptions();
     private final BlobRequestOptions renewRequestOptions = new BlobRequestOptions();
-    private final ExecutorService mgrThreadpool;
     
     private HostContext hostContext;
+    private ExecutorService mgrThreadpool;
     private String storageContainerName;
     private CloudBlobClient storageClient;
     private CloudBlobContainer eventHubContainer;
@@ -65,8 +65,6 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
         // Convert all-whitespace prefix to empty string. Convert null prefix to empty string.
         // Then the rest of the code only has one case to worry about.
         this.storageBlobPrefix = (storageBlobPrefix != null) ? storageBlobPrefix.trim() : "";
-        
-        this.mgrThreadpool = Executors.newCachedThreadPool(new NamedThreadFactory("asclm-"));
     }
 
     // The EventProcessorHost can't pass itself to the AzureStorageCheckpointLeaseManager constructor
@@ -109,6 +107,11 @@ class AzureStorageCheckpointLeaseManager implements ICheckpointManager, ILeaseMa
         // Keep it separate in case we need to change something later.
         // Only used for leases, not checkpoints, so set max execution time to lease value
         this.renewRequestOptions.setMaximumExecutionTimeInMs(this.hostContext.getPartitionManagerOptions().getLeaseDurationInSeconds() * 1000);
+
+        this.mgrThreadpool = this.hostContext.getPartitionManagerOptions().getCheckpointExecutor();
+        if (this.mgrThreadpool == null) {
+        	this.mgrThreadpool = Executors.newCachedThreadPool(new NamedThreadFactory("asclm-"));
+        }
     }
 
     @Override
