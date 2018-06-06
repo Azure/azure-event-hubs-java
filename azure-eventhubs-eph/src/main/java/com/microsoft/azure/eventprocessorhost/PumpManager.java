@@ -11,14 +11,17 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.microsoft.azure.eventhubs.impl.ClosableBase;
 
-class Pump extends Closable {
-    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(Pump.class);
+
+class PumpManager extends ClosableBase {
+    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PumpManager.class);
     protected final HostContext hostContext;
     protected ConcurrentHashMap<String, PartitionPump> pumpStates; // protected for testability
+    private CloseReason savedReason;
 
-    public Pump(HostContext hostContext, Closable parent) {
-    	super(parent);
+    public PumpManager(HostContext hostContext, ClosableBase parent) {
+    	super(parent, hostContext.getExecutor());
     	
         this.hostContext = hostContext;
 
@@ -71,16 +74,19 @@ class Pump extends Closable {
     }
 
     public CompletableFuture<Void> removeAllPumps(CloseReason reason) {
-    	setClosing();
-    	
+    	this.savedReason = reason;
+    	return close("");
+    }
+
+	@Override
+	protected CompletableFuture<Void> onClose() {
         CompletableFuture<?>[] futures = new CompletableFuture<?>[this.pumpStates.size()];
         int i = 0;
         for (String partitionId : this.pumpStates.keySet()) {
-            futures[i++] = removePump(partitionId, reason);
+            futures[i++] = removePump(partitionId, this.savedReason);
         }
-        
-        return CompletableFuture.allOf(futures).whenCompleteAsync((empty, e) -> { setClosed(); }, this.hostContext.getExecutor());
-    }
+        return CompletableFuture.allOf(futures);
+	}
 
     protected void removingPumpTestHook(String partitionId, Throwable e) {
         // For test use.

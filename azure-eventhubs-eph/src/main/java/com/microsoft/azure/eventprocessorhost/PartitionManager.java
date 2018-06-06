@@ -9,6 +9,8 @@ import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
 import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
 import com.microsoft.azure.eventhubs.IllegalEntityException;
+import com.microsoft.azure.eventhubs.impl.ClosableBase;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,18 +18,18 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.concurrent.*;
 
-class PartitionManager extends Closable {
+class PartitionManager extends ClosableBase {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionManager.class);
     // Protected instead of private for testability
     protected final HostContext hostContext;
     final private Object scanFutureSynchronizer = new Object();
     private final int retryMax = 5;
-    protected Pump pump = null;
+    protected PumpManager pump = null;
     protected volatile String partitionIds[] = null;
     private ScheduledFuture<?> scanFuture = null;
 
     PartitionManager(HostContext hostContext) {
-    	super(null);
+    	super(null, hostContext.getExecutor());
         this.hostContext = hostContext;
     }
 
@@ -91,8 +93,8 @@ class PartitionManager extends Closable {
     }
 
     // Testability hook: allows a test subclass to insert dummy pump.
-    Pump createPumpTestHook() {
-        return new Pump(this.hostContext, this);
+    PumpManager createPumpTestHook() {
+        return new PumpManager(this.hostContext, this);
     }
 
     // Testability hook: called after stores are initialized.
@@ -104,8 +106,11 @@ class PartitionManager extends Closable {
     }
 
     CompletableFuture<Void> stopPartitions() {
-    	setClosing();
-    	
+    	return close("Partition manager exiting");
+    }
+
+	@Override
+	protected CompletableFuture<Void> onClose() {
         // If the lease scanner is between runs, cancel so it doesn't run again.
         synchronized (this.scanFutureSynchronizer) {
             if (this.scanFuture != null) {
@@ -133,13 +138,8 @@ class PartitionManager extends Closable {
         }
         // else no pumps to shut down
         
-        stopping = stopping.whenCompleteAsync((empty, e) -> {
-            TRACE_LOGGER.info(this.hostContext.withHost("Partition manager exiting"));
-            setClosed();
-        }, this.hostContext.getExecutor());
-
         return stopping;
-    }
+	}
 
     public CompletableFuture<Void> initialize() {
         this.pump = createPumpTestHook();

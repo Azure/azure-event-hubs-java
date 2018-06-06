@@ -19,6 +19,11 @@ import java.util.concurrent.CompletableFuture;
  * This interface does not specify initialization methods because we have no way of knowing what
  * information your implementation will require. If your implementation needs initialization, you
  * will have to initialize the instance before passing it to the EventProcessorHost constructor.
+ * 
+ * Some checkpoint manager implementations may require a separate executor to avoid thread exhaustion
+ * when many event processors are attempting to checkpoint simultaneously. Such a checkpoint manager can
+ * simply create its own private executor, or PartitionManagerOptions contains methods which allow passing
+ * in a user-supplied executor.
  */
 public interface ICheckpointManager {
     /***

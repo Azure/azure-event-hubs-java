@@ -5,7 +5,11 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import java.util.concurrent.ExecutorService;
+
 public final class AzureStoragePartitionManagerOptions extends PartitionManagerOptions {
+    private ExecutorService checkpointExecutor = null;
+
     public AzureStoragePartitionManagerOptions() {
     }
 
@@ -16,5 +20,15 @@ public final class AzureStoragePartitionManagerOptions extends PartitionManagerO
             throw new IllegalArgumentException("Lease duration cannot be more than 60 seconds");
         }
         super.setLeaseDurationInSeconds(duration);
+    }
+
+    @Override
+    public ExecutorService getCheckpointExecutor() {
+    	return this.checkpointExecutor;
+    }
+
+    @Override
+    public void setCheckpointExecutor(ExecutorService checkpointExecutor) {
+    	this.checkpointExecutor = checkpointExecutor;
     }
 }

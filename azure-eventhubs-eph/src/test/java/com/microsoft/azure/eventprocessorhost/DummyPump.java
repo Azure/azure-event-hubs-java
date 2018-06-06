@@ -6,13 +6,14 @@
 package com.microsoft.azure.eventprocessorhost;
 
 import com.microsoft.azure.eventhubs.EventData;
+import com.microsoft.azure.eventhubs.impl.ClosableBase;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
 
-class DummyPump extends Pump {
-    public DummyPump(HostContext hostContext, Closable parent) {
+class DummyPump extends PumpManager {
+    public DummyPump(HostContext hostContext, ClosableBase parent) {
         super(hostContext, parent);
     }
 
@@ -27,14 +28,14 @@ class DummyPump extends Pump {
 
     @Override
     protected void removingPumpTestHook(String partitionId, Throwable e) {
-    	TestUtilities.log("Steal detected, host " + this.hostContext.getHostName() + " removing " + partitionId);
+    	TestBase.logInfo("Steal detected, host " + this.hostContext.getHostName() + " removing " + partitionId);
     }
 
 
     private class DummyPartitionPump extends PartitionPump implements Callable<Void> {
         CompletableFuture<Void> blah = null;
 
-        DummyPartitionPump(HostContext hostContext, Lease lease, Closable parent) {
+        DummyPartitionPump(HostContext hostContext, Lease lease, ClosableBase parent) {
             super(hostContext, lease, parent);
         }
 

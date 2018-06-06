@@ -5,6 +5,8 @@
 
 package com.microsoft.azure.eventprocessorhost;
 
+import java.util.concurrent.ExecutorService;
+
 /***
  * Options affecting the operation of the partition manager within the event processor host.
  * This class is broken out separately because many of these options also affect the operation
@@ -111,10 +113,25 @@ public class PartitionManagerOptions {
         this.checkpointTimeoutInSeconds = timeout;
     }
 
+    /**
+     * Gets the delay time between the first scan for available partitions and the second. This is
+     * part of a startup optimization which allows individual hosts to become visible to other
+     * hosts, and thereby get a more accurate count of the number of hosts in the system, before
+     * they try to estimate how many partitions they should own.
+     * 
+     * Defaults to DefaultStartupScanDelayInSeconds.
+     * 
+     * @return delay time in seconds
+     */
     public int getStartupScanDelayInSeconds() {
         return this.startupScanDelayInSeconds;
     }
 
+    /**
+     * Sets the delay time in seconds between the first scan and the second.
+     * 
+     * @param delay  new delay time in seconds
+     */
     public void setStartupScanDelayInSeconds(int delay) {
         if (delay <= 0) {
             throw new IllegalArgumentException("Startup scan delay must be greater than 0");
@@ -122,10 +139,24 @@ public class PartitionManagerOptions {
         this.startupScanDelayInSeconds = delay;
     }
 
+    /**
+     * There are two possible interval times between scans for available partitions, fast and slow.
+     * The fast (short) interval is used after a scan in which lease stealing has occurred, to
+     * promote quicker rebalancing.
+     * 
+     * Defaults to DefaultFastScanIntervalInSeconds.
+     * 
+     * @return interval time in seconds
+     */
     public int getFastScanIntervalInSeconds() {
         return this.fastScanIntervalInSeconds;
     }
 
+    /**
+     * Sets the time for fast interval.
+     * 
+     * @param interval  new fast interval in seconds
+     */
     public void setFastScanIntervalInSeconds(int interval) {
         if (interval <= 0) {
             throw new IllegalArgumentException("Fast scan interval must be greater than 0");
@@ -133,14 +164,51 @@ public class PartitionManagerOptions {
         this.fastScanIntervalInSeconds = interval;
     }
 
+    /**
+     * The slow (long) interval is used after a scan in which lease stealing did not occur, to
+     * reduce unnecessary scanning when the system is in steady state.
+     * 
+     * Defaults to DefaultSlowScanIntervalInSeconds.
+     * 
+     * @return interval time in seconds
+     */
     public int getSlowScanIntervalInSeconds() {
         return this.slowScanIntervalInSeconds;
     }
 
+    /**
+     * Sets the time for slow interval.
+     * 
+     * @param interval  new slow interval in seconds
+     */
     public void setSlowScanIntervalInSeconds(int interval) {
         if (interval <= 0) {
             throw new IllegalArgumentException("Slow scan interval must be greater than 0");
         }
         this.slowScanIntervalInSeconds = interval;
+    }
+
+    /**
+     * Some implementations of ICheckpointManager may require a separate executor in order to avoid
+     * thread exhaustion when many event processors are attempting to checkpoint simultaneously. These
+     * implementations can optionally allow the user to pass in an executor. To do so, they should
+     * implement a class derived from this one and override the get/setCheckpointExecutor. See
+     * AzureStoragePartitionManagerOptions for an example.
+     * 
+     * The implementation of ILeaseManager can share this executor.
+     * 
+     * @return the user-provided executor or null if none was set
+     */
+    public ExecutorService getCheckpointExecutor() {
+    	return null;
+    }
+    
+    /**
+     * Provide a user-supplied executor to checkpoint managers which support that.
+     * 
+     * @param checkpointExecutor  new executor
+     */
+    public void setCheckpointExecutor(ExecutorService checkpointExecutor) {
+    	throw new UnsupportedOperationException("this checkpoint manager does not use a separate executor");
     }
 }
