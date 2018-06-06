@@ -72,7 +72,11 @@ public final class EventProcessorHost {
     /**
      * Create a new host to process events from an Event Hub.
      * <p>
-     * This overload adds an argument to specify a user-provided thread pool.
+     * This overload adds an argument to specify a user-provided thread pool. The number of partitions in the
+     * target event hub and the number of host instances should be considered when choosing the size of the thread pool:
+     * how many partitions is one instance expected to own under normal circumstances? One thread per partition should
+     * provide good performance, while being able to support more partitions adequately if a host instance fails and its
+     * partitions must be redistributed.
      *
      * @param hostName                 A name for this event processor host. See method notes.
      * @param eventHubPath             Specifies the Event Hub to receive events from.
