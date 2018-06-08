@@ -60,10 +60,11 @@ public final class ConnectionStringBuilder {
     final static String SharedAccessKeyNameConfigName = "SharedAccessKeyName";  // We use a (KeyName, Key) pair OR the SAS token - never both.
     final static String SharedAccessKeyConfigName = "SharedAccessKey";
     final static String SharedAccessSignatureConfigName = "SharedAccessSignature";
+    final static String RetryPolicyConfigName = "RetryPolicy";
 
     private static final String AllKeyEnumerateRegex = "(" + HostnameConfigName + "|" + EndpointConfigName + "|" + SharedAccessKeyNameConfigName
             + "|" + SharedAccessKeyConfigName + "|" + SharedAccessSignatureConfigName + "|" + EntityPathConfigName + "|" + OperationTimeoutConfigName
-            + "|" + ")";
+            + "|" + RetryPolicyConfigName + ")";
 
     private static final String KeysWithDelimitersRegex = KeyValuePairDelimiter + AllKeyEnumerateRegex
             + KeyValueSeparator;
@@ -74,6 +75,8 @@ public final class ConnectionStringBuilder {
     private String sharedAccessKey;
     private String sharedAccessSignature;
     private Duration operationTimeout;
+    private String retryPolicyConfig;
+
 
     /**
      * Creates an empty {@link ConnectionStringBuilder}. At minimum, a namespace name, an entity path, SAS key name, and SAS key
@@ -224,6 +227,16 @@ public final class ConnectionStringBuilder {
         return this.sharedAccessSignature;
     }
 
+
+    /**
+     * Get the Retry Policy configuration from the connection string
+     *
+     * @return Retry Policy Configuration
+     */
+    public String getRetryPolicyConfig() {
+        return this.retryPolicyConfig;
+    }
+
     /**
      * Set the shared access signature (also referred as SAS Token) from the connection string
      *
@@ -234,6 +247,7 @@ public final class ConnectionStringBuilder {
         this.sharedAccessSignature = sharedAccessSignature;
         return this;
     }
+
 
     /**
      * OperationTimeout is applied in erroneous situations to notify the caller about the relevant {@link EventHubException}
@@ -367,6 +381,8 @@ public final class ConnectionStringBuilder {
                 this.sharedAccessSignature = values[valueIndex];
             } else if (key.equalsIgnoreCase(EntityPathConfigName)) {
                 this.eventHubName = values[valueIndex];
+            } else if (key.equalsIgnoreCase(RetryPolicyConfigName)) {
+                this.retryPolicyConfig = values[valueIndex];
             } else if (key.equalsIgnoreCase(OperationTimeoutConfigName)) {
                 try {
                     this.operationTimeout = Duration.parse(values[valueIndex]);
