@@ -404,8 +404,8 @@ public class PartitionManagerTest extends TestBase {
 
         Iterable<String> getOwnedPartitions() {
             Iterable<String> retval = null;
-            if (this.pump != null) {
-                retval = ((DummyPump) this.pump).getPumpsList();
+            if (this.pumpManager != null) {
+                retval = ((DummyPump) this.pumpManager).getPumpsList();
             } else {
                 // If the manager isn't started, return an empty list.
                 retval = new ArrayList<String>();
@@ -423,7 +423,7 @@ public class PartitionManagerTest extends TestBase {
         }
 
         @Override
-        Pump createPumpTestHook() {
+        PumpManager createPumpTestHook() {
             return new DummyPump(this.hostContext, this);
         }
 

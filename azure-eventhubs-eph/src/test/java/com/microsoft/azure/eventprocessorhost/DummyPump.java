@@ -11,7 +11,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 
 
-class DummyPump extends Pump {
+class DummyPump extends PumpManager {
     public DummyPump(HostContext hostContext, Closable parent) {
         super(hostContext, parent);
     }
