@@ -69,14 +69,12 @@ public class Repros extends TestBase {
         utils.setupWithoutSenders(true, RealEventHubUtilities.QUERY_ENTITY_FOR_PARTITIONS);
 
         PrefabGeneralErrorHandler genErr = new PrefabGeneralErrorHandler();
-        PrefabProcessorFactory factory = new PrefabProcessorFactory("never match", PrefabEventProcessor.CheckpointChoices.CKP_NOARGS, true, false);
+        PrefabProcessorFactory factory = new PrefabProcessorFactory("never match", PrefabEventProcessor.CheckpointChoices.CKP_NONE, true, false);
         InMemoryCheckpointManager checkpointer = new InMemoryCheckpointManager();
         InMemoryLeaseManager leaser = new InMemoryLeaseManager();
         EventProcessorHost host = new EventProcessorHost("infiniteReceive-1", utils.getConnectionString(true).getEventHubName(),
                 utils.getConsumerGroup(), utils.getConnectionString(true).toString(),
-                "DefaultEndpointsProtocol=https;AccountName=jwbteststor;AccountKey=Jz7Nszeg59nkV3GtK7jnecscMnvd7c1dnsHTu3VY6gH5OjPWyfq2tLskHM+p4LplXuWjRKMZR5HlrxEWURlLdA==;EndpointSuffix=core.windows.net",
-                "reprocontainer", "reproblob05", Executors.newScheduledThreadPool(4));
-                // checkpointer, leaser, Executors.newScheduledThreadPool(1), null);
+                checkpointer, leaser, Executors.newScheduledThreadPool(16), null);
         checkpointer.initialize(host.getHostContext());
         leaser.initialize(host.getHostContext());
 

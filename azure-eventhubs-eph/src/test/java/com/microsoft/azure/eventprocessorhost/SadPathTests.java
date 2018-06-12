@@ -14,6 +14,7 @@ public class SadPathTests extends TestBase {
     @Test
     public void noSuchEventHubNamespaceTest() throws Exception {
         PerTestSettings settings = new PerTestSettings("NoSuchEventHubNamespace");
+        settings.inHasSenders = false;
         settings.inEventHubDoesNotExist = true;
         Assume.assumeFalse(TestUtilities.isRunningOnAzure());
         try {
@@ -29,6 +30,7 @@ public class SadPathTests extends TestBase {
     @Test
     public void noSuchEventHubTest() throws Exception {
         PerTestSettings settings = new PerTestSettings("NoSuchEventHub");
+        settings.inHasSenders = false;
         settings.inSkipIfNoEventHubConnectionString = true;
         settings.inoutEPHConstructorArgs.setEHPath("thereisnoeventhubwiththisname", PerTestSettings.EPHConstructorArgs.EH_PATH_OVERRIDE_AND_REPLACE);
         try {
@@ -50,6 +52,7 @@ public class SadPathTests extends TestBase {
     //@Test
     public void noSuchConsumerGroupTest() throws Exception {
         PerTestSettings settings = new PerTestSettings("NoSuchConsumerGroup");
+        settings.inHasSenders = false;
         settings.inoutEPHConstructorArgs.setConsumerGroupName("thereisnoconsumergroupwiththisname");
         try {
             settings = testSetup(settings);
@@ -69,6 +72,7 @@ public class SadPathTests extends TestBase {
     @Test
     public void secondRegisterFailsTest() throws Exception {
         PerTestSettings settings = new PerTestSettings("SecondRegisterFails");
+        settings.inHasSenders = false;
         settings = testSetup(settings);
 
         try {
@@ -89,11 +93,12 @@ public class SadPathTests extends TestBase {
     @Test
     public void reregisterFailsTest() throws Exception {
         PerTestSettings settings = new PerTestSettings("ReregisterFails");
+        settings.inHasSenders = false;
         settings = testSetup(settings);
 
         try {
             Thread.sleep(15000);
-            settings.outHost.unregisterEventProcessor();
+            settings.outHost.unregisterEventProcessor().get();
 
             settings.outHost.registerEventProcessorFactory(settings.outProcessorFactory, settings.inOptions).get();
             Thread.sleep(10000);
@@ -116,6 +121,7 @@ public class SadPathTests extends TestBase {
         // Within EPH the validation of the name occurs after other operations that fail if the eventhub
         // doesn't exist, so this case can't use arbitrary bad names.
         PerTestSettings settings = new PerTestSettings("BadEventHubName");
+        settings.inHasSenders = false;
         try {
             settings.inoutEPHConstructorArgs.setStorageContainerName(null); // otherwise test framework creates unique storage container name
             settings = testSetup(settings);
