@@ -28,7 +28,7 @@ public final class EventProcessorHost {
     private final int executorServicePoolSize = 16;
     private final HostContext hostContext;
     private boolean initializeLeaseManager = false;
-    private CompletableFuture<Void> unregistered = null;
+    private volatile CompletableFuture<Void> unregistered = null;
     private PartitionManager partitionManager;
     private PartitionManagerOptions partitionManagerOptions = null;
 
