@@ -63,7 +63,9 @@ public interface ILeaseManager {
 
     /**
      * Returns lightweight BaseLease for all leases, which includes name of owning host and whether lease
-     * is expired.
+     * is expired. An implementation is free to return CompleteLease or its own class derived from CompleteLease,
+     * but it is important that getAllLeases run as fast as possible. If it is faster to obtain only the
+     * information required for a BaseLease, we heavily recommend doing that.
      * 
      * @return CompletableFuture {@literal ->} list of BaseLease, completes exceptionally on error.
      */
