@@ -390,7 +390,7 @@ public class InMemoryLeaseManager implements ILeaseManager {
         InMemoryLease(InMemoryLease source) {
             super(source);
             this.expirationTimeMillis = source.expirationTimeMillis;
-            this.epoch = 0;
+            this.epoch = source.epoch;
         }
 
         long getExpirationTime() {
