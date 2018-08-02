@@ -14,7 +14,7 @@ final class TestUtilities {
     static final ExecutorService EXECUTOR_SERVICE = Executors.newSingleThreadExecutor();
     
     static void skipIfAppveyor() {
-    	String appveyor = System.getenv("RUNNING_IN_APPVEYOR");
+    	String appveyor = System.getenv("APPVEYOR"); // Set to "true" by Appveyor
     	if (appveyor != null) {
     		TestBase.logInfo("SKIPPING - APPVEYOR DETECTED");
     	}
