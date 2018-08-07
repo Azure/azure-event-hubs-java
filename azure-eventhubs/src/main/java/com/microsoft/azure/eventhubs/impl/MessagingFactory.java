@@ -5,6 +5,7 @@
 package com.microsoft.azure.eventhubs.impl;
 
 
+import com.microsoft.azure.eventhubs.*;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Connection;
@@ -30,13 +31,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-
-import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
-import com.microsoft.azure.eventhubs.CommunicationException;
-import com.microsoft.azure.eventhubs.EventHubException;
-import com.microsoft.azure.eventhubs.OperationCancelledException;
-import com.microsoft.azure.eventhubs.RetryPolicy;
-import com.microsoft.azure.eventhubs.TimeoutException;
 
 /**
  * Abstracts all amqp related details and exposes AmqpConnection object
@@ -81,7 +75,10 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
         this.retryPolicy = retryPolicy;
         this.registeredLinks = new LinkedList<>();
         this.reactorLock = new Object();
-        this.connectionHandler = new ConnectionHandler(this);
+        this.connectionHandler =
+                        builder.getTransportType() == TransportType.Amqp
+                        ? new ConnectionHandler(this)
+                        : new WebSocketConnectionHandler(this);
         this.cbsChannelCreateLock = new Object();
         this.mgmtChannelCreateLock = new Object();
         this.tokenProvider = builder.getSharedAccessSignature() == null
@@ -170,13 +167,13 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                 super.onReactorInit(e);
 
                 final Reactor r = e.getReactor();
-                connection = r.connectionToHost(hostName, ClientConstants.AMQPS_PORT, connectionHandler);
+                connection = r.connectionToHost(hostName, connectionHandler.getPort(), connectionHandler);
             }
         });
     }
 
     private void startReactor(final ReactorHandler reactorHandler) throws IOException {
-        final Reactor newReactor = this.reactorFactory.create(reactorHandler);
+        final Reactor newReactor = this.reactorFactory.create(reactorHandler, this.connectionHandler.getMaxFrameSize());
         synchronized (this.reactorLock) {
             this.reactor = newReactor;
             this.reactorScheduler = new ReactorDispatcher(newReactor);
@@ -215,7 +212,7 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
         }
 
         if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED) {
-            this.connection = this.getReactor().connectionToHost(this.hostName, ClientConstants.AMQPS_PORT, this.connectionHandler);
+            this.connection = this.getReactor().connectionToHost(this.hostName, this.connectionHandler.getPort(), this.connectionHandler);
         }
 
         final Session session = this.connection.session();
@@ -381,8 +378,8 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
 
     public static class ReactorFactory {
 
-        public Reactor create(final ReactorHandler reactorHandler) throws IOException {
-            return ProtonUtil.reactor(reactorHandler);
+        public Reactor create(final ReactorHandler reactorHandler, final int maxFrameSize) throws IOException {
+            return ProtonUtil.reactor(reactorHandler, maxFrameSize);
         }
     }
 
