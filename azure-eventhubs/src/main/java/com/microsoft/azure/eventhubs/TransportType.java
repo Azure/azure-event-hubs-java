@@ -29,7 +29,7 @@ public enum TransportType {
         return this.value;
     }
 
-    public static TransportType fromString(final String value) {
+    static TransportType fromString(final String value) {
         for (TransportType transportType : values()) {
             if (transportType.value.equalsIgnoreCase(value)) {
                 return transportType;
