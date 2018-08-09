@@ -8,7 +8,6 @@ import com.microsoft.azure.eventhubs.*;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -21,7 +20,7 @@ public class WebSocketsSendLargeMessageTest extends ApiTestBase {
     @BeforeClass
     public static void initialize() throws Exception {
         final ConnectionStringBuilder connectionStringBuilder = TestContext.getConnectionString();
-        connectionStringBuilder.setTransportType(TransportType.AmqpWebSockets);
+        connectionStringBuilder.setTransportType(TransportType.AMQP_WEB_SOCKETS);
         sendLargeMessageTest = new SendLargeMessageTest();
         SendLargeMessageTest.initializeEventHubClients(connectionStringBuilder);
     }

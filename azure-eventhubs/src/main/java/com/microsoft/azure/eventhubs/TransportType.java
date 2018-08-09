@@ -4,7 +4,19 @@
  */
 package com.microsoft.azure.eventhubs;
 
+/**
+ * All TransportType switches available for communicating to EventHubs service.
+ * <li>{@link #AMQP}</li>
+ * <li>{@link #AMQP_WEB_SOCKETS}</li>
+ */
 public enum TransportType {
-    Amqp,
-    AmqpWebSockets
+    /**
+     * AMQP over TCP. Uses port 5671 - assigned by IANA for secure AMQP (AMQPS).
+     */
+    AMQP,
+
+    /**
+     * AMQP over Web Sockets. Uses port 443.
+     */
+    AMQP_WEB_SOCKETS
 }

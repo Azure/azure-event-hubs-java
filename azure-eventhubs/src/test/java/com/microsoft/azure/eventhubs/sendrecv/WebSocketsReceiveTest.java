@@ -24,7 +24,7 @@ public class WebSocketsReceiveTest extends SasTokenTestBase {
 
         receiveTest = new ReceiveTest();
         ConnectionStringBuilder connectionString = TestContext.getConnectionString();
-        connectionString.setTransportType(TransportType.AmqpWebSockets);
+        connectionString.setTransportType(TransportType.AMQP_WEB_SOCKETS);
         ReceiveTest.initializeEventHub(connectionString);
     }
 

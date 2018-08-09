@@ -15,7 +15,7 @@ import java.time.Duration;
 import java.util.function.Consumer;
 
 public class ConnStrBuilderTest extends ApiTestBase {
-    static final String correctConnectionString = "Endpoint=sb://endpoint1;EntityPath=eventhub1;SharedAccessKeyName=somevalue;SharedAccessKey=something;OperationTimeout=PT5S;TransportType=Amqp";
+    static final String correctConnectionString = "Endpoint=sb://endpoint1;EntityPath=eventhub1;SharedAccessKeyName=somevalue;SharedAccessKey=something;OperationTimeout=PT5S;TransportType=AMQP";
     static final Consumer<ConnectionStringBuilder> validateConnStrBuilder = new Consumer<ConnectionStringBuilder>() {
         @Override
         public void accept(ConnectionStringBuilder connStrBuilder) {
@@ -23,7 +23,7 @@ public class ConnStrBuilderTest extends ApiTestBase {
             Assert.assertTrue(connStrBuilder.getEndpoint().getHost().equals("endpoint1"));
             Assert.assertTrue(connStrBuilder.getSasKey().equals("something"));
             Assert.assertTrue(connStrBuilder.getSasKeyName().equals("somevalue"));
-            Assert.assertTrue(connStrBuilder.getTransportType() == TransportType.Amqp);
+            Assert.assertTrue(connStrBuilder.getTransportType() == TransportType.AMQP);
             Assert.assertTrue(connStrBuilder.getOperationTimeout().equals(Duration.ofSeconds(5)));
         }
     };
@@ -41,8 +41,8 @@ public class ConnStrBuilderTest extends ApiTestBase {
     @Test(expected = IllegalConnectionStringFormatException.class)
     public void throwOnInvalidTransportType() {
         ConnectionStringBuilder connectionStringBuilder = new ConnectionStringBuilder(correctConnectionString);
-        String connectionStringWithTransportType = connectionStringBuilder.setTransportType(TransportType.AmqpWebSockets).toString();
-        String connectionStringWithInvalidTransportType = connectionStringWithTransportType.replace(TransportType.AmqpWebSockets.toString(), "invalid");
+        String connectionStringWithTransportType = connectionStringBuilder.setTransportType(TransportType.AMQP_WEB_SOCKETS).toString();
+        String connectionStringWithInvalidTransportType = connectionStringWithTransportType.replace(TransportType.AMQP_WEB_SOCKETS.toString(), "invalid");
         new ConnectionStringBuilder(connectionStringWithInvalidTransportType);
     }
 
@@ -73,10 +73,10 @@ public class ConnStrBuilderTest extends ApiTestBase {
         validateConnStrBuilder.accept(testConnStrBuilder);
 
         connStrBuilder.setOperationTimeout(Duration.ofSeconds(8));
-        connStrBuilder.setTransportType(TransportType.AmqpWebSockets);
+        connStrBuilder.setTransportType(TransportType.AMQP_WEB_SOCKETS);
 
         ConnectionStringBuilder testConnStrBuilder1 = new ConnectionStringBuilder(connStrBuilder.toString());
         Assert.assertTrue(testConnStrBuilder1.getOperationTimeout().getSeconds() == 8);
-        Assert.assertTrue(testConnStrBuilder1.getTransportType() == TransportType.AmqpWebSockets);
+        Assert.assertTrue(testConnStrBuilder1.getTransportType() == TransportType.AMQP_WEB_SOCKETS);
     }
 }

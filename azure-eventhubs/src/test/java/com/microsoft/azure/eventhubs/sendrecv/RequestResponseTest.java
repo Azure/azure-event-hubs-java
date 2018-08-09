@@ -246,7 +246,7 @@ public class RequestResponseTest extends ApiTestBase {
     @Test
     public void testGetRuntimesWebSockets() throws Exception {
         ConnectionStringBuilder connectionStringBuilder = TestContext.getConnectionString();
-        connectionStringBuilder.setTransportType(TransportType.AmqpWebSockets);
+        connectionStringBuilder.setTransportType(TransportType.AMQP_WEB_SOCKETS);
         testGetRuntimeInfos(connectionStringBuilder);
     }
 

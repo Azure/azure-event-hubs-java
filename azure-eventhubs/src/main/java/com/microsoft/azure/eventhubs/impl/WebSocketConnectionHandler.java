@@ -3,8 +3,12 @@ package com.microsoft.azure.eventhubs.impl;
 import com.microsoft.azure.proton.transport.ws.impl.WebSocketImpl;
 import org.apache.qpid.proton.engine.Event;
 import org.apache.qpid.proton.engine.impl.TransportInternal;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class WebSocketConnectionHandler extends ConnectionHandler {
+    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ConnectionHandler.class);
+
     public WebSocketConnectionHandler(AmqpConnection messagingFactory) {
         super(messagingFactory);
     }
@@ -22,6 +26,10 @@ public class WebSocketConnectionHandler extends ConnectionHandler {
                 null);
 
         transport.addTransportLayer(webSocket);
+
+        if (TRACE_LOGGER.isInfoEnabled()) {
+            TRACE_LOGGER.info("addWebsocketHandshake: hostname[" + event.getConnection().getHostname() +"]");
+        }
     }
 
     @Override
@@ -31,6 +39,8 @@ public class WebSocketConnectionHandler extends ConnectionHandler {
 
     @Override
     protected int getMaxFrameSize() {
+        // This is the current limitation of https://github.com/Azure/qpid-proton-j-extensions
+        // once, this library enables larger frames - this property can be removed.
         return 4 * 1024;
     }
 }

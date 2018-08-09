@@ -5,7 +5,6 @@
 package com.microsoft.azure.eventhubs.impl;
 
 
-import com.microsoft.azure.eventhubs.*;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.BaseHandler;
 import org.apache.qpid.proton.engine.Connection;
@@ -31,6 +30,14 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+
+import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
+import com.microsoft.azure.eventhubs.CommunicationException;
+import com.microsoft.azure.eventhubs.EventHubException;
+import com.microsoft.azure.eventhubs.OperationCancelledException;
+import com.microsoft.azure.eventhubs.RetryPolicy;
+import com.microsoft.azure.eventhubs.TimeoutException;
+import com.microsoft.azure.eventhubs.TransportType;
 
 /**
  * Abstracts all amqp related details and exposes AmqpConnection object
@@ -76,7 +83,7 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
         this.registeredLinks = new LinkedList<>();
         this.reactorLock = new Object();
         this.connectionHandler =
-                        builder.getTransportType() == TransportType.Amqp
+                        builder.getTransportType() == TransportType.AMQP
                         ? new ConnectionHandler(this)
                         : new WebSocketConnectionHandler(this);
         this.cbsChannelCreateLock = new Object();

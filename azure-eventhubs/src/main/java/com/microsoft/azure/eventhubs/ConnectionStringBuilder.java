@@ -259,10 +259,22 @@ public final class ConnectionStringBuilder {
         return this;
     }
 
+    /**
+     * TransportType on which all the communication for the EventHub objects created using this ConnectionString.
+     * Default value is {@link TransportType#AMQP}.
+     *
+     * @return transportType
+     */
     public TransportType getTransportType() {
-        return (this.transportType == null ? TransportType.Amqp : transportType);
+        return (this.transportType == null ? TransportType.AMQP : transportType);
     }
 
+    /**
+     * Set the TransportType value in the Connection String. If no TransportType is set, this defaults to {@link TransportType#AMQP}.
+     *
+     * @param transportType Transport Type
+     * @return the {@link ConnectionStringBuilder} instance being set.
+     */
     public ConnectionStringBuilder setTransportType(final TransportType transportType) {
         this.transportType = transportType;
         return this;
