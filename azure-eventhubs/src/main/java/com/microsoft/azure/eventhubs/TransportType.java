@@ -6,8 +6,6 @@ package com.microsoft.azure.eventhubs;
 
 /**
  * All TransportType switches available for communicating to EventHubs service.
- * <li>{@link #AMQP}</li>
- * <li>{@link #AMQP_WEB_SOCKETS}</li>
  */
 public enum TransportType {
     /**
