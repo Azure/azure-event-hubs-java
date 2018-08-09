@@ -11,10 +11,31 @@ public enum TransportType {
     /**
      * AMQP over TCP. Uses port 5671 - assigned by IANA for secure AMQP (AMQPS).
      */
-    AMQP,
+    AMQP("Amqp"),
 
     /**
      * AMQP over Web Sockets. Uses port 443.
      */
-    AMQP_WEB_SOCKETS
+    AMQP_WEB_SOCKETS("AmqpWebSockets");
+
+    private final String value;
+
+    TransportType(final String value) {
+        this.value = value;
+    }
+
+    @Override
+    public String toString() {
+        return this.value;
+    }
+
+    public static TransportType fromString(final String value) {
+        for (TransportType transportType : values()) {
+            if (transportType.value.equalsIgnoreCase(value)) {
+                return transportType;
+            }
+        }
+
+        throw new IllegalArgumentException();
+    }
 }

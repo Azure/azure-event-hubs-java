@@ -271,8 +271,6 @@ public final class ConnectionStringBuilder {
 
     /**
      * Set the TransportType value in the Connection String. If no TransportType is set, this defaults to {@link TransportType#AMQP}.
-     * Setting this property on the Connection String might limit inter-op with Connection Strings for other SDKs - due to different
-     * naming conventions for enums in other programming languages.
      *
      * @param transportType Transport Type
      * @return the {@link ConnectionStringBuilder} instance being set.
@@ -406,7 +404,7 @@ public final class ConnectionStringBuilder {
                 }
             } else if (key.equalsIgnoreCase(TransportTypeConfigName)) {
                 try {
-                    this.transportType = TransportType.valueOf(values[valueIndex]);
+                    this.transportType = TransportType.fromString(values[valueIndex]);
                 } catch (IllegalArgumentException exception) {
                     throw new IllegalConnectionStringFormatException(
                             String.format("Invalid value specified for property '%s' in the ConnectionString.", TransportTypeConfigName),

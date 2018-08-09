@@ -75,6 +75,7 @@ public final class ClientConstants {
     public static final String AMQP_REQUEST_FAILED_ERROR = "status-code: %s, status-description: %s";
     public static final String TOKEN_AUDIENCE_FORMAT = "amqp://%s/%s";
     public static final int MAX_RECEIVER_NAME_LENGTH = 64;
+
     /**
      * This is a constant defined to represent the start of a partition stream in EventHub.
      */
