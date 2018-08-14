@@ -128,9 +128,11 @@ begin receiving events:
 	   EventPosition.fromOffset(savedOffset));
     ``` 
 
-4. **End of stream**
+4. **End of stream** While this option is self explanatory, one point to remember here is that, this call is designed to be
+   more performant than using `EventPosition.fromEnqueuedTime(Instant.now())`.
 
-5. **Sequence number** 
+5. **Sequence number** This option is baked into the API to provide better integration with stream processing technologies 
+   (ex: APACHE SPARK). 
 
 ## Ownership, Failover, and Epochs
 As mentioned in the overview above, the common consumption model for Event Hubs is that multiple consumers process events 
