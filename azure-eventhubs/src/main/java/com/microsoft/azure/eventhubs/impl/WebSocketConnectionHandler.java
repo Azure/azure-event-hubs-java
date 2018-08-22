@@ -23,11 +23,12 @@ public class WebSocketConnectionHandler extends ConnectionHandler {
         webSocket.configure(
                 event.getConnection().getHostname(),
                 "/$servicebus/websocket",
-                null,
+                "",
                 0,
                 "AMQPWSB10",
                 null,
-                null);
+                null,
+                new com.microsoft.azure.proton.transport.ws.impl.ProxyHandlerImpl(null));
 
         transport.addTransportLayer(webSocket);
 

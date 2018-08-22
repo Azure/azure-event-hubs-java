@@ -49,7 +49,10 @@ public class ConnectionHandler extends BaseHandler {
     public void onConnectionInit(Event event) {
 
         final Connection connection = event.getConnection();
-        final String hostName = event.getReactor().getConnectionAddress(connection);
+        final String hostName = new StringBuilder(this.messagingFactory.getHostName())
+                                    .append(":")
+                                    .append(String.valueOf(this.getPort()))
+                                        .toString();
 
         connection.setHostname(hostName);
         connection.setContainer(StringUtil.getRandomString());

@@ -8,6 +8,9 @@ import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.Link;
 
 public interface AmqpConnection {
+
+    String getHostName();
+
     void onOpenComplete(Exception exception);
 
     void onConnectionError(ErrorCondition error);
