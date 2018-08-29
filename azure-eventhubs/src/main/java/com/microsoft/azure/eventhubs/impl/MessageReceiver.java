@@ -305,10 +305,33 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
             }
         } else {
             if (this.linkOpen != null && !this.linkOpen.getWork().isDone()) {
-                this.setClosed();
-                ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), exception, this);
-                if (this.openTimer != null)
-                    this.openTimer.cancel(false);
+                final Duration nextRetryInterval = this.underlyingFactory.getRetryPolicy().getNextRetryInterval(
+                        this.getClientId(), exception, this.linkOpen.getTimeoutTracker().remaining());
+                if (nextRetryInterval != null) {
+                    try {
+                        this.underlyingFactory.scheduleOnReactorThread((int) nextRetryInterval.toMillis(), new DispatchHandler() {
+                            @Override
+                            public void onEvent() {
+                                if (!MessageReceiver.this.getIsClosingOrClosed()
+                                        && (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)) {
+                                    createReceiveLink();
+                                    underlyingFactory.getRetryPolicy().incrementRetryCount(getClientId());
+                                }
+                            }
+                        });
+                    } catch (IOException | RejectedExecutionException ignore) {
+                        if (TRACE_LOGGER.isWarnEnabled()) {
+                            TRACE_LOGGER.warn(
+                                    String.format(Locale.US, "receiverPath[%s], linkName[%s], scheduling createLink encountered error: %s",
+                                            this.receivePath, this.receiveLink.getName(), ignore.getLocalizedMessage()));
+                        }
+                    }
+                } else {
+                    this.setClosed();
+                    ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), exception, this);
+                    if (this.openTimer != null)
+                        this.openTimer.cancel(false);
+                }
             }
 
             synchronized (this.errorConditionLock) {
@@ -563,6 +586,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                             }
 
                             ExceptionUtil.completeExceptionally(linkOpen.getWork(), operationTimedout, MessageReceiver.this);
+                            setClosed();
                         }
                     }
                 }
