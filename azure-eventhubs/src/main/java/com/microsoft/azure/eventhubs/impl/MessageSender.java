@@ -376,7 +376,8 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                                             this.sendPath, this.sendLink.getName(), ignore.getLocalizedMessage()));
                         }
                     }
-                } else {
+                } else if (completionException instanceof EventHubException
+                        && !((EventHubException) completionException).getIsTransient()){
                     this.setClosed();
                     ExceptionUtil.completeExceptionally(this.linkFirstOpen, completionException, this);
                     if (this.openTimer != null)
@@ -642,17 +643,16 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                     public void run() {
                         if (!MessageSender.this.linkFirstOpen.isDone()) {
                             final Exception lastReportedError;
-                            final Instant lastErrorReportedAt;
                             final Sender link;
                             synchronized (MessageSender.this.errorConditionLock) {
                                 lastReportedError = MessageSender.this.lastKnownLinkError;
-                                lastErrorReportedAt = MessageSender.this.lastKnownErrorReportedAt;
                                 link = MessageSender.this.sendLink;
                             }
 
                             final Exception operationTimedout = new TimeoutException(
-                                    String.format(Locale.US, "Open operation on SendLink(%s) on Entity(%s) timed out at %s.", link.getName(), MessageSender.this.getSendPath(), ZonedDateTime.now().toString()),
-                                    lastErrorReportedAt.isAfter(Instant.now().minusSeconds(ClientConstants.SERVER_BUSY_BASE_SLEEP_TIME_IN_SECS)) ? lastReportedError : null);
+                                    String.format(Locale.US, "Open operation on SendLink(%s) on Entity(%s) timed out at %s.",
+                                            link.getName(), MessageSender.this.getSendPath(), ZonedDateTime.now().toString()),
+                                    lastReportedError);
 
                             if (TRACE_LOGGER.isWarnEnabled()) {
                                 TRACE_LOGGER.warn(

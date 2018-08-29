@@ -326,7 +326,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                                             this.receivePath, this.receiveLink.getName(), ignore.getLocalizedMessage()));
                         }
                     }
-                } else {
+                } else if (exception instanceof EventHubException && !((EventHubException) exception).getIsTransient()) {
                     this.setClosed();
                     ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), exception, this);
                     if (this.openTimer != null)
