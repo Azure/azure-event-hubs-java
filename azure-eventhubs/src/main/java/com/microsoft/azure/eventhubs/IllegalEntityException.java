@@ -16,19 +16,22 @@ package com.microsoft.azure.eventhubs;
 public class IllegalEntityException extends EventHubException {
     private static final long serialVersionUID = 1842057379278310290L;
 
+    // TEST HOOK - to be used by unit tests to inject non-transient failures
+    private static volatile boolean IS_TRANSIENT = false;
+
     IllegalEntityException() {
-        super(false);
+        super(IS_TRANSIENT);
     }
 
     public IllegalEntityException(final String message) {
-        super(false, message);
+        super(IS_TRANSIENT, message);
     }
 
     public IllegalEntityException(final Throwable cause) {
-        super(false, cause);
+        super(IS_TRANSIENT, cause);
     }
 
     public IllegalEntityException(final String message, final Throwable cause) {
-        super(false, message, cause);
+        super(IS_TRANSIENT, message, cause);
     }
 }
