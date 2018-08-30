@@ -313,7 +313,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                             @Override
                             public void onEvent() {
                                 if (!MessageReceiver.this.getIsClosingOrClosed()
-                                        && (receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)) {
+                                        && (receiveLink == null || receiveLink.getLocalState() == EndpointState.CLOSED || receiveLink.getRemoteState() == EndpointState.CLOSED)) {
                                     createReceiveLink();
                                     underlyingFactory.getRetryPolicy().incrementRetryCount(getClientId());
                                 }
@@ -322,8 +322,8 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                     } catch (IOException | RejectedExecutionException ignore) {
                         if (TRACE_LOGGER.isWarnEnabled()) {
                             TRACE_LOGGER.warn(
-                                    String.format(Locale.US, "receiverPath[%s], linkName[%s], scheduling createLink encountered error: %s",
-                                            this.receivePath, this.receiveLink.getName(), ignore.getLocalizedMessage()));
+                                    String.format(Locale.US, "receiverPath[%s], scheduling createLink encountered error: %s",
+                                            this.receivePath, ignore.getLocalizedMessage()));
                         }
                     }
                 } else if (exception instanceof EventHubException && !((EventHubException) exception).getIsTransient()) {
@@ -577,11 +577,12 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                             }
 
                             final Exception operationTimedout = new TimeoutException(
-                                    String.format(Locale.US, "%s operation on ReceiveLink(%s) to path(%s) timed out at %s.", "Open", link.getName(), MessageReceiver.this.receivePath, ZonedDateTime.now()),
+                                    String.format(Locale.US, "Open operation on entity(%s) timed out at %s.",
+                                            MessageReceiver.this.receivePath, ZonedDateTime.now()),
                                     lastReportedLinkError);
                             if (TRACE_LOGGER.isWarnEnabled()) {
                                 TRACE_LOGGER.warn(
-                                        String.format(Locale.US, "receiverPath[%s], linkName[%s], %s call timedout", MessageReceiver.this.receivePath, link.getName(), "Open"),
+                                        String.format(Locale.US, "receiverPath[%s], Open call timedout", MessageReceiver.this.receivePath),
                                         operationTimedout);
                             }
 

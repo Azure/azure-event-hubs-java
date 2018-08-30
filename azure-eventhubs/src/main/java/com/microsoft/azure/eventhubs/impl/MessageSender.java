@@ -358,13 +358,14 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
             if (!this.linkFirstOpen.isDone()) {
                 final Duration nextRetryInterval = this.retryPolicy.getNextRetryInterval(
                         this.getClientId(), completionException, this.openLinkTracker.remaining());
+
                 if (nextRetryInterval != null) {
                     try {
                         this.underlyingFactory.scheduleOnReactorThread((int) nextRetryInterval.toMillis(), new DispatchHandler() {
                             @Override
                             public void onEvent() {
                                 if (!MessageSender.this.getIsClosingOrClosed()
-                                        && (sendLink.getLocalState() == EndpointState.CLOSED || sendLink.getRemoteState() == EndpointState.CLOSED)) {
+                                        && (sendLink == null || sendLink.getLocalState() == EndpointState.CLOSED || sendLink.getRemoteState() == EndpointState.CLOSED)) {
                                     recreateSendLink();
                                 }
                             }
@@ -372,8 +373,8 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                     } catch (IOException | RejectedExecutionException ignore) {
                         if (TRACE_LOGGER.isWarnEnabled()) {
                             TRACE_LOGGER.warn(
-                                    String.format(Locale.US, "senderPath[%s], linkName[%s], scheduling createLink encountered error: %s",
-                                            this.sendPath, this.sendLink.getName(), ignore.getLocalizedMessage()));
+                                    String.format(Locale.US, "senderPath[%s], scheduling createLink encountered error: %s",
+                                            this.sendPath, ignore.getLocalizedMessage()));
                         }
                     }
                 } else if (completionException instanceof EventHubException
@@ -650,13 +651,13 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                             }
 
                             final Exception operationTimedout = new TimeoutException(
-                                    String.format(Locale.US, "Open operation on SendLink(%s) on Entity(%s) timed out at %s.",
-                                            link.getName(), MessageSender.this.getSendPath(), ZonedDateTime.now().toString()),
+                                    String.format(Locale.US, "Open operation on entity(%s) timed out at %s.",
+                                            MessageSender.this.getSendPath(), ZonedDateTime.now().toString()),
                                     lastReportedError);
 
                             if (TRACE_LOGGER.isWarnEnabled()) {
                                 TRACE_LOGGER.warn(
-                                        String.format(Locale.US, "path[%s], linkName[%s], open call timedout", MessageSender.this.sendPath, MessageSender.this.sendLink.getName()),
+                                        String.format(Locale.US, "path[%s], open call timedout", MessageSender.this.sendPath),
                                         operationTimedout);
                             }
 
