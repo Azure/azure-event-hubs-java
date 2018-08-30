@@ -319,18 +319,17 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                                 }
                             }
                         });
-                    } catch (IOException | RejectedExecutionException ignore) {
+                    } catch (IOException | RejectedExecutionException schedulerException) {
                         if (TRACE_LOGGER.isWarnEnabled()) {
                             TRACE_LOGGER.warn(
                                     String.format(Locale.US, "receiverPath[%s], scheduling createLink encountered error: %s",
-                                            this.receivePath, ignore.getLocalizedMessage()));
+                                            this.receivePath, schedulerException.getLocalizedMessage()));
                         }
+
+                        this.cancelOpen(schedulerException);
                     }
                 } else if (exception instanceof EventHubException && !((EventHubException) exception).getIsTransient()) {
-                    this.setClosed();
-                    ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), exception, this);
-                    if (this.openTimer != null)
-                        this.openTimer.cancel(false);
+                    this.cancelOpen(exception);
                 }
             }
 
@@ -338,6 +337,13 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                 this.lastKnownLinkError = exception;
             }
         }
+    }
+
+    private void cancelOpen(final Exception completionException) {
+        this.setClosed();
+        ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), completionException, this);
+        if (this.openTimer != null)
+            this.openTimer.cancel(false);
     }
 
     @Override

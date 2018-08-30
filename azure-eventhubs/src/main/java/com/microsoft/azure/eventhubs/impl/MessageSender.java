@@ -370,22 +370,28 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                                 }
                             }
                         });
-                    } catch (IOException | RejectedExecutionException ignore) {
+                    } catch (IOException | RejectedExecutionException schedulerException) {
                         if (TRACE_LOGGER.isWarnEnabled()) {
                             TRACE_LOGGER.warn(
                                     String.format(Locale.US, "senderPath[%s], scheduling createLink encountered error: %s",
-                                            this.sendPath, ignore.getLocalizedMessage()));
+                                            this.sendPath, schedulerException.getLocalizedMessage()));
                         }
+
+                        this.cancelOpen(schedulerException);
                     }
                 } else if (completionException instanceof EventHubException
                         && !((EventHubException) completionException).getIsTransient()){
-                    this.setClosed();
-                    ExceptionUtil.completeExceptionally(this.linkFirstOpen, completionException, this);
-                    if (this.openTimer != null)
-                        this.openTimer.cancel(false);
+                    this.cancelOpen(completionException);
                 }
             }
         }
+    }
+
+    private void cancelOpen(final Exception completionException) {
+        this.setClosed();
+        ExceptionUtil.completeExceptionally(this.linkFirstOpen, completionException, this);
+        if (this.openTimer != null)
+            this.openTimer.cancel(false);
     }
 
     @Override
