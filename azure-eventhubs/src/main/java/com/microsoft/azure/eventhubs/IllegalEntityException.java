@@ -17,21 +17,21 @@ public class IllegalEntityException extends EventHubException {
     private static final long serialVersionUID = 1842057379278310290L;
 
     // TEST HOOK - to be used by unit tests to inject non-transient failures
-    private static volatile boolean IS_TRANSIENT = false;
+    private static volatile boolean isTransient = false;
 
     IllegalEntityException() {
-        super(IS_TRANSIENT);
+        super(isTransient);
     }
 
     public IllegalEntityException(final String message) {
-        super(IS_TRANSIENT, message);
+        super(isTransient, message);
     }
 
     public IllegalEntityException(final Throwable cause) {
-        super(IS_TRANSIENT, cause);
+        super(isTransient, cause);
     }
 
     public IllegalEntityException(final String message, final Throwable cause) {
-        super(IS_TRANSIENT, message, cause);
+        super(isTransient, message, cause);
     }
 }

@@ -69,6 +69,9 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     private int prefetchCount;
     private Exception lastKnownLinkError;
 
+    // TestHooks for code injection
+    private static volatile Consumer<MessageReceiver> onOpenRetry = null;
+
     private MessageReceiver(final MessagingFactory factory,
                             final String name,
                             final String recvPath,
@@ -279,7 +282,6 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
 
         if (exception == null) {
             if (this.getIsClosingOrClosed()) {
-
                 this.receiveLink.close();
                 return;
             }
@@ -308,6 +310,10 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                 final Duration nextRetryInterval = this.underlyingFactory.getRetryPolicy().getNextRetryInterval(
                         this.getClientId(), exception, this.linkOpen.getTimeoutTracker().remaining());
                 if (nextRetryInterval != null) {
+                    if (onOpenRetry != null) {
+                        onOpenRetry.accept(this);
+                    }
+
                     try {
                         this.underlyingFactory.scheduleOnReactorThread((int) nextRetryInterval.toMillis(), new DispatchHandler() {
                             @Override

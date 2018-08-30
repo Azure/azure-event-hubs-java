@@ -66,6 +66,9 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
     private Exception lastKnownLinkError;
     private Instant lastKnownErrorReportedAt;
 
+    // TestHooks for code injection
+    private static volatile Consumer<MessageSender> onOpenRetry = null;
+
     private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath) {
         super(sendLinkName, factory, factory.executor);
 
@@ -360,6 +363,10 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                         this.getClientId(), completionException, this.openLinkTracker.remaining());
 
                 if (nextRetryInterval != null) {
+                    if (onOpenRetry != null) {
+                        onOpenRetry.accept(this);
+                    }
+
                     try {
                         this.underlyingFactory.scheduleOnReactorThread((int) nextRetryInterval.toMillis(), new DispatchHandler() {
                             @Override
