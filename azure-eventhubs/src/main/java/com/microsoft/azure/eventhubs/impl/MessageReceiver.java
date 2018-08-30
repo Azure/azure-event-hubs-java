@@ -306,6 +306,10 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                         this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), this.prefetchCount));
             }
         } else {
+            synchronized (this.errorConditionLock) {
+                this.lastKnownLinkError = exception;
+            }
+
             if (this.linkOpen != null && !this.linkOpen.getWork().isDone()) {
                 final Duration nextRetryInterval = this.underlyingFactory.getRetryPolicy().getNextRetryInterval(
                         this.getClientId(), exception, this.linkOpen.getTimeoutTracker().remaining());
@@ -337,10 +341,6 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                 } else if (exception instanceof EventHubException && !((EventHubException) exception).getIsTransient()) {
                     this.cancelOpen(exception);
                 }
-            }
-
-            synchronized (this.errorConditionLock) {
-                this.lastKnownLinkError = exception;
             }
         }
     }
