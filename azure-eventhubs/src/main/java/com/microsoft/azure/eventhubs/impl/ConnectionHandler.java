@@ -75,6 +75,8 @@ public class ConnectionHandler extends BaseHandler {
     }
 
     protected void addTransportLayers(final Event event, final TransportInternal transport) {
+        final SslDomain domain = makeDomain(SslDomain.Mode.CLIENT);
+        transport.ssl(domain);
     }
 
     protected int getPort() {
@@ -91,9 +93,6 @@ public class ConnectionHandler extends BaseHandler {
         final Transport transport = event.getTransport();
 
         this.addTransportLayers(event, (TransportInternal) transport);
-
-        final SslDomain domain = makeDomain(SslDomain.Mode.CLIENT);
-        transport.ssl(domain);
     }
 
     @Override

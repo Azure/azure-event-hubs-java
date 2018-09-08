@@ -4,6 +4,9 @@
  */
 package com.microsoft.azure.eventhubs.impl;
 
+import com.microsoft.azure.proton.transport.proxy.Proxy;
+import com.microsoft.azure.proton.transport.proxy.impl.ProxyHandlerImpl;
+import com.microsoft.azure.proton.transport.proxy.impl.ProxyImpl;
 import com.microsoft.azure.proton.transport.ws.impl.WebSocketImpl;
 import org.apache.qpid.proton.engine.Event;
 import org.apache.qpid.proton.engine.impl.TransportInternal;
@@ -19,22 +22,29 @@ public class WebSocketConnectionHandler extends ConnectionHandler {
 
     @Override
     protected void addTransportLayers(final Event event, final TransportInternal transport) {
+        final String hostName = event.getConnection().getHostname();
+
         final WebSocketImpl webSocket = new WebSocketImpl();
         webSocket.configure(
-                event.getConnection().getHostname(),
+                hostName,
                 "/$servicebus/websocket",
                 "",
                 0,
                 "AMQPWSB10",
                 null,
-                null,
-                new com.microsoft.azure.proton.transport.ws.impl.ProxyHandlerImpl(null));
+                null);
 
         transport.addTransportLayer(webSocket);
 
         if (TRACE_LOGGER.isInfoEnabled()) {
             TRACE_LOGGER.info("addWebsocketHandshake: hostname[" + event.getConnection().getHostname() +"]");
         }
+
+        super.addTransportLayers(event, transport);
+
+        final ProxyImpl proxy = new ProxyImpl();
+        proxy.configure(hostName, null, new ProxyHandlerImpl());
+        transport.addTransportLayer(proxy);
     }
 
     @Override
