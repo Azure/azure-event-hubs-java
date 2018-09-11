@@ -85,6 +85,46 @@ public interface EventHubClient {
     }
 
     /**
+     * Sets hostname to be used while connecting to proxy.
+     * ProxyHostName is valid only while using AmqpWebSockets as TransportType.
+     * @param hostName hostname to be used while connecting to proxy
+     */
+    static void setProxyHostName(final String hostName) {
+        EventHubClientImpl.setProxyHostName(hostName);
+    }
+
+    /**
+     * Sets port to be used while connecting to proxy.
+     * ProxyHostPort is valid only while using AmqpWebSockets as TransportType.
+     * @param port port to be used while connecting to proxy
+     */
+    static void setProxyHostPort(final int port) {
+        EventHubClientImpl.setProxyHostPort(port);
+    }
+
+    /**
+     * Sets userName to be used while connecting to proxy.
+     * ProxyUserName is valid only while using AmqpWebSockets as TransportType.
+     * Library implements Basic Authorization as specified in Basic HTTP Authentication Scheme
+     * RFC: https://tools.ietf.org/html/rfc7617.
+     * @param userName userName to be used while connecting to proxy
+     */
+    static void setProxyUserName(final String userName) {
+        EventHubClientImpl.setProxyUserName(userName);
+    }
+
+    /**
+     * Sets password to be used while connecting to proxy.
+     * ProxyPassword is valid only while using AmqpWebSockets as TransportType.
+     * Library implements Basic Authorization as specified in Basic HTTP Authentication Scheme
+     * RFC: https://tools.ietf.org/html/rfc7617.
+     * @param password
+     */
+    static void setProxyPassword(final String password) {
+        EventHubClientImpl.setProxyPassword(password);
+    }
+
+    /**
      * @return the name of the Event Hub this client is connected to.
      */
     String getEventHubName();
