@@ -4,6 +4,7 @@
  */
 package com.microsoft.azure.eventhubs.impl;
 
+import com.microsoft.azure.eventhubs.TransportType;
 import org.apache.qpid.proton.Proton;
 import org.apache.qpid.proton.amqp.Symbol;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
@@ -29,10 +30,24 @@ public class ConnectionHandler extends BaseHandler {
 
     private final AmqpConnection messagingFactory;
 
-    public ConnectionHandler(final AmqpConnection messagingFactory) {
+    protected ConnectionHandler(final AmqpConnection messagingFactory) {
 
         add(new Handshaker());
         this.messagingFactory = messagingFactory;
+    }
+
+    static ConnectionHandler create(TransportType transportType, AmqpConnection messagingFactory) {
+        switch (transportType) {
+            case AMQP_WEB_SOCKETS:
+                if (ProxyConnectionHandler.shouldUseProxy()) {
+                    return new ProxyConnectionHandler(messagingFactory);
+                } else {
+                    return new WebSocketConnectionHandler(messagingFactory);
+                }
+            case AMQP:
+            default:
+                return new ConnectionHandler(messagingFactory);
+        }
     }
 
     private static SslDomain makeDomain(SslDomain.Mode mode) {
@@ -51,7 +66,7 @@ public class ConnectionHandler extends BaseHandler {
         final Connection connection = event.getConnection();
         final String hostName = new StringBuilder(this.messagingFactory.getHostName())
                                     .append(":")
-                                    .append(String.valueOf(this.getPort()))
+                                    .append(String.valueOf(this.getProtocolPort()))
                                         .toString();
 
         connection.setHostname(hostName);
@@ -79,7 +94,29 @@ public class ConnectionHandler extends BaseHandler {
         transport.ssl(domain);
     }
 
-    protected int getPort() {
+    /**
+     * HostName to be used for socket creation.
+     * for ex: in case of proxy server - this could be proxy ip address
+     * @return host name
+     */
+    public String getOutboundSocketHostName() {
+        return messagingFactory.getHostName();
+    }
+
+    /**
+     * port used to create socket.
+     * for ex: in case of talking to event hubs service via proxy - use proxy port
+     * @return port
+     */
+    protected int getOutboundSocketPort() {
+        return this.getProtocolPort();
+    }
+
+    /**
+     * Port used on connection open frame
+     * @return port
+     */
+    protected int getProtocolPort() {
         return ClientConstants.AMQPS_PORT;
     }
 

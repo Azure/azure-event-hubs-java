@@ -4,9 +4,6 @@
  */
 package com.microsoft.azure.eventhubs.impl;
 
-import com.microsoft.azure.proton.transport.proxy.Proxy;
-import com.microsoft.azure.proton.transport.proxy.impl.ProxyHandlerImpl;
-import com.microsoft.azure.proton.transport.proxy.impl.ProxyImpl;
 import com.microsoft.azure.proton.transport.ws.impl.WebSocketImpl;
 import org.apache.qpid.proton.engine.Event;
 import org.apache.qpid.proton.engine.impl.TransportInternal;
@@ -14,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class WebSocketConnectionHandler extends ConnectionHandler {
-    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ConnectionHandler.class);
+    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(WebSocketConnectionHandler.class);
 
     public WebSocketConnectionHandler(AmqpConnection messagingFactory) {
         super(messagingFactory);
@@ -41,14 +38,10 @@ public class WebSocketConnectionHandler extends ConnectionHandler {
         }
 
         super.addTransportLayers(event, transport);
-
-        final ProxyImpl proxy = new ProxyImpl();
-        proxy.configure(hostName, null, new ProxyHandlerImpl());
-        transport.addTransportLayer(proxy);
     }
 
     @Override
-    protected int getPort() {
+    protected int getProtocolPort() {
         return ClientConstants.HTTPS_PORT;
     }
 
