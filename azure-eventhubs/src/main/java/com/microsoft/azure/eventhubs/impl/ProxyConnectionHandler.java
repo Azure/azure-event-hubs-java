@@ -32,10 +32,6 @@ public class ProxyConnectionHandler extends WebSocketConnectionHandler {
     protected void addTransportLayers(final Event event, final TransportInternal transport) {
         super.addTransportLayers(event, transport);
 
-        if (TRACE_LOGGER.isInfoEnabled()) {
-            TRACE_LOGGER.info("addProxyHandshake: hostname[" + event.getConnection().getHostname() +"]");
-        }
-
         final ProxyImpl proxy = new ProxyImpl();
 
         // host name used to create proxy connect request
@@ -46,6 +42,10 @@ public class ProxyConnectionHandler extends WebSocketConnectionHandler {
         proxy.configure(hostName, proxyHeader, proxyHandler, transport);
 
         transport.addTransportLayer(proxy);
+
+        if (TRACE_LOGGER.isInfoEnabled()) {
+            TRACE_LOGGER.info("addProxyHandshake: hostname[" + hostName +"]");
+        }
     }
 
     @Override
