@@ -38,6 +38,7 @@ public class ProxyNegotiationHandler {
         final ReadWriteState proxyInitRead = new ReadWriteState(false);
         proxyInitRead.buffer = ByteBuffer.allocate(PROXY_BUFFER_SIZE);
         proxyInitRead.isRead = true;
+        proxyInitRead.clientAddress = this.clientSocket.getRemoteAddress().toString();
 
         this.clientSocket.read(proxyInitRead.buffer, proxyInitRead, new ReadWriteHandler());
     }
@@ -108,9 +109,11 @@ public class ProxyNegotiationHandler {
 
                             final String hostNamePortParts[] = extractHostNamePort(connectRequest);
                             proxyConnectionState = ProxyConnectionState.PROXY_INITIATED;
-
+                            final InetSocketAddress serviceAddress = new InetSocketAddress(
+                                    hostNamePortParts[0], Integer.parseInt(hostNamePortParts[1]));
+                            readWriteState.serviceAddress = serviceAddress.toString();
                             serviceSocket.connect(
-                                    new InetSocketAddress(hostNamePortParts[0], Integer.parseInt(hostNamePortParts[1])),
+                                    serviceAddress,
                                     readWriteState,
                                     new ServiceConnectCompletionHandler());
                         } else {
