@@ -6,7 +6,7 @@ import com.microsoft.azure.eventhubs.EventHubException;
 import com.microsoft.azure.eventhubs.TransportType;
 import com.microsoft.azure.eventhubs.lib.SasTokenTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.eventhubs.lib.proxy.ProxyServer;
+import org.jutils.jproxy.ProxyServer;
 import org.junit.*;
 
 public class ProxyReceiveTest extends SasTokenTestBase {

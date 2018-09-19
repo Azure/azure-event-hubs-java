@@ -3,7 +3,7 @@ package com.microsoft.azure.eventhubs.exceptioncontracts;
 import com.microsoft.azure.eventhubs.*;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
-import com.microsoft.azure.eventhubs.lib.proxy.ProxyServer;
+import org.jutils.jproxy.ProxyServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;

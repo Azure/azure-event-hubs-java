@@ -34,7 +34,12 @@
 			</plugin>
 		</plugins>
 	</build>
-
+	<repositories>
+		<repository>
+			<id>HTTP proxy server in java</id>
+			<url>http://raw.github.com/SreeramGarlapati/jproxy/master/releases</url>
+		</repository>
+	</repositories>
 	 <dependencies>
          <dependency>
              <groupId>org.apache.qpid</groupId>
@@ -57,6 +62,12 @@
              <version>${junit-version}</version>
              <scope>test</scope>
          </dependency>
+		 <dependency>
+			 <groupId>org.jutils.jproxy</groupId>
+			 <artifactId>jproxy</artifactId>
+			 <version>0.0.1</version>
+			 <scope>test</scope>
+		 </dependency>
 	 </dependencies>
 	
 	 <modules> 
