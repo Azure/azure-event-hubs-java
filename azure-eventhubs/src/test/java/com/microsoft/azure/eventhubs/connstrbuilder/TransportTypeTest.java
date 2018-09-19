@@ -14,7 +14,7 @@ import com.microsoft.azure.eventhubs.impl.MessagingFactory;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 
-import com.microsoft.azure.eventhubs.lib.proxy.ProxyServer;
+import org.jutils.jproxy.ProxyServer;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
