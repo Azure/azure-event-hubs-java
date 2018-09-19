@@ -31,7 +31,10 @@ public class ProxySendLargeMessageTest extends ApiTestBase {
     @AfterClass()
     public static void cleanup() throws Exception {
         SendLargeMessageTest.cleanup();
-        proxyServer.stop();
+
+        if (proxyServer != null) {
+            proxyServer.stop();
+        }
     }
 
     @Test()
