@@ -9,6 +9,9 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.*;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 public class ProxySendLargeMessageTest extends ApiTestBase {
@@ -20,8 +23,21 @@ public class ProxySendLargeMessageTest extends ApiTestBase {
     public static void initialize() throws Exception {
         proxyServer = ProxyServer.create("localhost", proxyPort);
         proxyServer.start(t -> {});
-        EventHubClient.setProxyHostName("localhost");
-        EventHubClient.setProxyHostPort(proxyPort);
+
+        ProxySelector.setDefault(new ProxySelector() {
+            @Override
+            public List<Proxy> select(URI uri) {
+                LinkedList<Proxy> proxies = new LinkedList<>();
+                proxies.add(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("localhost", proxyPort)));
+                return proxies;
+            }
+
+            @Override
+            public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                // no-op
+            }
+        });
+
         final ConnectionStringBuilder connectionStringBuilder = TestContext.getConnectionString();
         connectionStringBuilder.setTransportType(TransportType.AMQP_WEB_SOCKETS);
         sendLargeMessageTest = new SendLargeMessageTest();

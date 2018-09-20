@@ -13,15 +13,25 @@ import org.apache.qpid.proton.engine.impl.TransportInternal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.*;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ProxyConnectionHandler extends WebSocketConnectionHandler {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ProxyConnectionHandler.class);
+    private final String proxySelectorModifiedError = "ProxySelector has been modified.";
 
-    public static Boolean shouldUseProxy() {
-        return !StringUtil.isNullOrEmpty(EventHubClientImpl.proxyHostName);
+    public static Boolean shouldUseProxy(final String hostName) {
+        final URI uri = createURIFromHostNamePort(hostName, ClientConstants.HTTPS_PORT);
+        final ProxySelector proxySelector = ProxySelector.getDefault();
+        if (proxySelector == null) {
+            return false;
+        }
+
+        final List<Proxy> proxies = proxySelector.select(uri);
+        return isProxyAddressLegal(proxies);
     }
 
     public ProxyConnectionHandler(AmqpConnection messagingFactory) {
@@ -50,17 +60,34 @@ public class ProxyConnectionHandler extends WebSocketConnectionHandler {
 
     @Override
     public String getOutboundSocketHostName() {
-        return EventHubClientImpl.proxyHostName;
+        final InetSocketAddress socketAddress = getProxyAddress();
+        return socketAddress.getHostString();
     }
 
     @Override
     public int getOutboundSocketPort() {
-        return EventHubClientImpl.proxyHostPort;
+        final InetSocketAddress socketAddress = getProxyAddress();
+        return socketAddress.getPort();
     }
 
     private Map<String, String> getAuthorizationHeader() {
-        final String proxyUserName = EventHubClientImpl.proxyUserName;
-        final String proxyPassword = EventHubClientImpl.proxyPassword;
+        final PasswordAuthentication authentication = Authenticator.requestPasswordAuthentication(
+                getOutboundSocketHostName(),
+                null,
+                getOutboundSocketPort(),
+                null,
+                null,
+                "http",
+                null,
+                Authenticator.RequestorType.PROXY);
+        if (authentication == null) {
+            return null;
+        }
+
+        final String proxyUserName = authentication.getUserName();
+        final String proxyPassword = authentication.getPassword() != null
+                ? new String(authentication.getPassword())
+                : null;
         if (StringUtil.isNullOrEmpty(proxyUserName)
                 || StringUtil.isNullOrEmpty(proxyPassword)) {
             return null;
@@ -73,5 +100,39 @@ public class ProxyConnectionHandler extends WebSocketConnectionHandler {
                 "Proxy-Authorization",
                 "Basic " + Base64.getEncoder().encodeToString(usernamePasswordPair.getBytes()));
         return proxyAuthorizationHeader;
+    }
+
+    private InetSocketAddress getProxyAddress() {
+        final URI serviceUri = createURIFromHostNamePort(
+                this.getMessagingFactory().getHostName(),
+                this.getProtocolPort());
+        final ProxySelector proxySelector = ProxySelector.getDefault();
+        if (proxySelector == null) {
+            throw new IllegalStateException(proxySelectorModifiedError);
+        }
+
+        final List<Proxy> proxies = proxySelector.select(serviceUri);
+        if (!isProxyAddressLegal(proxies)) {
+            throw new IllegalStateException(proxySelectorModifiedError);
+        }
+
+        final Proxy proxy = proxies.get(0);
+        return (InetSocketAddress) proxy.address();
+    }
+
+    private static URI createURIFromHostNamePort(final String hostName, final int port) {
+        return URI.create(String.format(ClientConstants.HTTPS_URI_FORMAT, hostName, port));
+    }
+
+    private static boolean isProxyAddressLegal(final List<Proxy> proxies) {
+        // we look only at the first proxy in the list
+        // if the proxy can be translated to InetSocketAddress
+        // only then - can we parse it to hostName and Port
+        // which is required by qpid-proton-j library reactor.connectToHost() API
+        return proxies != null
+                && !proxies.isEmpty()
+                && proxies.get(0).type() == Proxy.Type.HTTP
+                && proxies.get(0).address() != null
+                && proxies.get(0).address() instanceof InetSocketAddress;
     }
 }

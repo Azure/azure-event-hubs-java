@@ -51,11 +51,6 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
 
     private CompletableFuture<Void> createSender;
 
-    volatile static String proxyHostName = null;
-    volatile static int proxyHostPort = 0;
-    volatile static String proxyUserName = null;
-    volatile static String proxyPassword = null;
-
     private EventHubClientImpl(final ConnectionStringBuilder connectionString, final Executor executor) {
         super(StringUtil.getRandomString(), null, executor);
 
@@ -82,22 +77,6 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
 
     public String getEventHubName() {
         return eventHubName;
-    }
-
-    public static void setProxyHostName(final String hostName) {
-        EventHubClientImpl.proxyHostName = hostName;
-    }
-
-    public static void setProxyHostPort(final int port) {
-        EventHubClientImpl.proxyHostPort = port;
-    }
-
-    public static void setProxyUserName(final String userName) {
-        EventHubClientImpl.proxyUserName = userName;
-    }
-
-    public static void setProxyPassword(final String password) {
-        EventHubClientImpl.proxyPassword = password;
     }
 
     public final EventDataBatch createBatch(BatchOptions options) throws EventHubException {

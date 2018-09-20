@@ -9,6 +9,11 @@ import com.microsoft.azure.eventhubs.lib.TestContext;
 import org.jutils.jproxy.ProxyServer;
 import org.junit.*;
 
+import java.io.IOException;
+import java.net.*;
+import java.util.LinkedList;
+import java.util.List;
+
 public class ProxyReceiveTest extends SasTokenTestBase {
 
     private static int proxyPort = 8899;
@@ -19,8 +24,20 @@ public class ProxyReceiveTest extends SasTokenTestBase {
     public static void initialize() throws Exception {
         proxyServer = ProxyServer.create("localhost", proxyPort);
         proxyServer.start(t -> {});
-        EventHubClient.setProxyHostName("localhost");
-        EventHubClient.setProxyHostPort(proxyPort);
+
+        ProxySelector.setDefault(new ProxySelector() {
+            @Override
+            public List<Proxy> select(URI uri) {
+                LinkedList<Proxy> proxies = new LinkedList<>();
+                proxies.add(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("localhost", proxyPort)));
+                return proxies;
+            }
+
+            @Override
+            public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                // no-op
+            }
+        });
 
         Assert.assertTrue(TestContext.getConnectionString().getSharedAccessSignature() != null
                 && TestContext.getConnectionString().getSasKey() == null

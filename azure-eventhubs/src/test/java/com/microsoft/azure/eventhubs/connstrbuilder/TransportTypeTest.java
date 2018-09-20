@@ -20,8 +20,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.*;
+import java.util.LinkedList;
+import java.util.List;
 
 public class TransportTypeTest extends ApiTestBase {
 
@@ -89,9 +93,22 @@ public class TransportTypeTest extends ApiTestBase {
         ProxyServer proxyServer = ProxyServer.create("localhost", proxyPort);
         proxyServer.start(throwable -> {});
 
+        ProxySelector defaultProxySelector = ProxySelector.getDefault();
+
         try {
-            EventHubClient.setProxyHostName("localhost");
-            EventHubClient.setProxyHostPort(proxyPort);
+            ProxySelector.setDefault(new ProxySelector() {
+                @Override
+                public List<Proxy> select(URI uri) {
+                    LinkedList<Proxy> proxies = new LinkedList<>();
+                    proxies.add(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("localhost", proxyPort)));
+                    return proxies;
+                }
+
+                @Override
+                public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
+                    // no-op
+                }
+            });
 
             ConnectionStringBuilder builder = new ConnectionStringBuilder(TestContext.getConnectionString().toString());
             builder.setTransportType(TransportType.AMQP_WEB_SOCKETS);
@@ -116,8 +133,8 @@ public class TransportTypeTest extends ApiTestBase {
                 Assert.assertEquals(proxyPort, outboundSocketPort.invoke(connectionHandler));
                 Assert.assertEquals(443, protocolPort.invoke(connectionHandler));
             } finally {
-                EventHubClient.setProxyHostName(null);
                 ehClient.closeSync();
+                ProxySelector.setDefault(defaultProxySelector);
             }
         } finally {
             proxyServer.stop();

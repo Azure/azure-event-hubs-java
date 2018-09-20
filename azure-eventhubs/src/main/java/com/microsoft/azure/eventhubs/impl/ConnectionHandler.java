@@ -39,7 +39,7 @@ public class ConnectionHandler extends BaseHandler {
     static ConnectionHandler create(TransportType transportType, AmqpConnection messagingFactory) {
         switch (transportType) {
             case AMQP_WEB_SOCKETS:
-                if (ProxyConnectionHandler.shouldUseProxy()) {
+                if (ProxyConnectionHandler.shouldUseProxy(messagingFactory.getHostName())) {
                     return new ProxyConnectionHandler(messagingFactory);
                 } else {
                     return new WebSocketConnectionHandler(messagingFactory);
@@ -48,6 +48,10 @@ public class ConnectionHandler extends BaseHandler {
             default:
                 return new ConnectionHandler(messagingFactory);
         }
+    }
+
+    protected AmqpConnection getMessagingFactory() {
+        return this.messagingFactory;
     }
 
     private static SslDomain makeDomain(SslDomain.Mode mode) {
