@@ -1,4 +1,4 @@
-package com.microsoft.azure.eventhubs.sendrecv;
+package com.microsoft.azure.eventhubs.proxy;
 
 import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventHubClient;
@@ -6,6 +6,7 @@ import com.microsoft.azure.eventhubs.EventHubException;
 import com.microsoft.azure.eventhubs.TransportType;
 import com.microsoft.azure.eventhubs.lib.SasTokenTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
+import com.microsoft.azure.eventhubs.sendrecv.ReceiveTest;
 import org.jutils.jproxy.ProxyServer;
 import org.junit.*;
 
@@ -13,14 +14,12 @@ import java.io.IOException;
 import java.net.*;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
 
-public class ProxySendTest extends SasTokenTestBase {
+public class ProxyReceiveTest extends SasTokenTestBase {
 
     private static int proxyPort = 8899;
     private static ProxyServer proxyServer;
-    private static SendTest sendTest;
+    private static ReceiveTest receiveTest;
 
     @BeforeClass
     public static void initialize() throws Exception {
@@ -45,38 +44,28 @@ public class ProxySendTest extends SasTokenTestBase {
                 && TestContext.getConnectionString().getSasKey() == null
                 && TestContext.getConnectionString().getSasKeyName() == null);
 
-        sendTest = new SendTest();
-
+        receiveTest = new ReceiveTest();
         ConnectionStringBuilder connectionString = TestContext.getConnectionString();
         connectionString.setTransportType(TransportType.AMQP_WEB_SOCKETS);
-        SendTest.initializeEventHub(connectionString);
+        ReceiveTest.initializeEventHub(connectionString);
     }
 
-    @AfterClass
-    public static void cleanupClient() throws Exception {
-
-        SendTest.cleanupClient();
+    @AfterClass()
+    public static void cleanup() throws Exception {
+        ReceiveTest.cleanup();
 
         if (proxyServer != null) {
             proxyServer.stop();
         }
     }
 
-    @Test
-    public void sendBatchRetainsOrderWithinBatch() throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
-
-        sendTest.sendBatchRetainsOrderWithinBatch();
-    }
-
-    @Test
-    public void sendResultsInSysPropertiesWithPartitionKey() throws EventHubException, InterruptedException, ExecutionException, TimeoutException {
-
-        sendTest.sendResultsInSysPropertiesWithPartitionKey();
+    @Test()
+    public void testReceiverStartOfStreamFilters() throws EventHubException {
+        receiveTest.testReceiverStartOfStreamFilters();
     }
 
     @After
-    public void cleanup() throws Exception {
-
-        sendTest.cleanup();
+    public void testCleanup() throws EventHubException {
+        receiveTest.testCleanup();
     }
 }

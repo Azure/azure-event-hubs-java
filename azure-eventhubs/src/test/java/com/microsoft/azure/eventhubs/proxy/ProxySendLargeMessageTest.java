@@ -1,6 +1,7 @@
-package com.microsoft.azure.eventhubs.exceptioncontracts;
+package com.microsoft.azure.eventhubs.proxy;
 
 import com.microsoft.azure.eventhubs.*;
+import com.microsoft.azure.eventhubs.exceptioncontracts.SendLargeMessageTest;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 import org.jutils.jproxy.ProxyServer;
