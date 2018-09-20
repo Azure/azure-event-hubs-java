@@ -8,6 +8,7 @@ import com.microsoft.azure.proton.transport.proxy.ProxyHandler;
 import com.microsoft.azure.proton.transport.proxy.impl.ProxyHandlerImpl;
 import com.microsoft.azure.proton.transport.proxy.impl.ProxyImpl;
 
+import org.apache.qpid.proton.amqp.transport.ConnectionError;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.Connection;
 import org.apache.qpid.proton.engine.Event;
@@ -75,7 +76,8 @@ public class ProxyConnectionHandler extends WebSocketConnectionHandler {
         final ProxySelector proxySelector = ProxySelector.getDefault();
 
         if (errorCondition == null
-                || !errorCondition.getCondition().equals(AmqpErrorCode.PROTON_IO_ERROR)
+                || !(errorCondition.getCondition().equals(ConnectionError.FRAMING_ERROR)
+                        || errorCondition.getCondition().equals(AmqpErrorCode.PROTON_IO_ERROR))
                 || proxySelector == null
                 || StringUtil.isNullOrEmpty(hostName)) {
             return;

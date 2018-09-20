@@ -24,13 +24,16 @@ import java.net.*;
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 public class ProxySelectorTest extends ApiTestBase {
-    private volatile boolean isProxyConnectFailedInvoked = false;
+
     @Test
     public void proxySelectorConnectFailedInvokeTest() throws Exception {
+        // doesn't start proxy server and verifies that the connectFailed callback is invoked.
         int proxyPort = 8899;
-        this.isProxyConnectFailedInvoked = false;
+        final CompletableFuture<Void> connectFailedTask = new CompletableFuture<>();
         ProxySelector.setDefault(new ProxySelector() {
             @Override
             public List<Proxy> select(URI uri) {
@@ -41,7 +44,7 @@ public class ProxySelectorTest extends ApiTestBase {
 
             @Override
             public void connectFailed(URI uri, SocketAddress sa, IOException ioe) {
-                ProxySelectorTest.this.isProxyConnectFailedInvoked = true;
+                connectFailedTask.complete(null);
             }
         });
 
@@ -53,9 +56,9 @@ public class ProxySelectorTest extends ApiTestBase {
             EventHubClient.createSync(builder.toString(), TestContext.EXECUTOR_SERVICE);
             Assert.assertTrue(false); // shouldn't reach here
         } catch(EventHubException ex) {
-            System.out.println(ex.getMessage());
+            Assert.assertEquals("connection aborted", ex.getMessage());
         }
 
-        Assert.assertTrue(isProxyConnectFailedInvoked);
+        connectFailedTask.get(2, TimeUnit.SECONDS);
     }
 }
