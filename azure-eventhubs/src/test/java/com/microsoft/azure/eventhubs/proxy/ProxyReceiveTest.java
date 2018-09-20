@@ -1,7 +1,10 @@
+/*
+ * Copyright (c) Microsoft. All rights reserved.
+ * Licensed under the MIT license. See LICENSE file in the project root for full license information.
+ */
 package com.microsoft.azure.eventhubs.proxy;
 
 import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
-import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
 import com.microsoft.azure.eventhubs.TransportType;
 import com.microsoft.azure.eventhubs.lib.SasTokenTestBase;

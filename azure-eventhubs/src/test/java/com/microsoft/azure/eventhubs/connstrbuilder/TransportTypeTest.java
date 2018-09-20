@@ -29,6 +29,8 @@ import java.util.List;
 
 public class TransportTypeTest extends ApiTestBase {
 
+    public volatile boolean isProxySelectorInvoked = false;
+
     @Test
     public void transportTypeAmqpCreatesConnectionWithPort5671() throws Exception {
         ConnectionStringBuilder builder = new ConnectionStringBuilder(TestContext.getConnectionString().toString());
@@ -94,13 +96,14 @@ public class TransportTypeTest extends ApiTestBase {
         proxyServer.start(throwable -> {});
 
         ProxySelector defaultProxySelector = ProxySelector.getDefault();
-
+        this.isProxySelectorInvoked = false;
         try {
             ProxySelector.setDefault(new ProxySelector() {
                 @Override
                 public List<Proxy> select(URI uri) {
                     LinkedList<Proxy> proxies = new LinkedList<>();
                     proxies.add(new Proxy(Proxy.Type.HTTP, new InetSocketAddress("localhost", proxyPort)));
+                    isProxySelectorInvoked = true;
                     return proxies;
                 }
 
@@ -132,6 +135,8 @@ public class TransportTypeTest extends ApiTestBase {
 
                 Assert.assertEquals(proxyPort, outboundSocketPort.invoke(connectionHandler));
                 Assert.assertEquals(443, protocolPort.invoke(connectionHandler));
+
+                Assert.assertTrue(isProxySelectorInvoked);
             } finally {
                 ehClient.closeSync();
                 ProxySelector.setDefault(defaultProxySelector);
