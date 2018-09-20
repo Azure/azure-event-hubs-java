@@ -98,6 +98,10 @@ public class ConnectionHandler extends BaseHandler {
         transport.ssl(domain);
     }
 
+    protected void notifyTransportErrors(final Event event) {
+        // no-op
+    }
+
     /**
      * HostName to be used for socket creation.
      * for ex: in case of proxy server - this could be proxy ip address
@@ -169,6 +173,8 @@ public class ConnectionHandler extends BaseHandler {
 
         // onTransportError event is not handled by the global IO Handler for cleanup
         transport.unbind();
+
+        this.notifyTransportErrors(event);
     }
 
     @Override
