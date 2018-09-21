@@ -39,8 +39,8 @@ public class ConnectionHandler extends BaseHandler {
     static ConnectionHandler create(TransportType transportType, AmqpConnection messagingFactory) {
         switch (transportType) {
             case AMQP_WEB_SOCKETS:
-                if (ProxyConnectionHandler.shouldUseProxy(messagingFactory.getHostName())) {
-                    return new ProxyConnectionHandler(messagingFactory);
+                if (WebSocketProxyConnectionHandler.shouldUseProxy(messagingFactory.getHostName())) {
+                    return new WebSocketProxyConnectionHandler(messagingFactory);
                 } else {
                     return new WebSocketConnectionHandler(messagingFactory);
                 }

@@ -29,8 +29,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class ProxyConnectionHandler extends WebSocketConnectionHandler {
-    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ProxyConnectionHandler.class);
+public class WebSocketProxyConnectionHandler extends WebSocketConnectionHandler {
+    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(WebSocketProxyConnectionHandler.class);
     private final String proxySelectorModifiedError = "ProxySelector has been modified.";
 
     public static Boolean shouldUseProxy(final String hostName) {
@@ -44,7 +44,7 @@ public class ProxyConnectionHandler extends WebSocketConnectionHandler {
         return isProxyAddressLegal(proxies);
     }
 
-    public ProxyConnectionHandler(AmqpConnection messagingFactory) {
+    public WebSocketProxyConnectionHandler(AmqpConnection messagingFactory) {
         super(messagingFactory);
     }
 
