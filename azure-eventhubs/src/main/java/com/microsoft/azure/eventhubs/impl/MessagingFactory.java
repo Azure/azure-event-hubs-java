@@ -172,8 +172,8 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
 
                 final Reactor r = e.getReactor();
                 connection = r.connectionToHost(
-                        connectionHandler.getRemoteSocketHostName(),
-                        connectionHandler.getRemoteSocketPort(),
+                        connectionHandler.getRemoteHostName(),
+                        connectionHandler.getRemotePort(),
                         connectionHandler);
             }
         });
@@ -220,8 +220,8 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
 
         if (this.connection == null || this.connection.getLocalState() == EndpointState.CLOSED || this.connection.getRemoteState() == EndpointState.CLOSED) {
             this.connection = this.getReactor().connectionToHost(
-                    this.connectionHandler.getRemoteSocketHostName(),
-                    this.connectionHandler.getRemoteSocketPort(),
+                    this.connectionHandler.getRemoteHostName(),
+                    this.connectionHandler.getRemotePort(),
                     this.connectionHandler);
         }
 

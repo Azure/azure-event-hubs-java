@@ -44,7 +44,7 @@ public class TransportTypeTest extends ApiTestBase {
             connectionHandlerField.setAccessible(true);
             final ConnectionHandler connectionHandler = (ConnectionHandler) connectionHandlerField.get(underlyingFactory);
 
-            final Method outboundSocketPort = ConnectionHandler.class.getDeclaredMethod("getRemoteSocketPort");
+            final Method outboundSocketPort = ConnectionHandler.class.getDeclaredMethod("getRemotePort");
             outboundSocketPort.setAccessible(true);
 
             final Method protocolPort = ConnectionHandler.class.getDeclaredMethod("getProtocolPort");
@@ -73,7 +73,7 @@ public class TransportTypeTest extends ApiTestBase {
             connectionHandlerField.setAccessible(true);
             final ConnectionHandler connectionHandler = (ConnectionHandler) connectionHandlerField.get(underlyingFactory);
 
-            final Method outboundSocketPort = ConnectionHandler.class.getDeclaredMethod("getRemoteSocketPort");
+            final Method outboundSocketPort = ConnectionHandler.class.getDeclaredMethod("getRemotePort");
             outboundSocketPort.setAccessible(true);
 
             final Method protocolPort = ConnectionHandler.class.getDeclaredMethod("getProtocolPort");
@@ -124,7 +124,7 @@ public class TransportTypeTest extends ApiTestBase {
                 connectionHandlerField.setAccessible(true);
                 final ConnectionHandler connectionHandler = (ConnectionHandler) connectionHandlerField.get(underlyingFactory);
 
-                final Method outboundSocketPort = ConnectionHandler.class.getDeclaredMethod("getRemoteSocketPort");
+                final Method outboundSocketPort = ConnectionHandler.class.getDeclaredMethod("getRemotePort");
                 outboundSocketPort.setAccessible(true);
 
                 final Method protocolPort = ConnectionHandler.class.getDeclaredMethod("getProtocolPort");

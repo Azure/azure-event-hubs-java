@@ -107,7 +107,7 @@ public class ConnectionHandler extends BaseHandler {
      * for ex: in case of proxy server - this could be proxy ip address
      * @return host name
      */
-    public String getRemoteSocketHostName() {
+    public String getRemoteHostName() {
         return amqpConnection.getHostName();
     }
 
@@ -116,7 +116,7 @@ public class ConnectionHandler extends BaseHandler {
      * for ex: in case of talking to event hubs service via proxy - use proxy port
      * @return port
      */
-    protected int getRemoteSocketPort() {
+    protected int getRemotePort() {
         return this.getProtocolPort();
     }
 

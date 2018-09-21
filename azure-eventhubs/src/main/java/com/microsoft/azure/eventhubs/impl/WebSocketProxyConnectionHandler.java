@@ -108,22 +108,22 @@ public class WebSocketProxyConnectionHandler extends WebSocketConnectionHandler 
     }
 
     @Override
-    public String getRemoteSocketHostName() {
+    public String getRemoteHostName() {
         final InetSocketAddress socketAddress = getProxyAddress();
         return socketAddress.getHostString();
     }
 
     @Override
-    public int getRemoteSocketPort() {
+    public int getRemotePort() {
         final InetSocketAddress socketAddress = getProxyAddress();
         return socketAddress.getPort();
     }
 
     private Map<String, String> getAuthorizationHeader() {
         final PasswordAuthentication authentication = Authenticator.requestPasswordAuthentication(
-                getRemoteSocketHostName(),
+                getRemoteHostName(),
                 null,
-                getRemoteSocketPort(),
+                getRemotePort(),
                 null,
                 null,
                 "http",
