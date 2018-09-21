@@ -23,12 +23,14 @@ public class ProxySendLargeMessageTest extends ApiTestBase {
     private static int proxyPort = 8899;
     private static ProxyServer proxyServer;
     private static SendLargeMessageTest sendLargeMessageTest;
+    private static ProxySelector defaultProxySelector;
 
     @BeforeClass
     public static void initialize() throws Exception {
         proxyServer = ProxyServer.create("localhost", proxyPort);
         proxyServer.start(t -> {});
 
+        defaultProxySelector = ProxySelector.getDefault();
         ProxySelector.setDefault(new ProxySelector() {
             @Override
             public List<Proxy> select(URI uri) {
@@ -56,6 +58,8 @@ public class ProxySendLargeMessageTest extends ApiTestBase {
         if (proxyServer != null) {
             proxyServer.stop();
         }
+
+        ProxySelector.setDefault(defaultProxySelector);
     }
 
     @Test()

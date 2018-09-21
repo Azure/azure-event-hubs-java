@@ -14,21 +14,27 @@ import org.jutils.jproxy.ProxyServer;
 import org.junit.*;
 
 import java.io.IOException;
-import java.net.*;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.SocketAddress;
+import java.net.URI;
 import java.util.LinkedList;
 import java.util.List;
 
 public class ProxyReceiveTest extends SasTokenTestBase {
 
-    private static int proxyPort = 8899;
+    private static final int proxyPort = 8899;
     private static ProxyServer proxyServer;
     private static ReceiveTest receiveTest;
+    private static ProxySelector defaultProxySelector;
 
     @BeforeClass
     public static void initialize() throws Exception {
         proxyServer = ProxyServer.create("localhost", proxyPort);
         proxyServer.start(t -> {});
 
+        defaultProxySelector = ProxySelector.getDefault();
         ProxySelector.setDefault(new ProxySelector() {
             @Override
             public List<Proxy> select(URI uri) {
@@ -60,6 +66,8 @@ public class ProxyReceiveTest extends SasTokenTestBase {
         if (proxyServer != null) {
             proxyServer.stop();
         }
+
+        ProxySelector.setDefault(defaultProxySelector);
     }
 
     @Test()

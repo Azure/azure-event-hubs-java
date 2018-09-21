@@ -8,19 +8,17 @@ import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
 import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
 import com.microsoft.azure.eventhubs.TransportType;
-import com.microsoft.azure.eventhubs.impl.ConnectionHandler;
-import com.microsoft.azure.eventhubs.impl.EventHubClientImpl;
-import com.microsoft.azure.eventhubs.impl.MessagingFactory;
 import com.microsoft.azure.eventhubs.lib.ApiTestBase;
 import com.microsoft.azure.eventhubs.lib.TestContext;
 import org.junit.Assert;
 import org.junit.Test;
-import org.jutils.jproxy.ProxyServer;
 
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.net.*;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.ProxySelector;
+import java.net.SocketAddress;
+import java.net.URI;
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
@@ -34,6 +32,7 @@ public class ProxySelectorTest extends ApiTestBase {
         // doesn't start proxy server and verifies that the connectFailed callback is invoked.
         int proxyPort = 8899;
         final CompletableFuture<Void> connectFailedTask = new CompletableFuture<>();
+        final ProxySelector defaultProxySelector = ProxySelector.getDefault();
         ProxySelector.setDefault(new ProxySelector() {
             @Override
             public List<Proxy> select(URI uri) {
@@ -48,17 +47,21 @@ public class ProxySelectorTest extends ApiTestBase {
             }
         });
 
-        ConnectionStringBuilder builder = new ConnectionStringBuilder(TestContext.getConnectionString().toString());
-        builder.setTransportType(TransportType.AMQP_WEB_SOCKETS);
-        builder.setOperationTimeout(Duration.ofSeconds(10));
-
         try {
-            EventHubClient.createSync(builder.toString(), TestContext.EXECUTOR_SERVICE);
-            Assert.assertTrue(false); // shouldn't reach here
-        } catch(EventHubException ex) {
-            Assert.assertEquals("connection aborted", ex.getMessage());
-        }
+            ConnectionStringBuilder builder = new ConnectionStringBuilder(TestContext.getConnectionString().toString());
+            builder.setTransportType(TransportType.AMQP_WEB_SOCKETS);
+            builder.setOperationTimeout(Duration.ofSeconds(10));
 
-        connectFailedTask.get(2, TimeUnit.SECONDS);
+            try {
+                EventHubClient.createSync(builder.toString(), TestContext.EXECUTOR_SERVICE);
+                Assert.assertTrue(false); // shouldn't reach here
+            } catch (EventHubException ex) {
+                Assert.assertEquals("connection aborted", ex.getMessage());
+            }
+
+            connectFailedTask.get(2, TimeUnit.SECONDS);
+        } finally {
+            ProxySelector.setDefault(defaultProxySelector);
+        }
     }
 }
