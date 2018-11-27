@@ -10,6 +10,8 @@ import org.apache.qpid.proton.engine.Event;
 import org.apache.qpid.proton.reactor.Reactor;
 import org.apache.qpid.proton.reactor.Selectable;
 import org.apache.qpid.proton.reactor.Selectable.Callback;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -28,6 +30,7 @@ import java.util.concurrent.RejectedExecutionException;
  * Each {@link ReactorDispatcher} should be initialized Synchronously - as it calls API in {@link Reactor} which is not thread-safe.
  */
 public final class ReactorDispatcher {
+    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(ReactorDispatcher.class);
     private final Reactor reactor;
     private final Pipe ioSignal;
     private final ConcurrentLinkedQueue<BaseHandler> workQueue;
@@ -84,9 +87,14 @@ public final class ReactorDispatcher {
 
     private void signalWorkQueue() throws IOException {
         try {
-            while (this.ioSignal.sink().write(ByteBuffer.allocate(1)) == 0) {
+            Pipe.SinkChannel sinkChannel = this.ioSignal.sink();
+            while (sinkChannel.isOpen() && sinkChannel.write(ByteBuffer.allocate(1)) == 0) {
             }
         } catch (ClosedChannelException ignorePipeClosedDuringReactorShutdown) {
+            if (TRACE_LOGGER.isErrorEnabled()) {
+                TRACE_LOGGER.error("ReactorDispatcher sink channel closed with " +
+                    ignorePipeClosedDuringReactorShutdown.getMessage());
+            }
         }
     }
 
