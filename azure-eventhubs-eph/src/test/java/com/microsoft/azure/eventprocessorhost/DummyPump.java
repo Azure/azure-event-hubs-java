@@ -9,6 +9,7 @@ import com.microsoft.azure.eventhubs.EventData;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 
 
 class DummyPump extends PumpManager {
@@ -22,11 +23,11 @@ class DummyPump extends PumpManager {
 
     @Override
     protected PartitionPump createNewPump(CompleteLease lease) {
-        return new DummyPartitionPump(this.hostContext, lease, this);
+        return new DummyPartitionPump(this.hostContext, lease, this, this);
     }
 
     @Override
-    protected void removingPumpTestHook(String partitionId, Throwable e) {
+    protected void removingPumpTestHook(String partitionId) {
     	TestBase.logInfo("Steal detected, host " + this.hostContext.getHostName() + " removing " + partitionId);
     }
 
@@ -34,8 +35,8 @@ class DummyPump extends PumpManager {
     private class DummyPartitionPump extends PartitionPump implements Callable<Void> {
         CompletableFuture<Void> blah = null;
 
-        DummyPartitionPump(HostContext hostContext, CompleteLease lease, Closable parent) {
-            super(hostContext, lease, parent);
+        DummyPartitionPump(HostContext hostContext, CompleteLease lease, Closable parent, Consumer<String> pumpManagerCallback) {
+            super(hostContext, lease, parent, pumpManagerCallback);
         }
 
         @Override
