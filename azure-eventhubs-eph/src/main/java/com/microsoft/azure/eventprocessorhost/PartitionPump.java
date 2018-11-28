@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 class PartitionPump extends Closable implements PartitionReceiveHandler {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(PartitionPump.class);
@@ -24,6 +25,7 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
     final private CompletableFuture<Void> shutdownFinishedFuture;
     private final Object processingSynchronizer;
     protected final CompleteLease lease; // protected for testability
+    private final Consumer<String> pumpManagerCallback;
     private EventHubClient eventHubClient = null;
     private PartitionReceiver partitionReceiver = null;
     private CloseReason shutdownReason;
@@ -32,16 +34,18 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
     private PartitionContext partitionContext = null;
     private ScheduledFuture<?> leaseRenewerFuture = null;
 
-    PartitionPump(HostContext hostContext, CompleteLease lease, Closable parent) {
+    PartitionPump(HostContext hostContext, CompleteLease lease, Closable parent, Consumer<String> pumpManagerCallback) {
     	super(parent);
     	
         this.hostContext = hostContext;
         this.lease = lease;
+        this.pumpManagerCallback = pumpManagerCallback;
         this.processingSynchronizer = new Object();
 
         // Set up the shutdown futures. The shutdown process can be triggered just by completing this.shutdownFuture.
         this.shutdownTriggerFuture = new CompletableFuture<Void>();
-        this.shutdownFinishedFuture = this.shutdownTriggerFuture.handleAsync((r, e) -> cancelPendingOperations(), this.hostContext.getExecutor())
+        this.shutdownFinishedFuture = this.shutdownTriggerFuture
+        		.handleAsync((r, e) -> { this.pumpManagerCallback.accept(this.lease.getPartitionId()); return cancelPendingOperations(); }, this.hostContext.getExecutor())
                 .thenComposeAsync((empty) -> cleanUpAll(this.shutdownReason), this.hostContext.getExecutor())
                 .thenComposeAsync((empty) -> releaseLeaseOnShutdown(), this.hostContext.getExecutor())
                 .whenCompleteAsync((empty, e) -> { setClosed(); }, this.hostContext.getExecutor());
