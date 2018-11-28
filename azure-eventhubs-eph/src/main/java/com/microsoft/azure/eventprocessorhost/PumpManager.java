@@ -47,6 +47,7 @@ class PumpManager extends Closable implements Consumer<String> {
         TRACE_LOGGER.info(this.hostContext.withHostAndPartition(lease, "creating new pump"));
         PartitionPump newPartitionPump = createNewPump(lease);
         this.pumpStates.put(lease.getPartitionId(), newPartitionPump);
+        newPartitionPump.startPump();
     }
 
     // Callback used by pumps during pump shutdown. 
