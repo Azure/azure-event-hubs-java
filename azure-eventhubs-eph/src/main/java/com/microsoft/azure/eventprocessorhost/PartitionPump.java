@@ -27,7 +27,7 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
     private EventHubClient eventHubClient = null;
     private PartitionReceiver partitionReceiver = null;
     private CloseReason shutdownReason;
-    private CompletableFuture<?> internalOperationFuture = null;
+    private volatile CompletableFuture<?> internalOperationFuture = null;
     private IEventProcessor processor = null;
     private PartitionContext partitionContext = null;
     private ScheduledFuture<?> leaseRenewerFuture = null;
@@ -218,6 +218,7 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
                     try {
                         receiverFuture = this.eventHubClient.createEpochReceiver(this.partitionContext.getConsumerGroupName(),
                                 this.partitionContext.getPartitionId(), startAt, epoch, options);
+                        this.internalOperationFuture = receiverFuture;
                     } catch (EventHubException e) {
                         receiverFuture = new CompletableFuture<PartitionReceiver>();
                         receiverFuture.completeExceptionally(e);
@@ -362,7 +363,7 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
 
         ScheduledFuture<?> capturedLeaseRenewer = this.leaseRenewerFuture;
         if (capturedLeaseRenewer != null) {
-            this.leaseRenewerFuture.cancel(true);
+            capturedLeaseRenewer.cancel(true);
         }
         return null;
     }
