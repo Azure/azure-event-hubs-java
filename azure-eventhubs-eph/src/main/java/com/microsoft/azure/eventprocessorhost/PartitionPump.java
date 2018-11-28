@@ -23,7 +23,7 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
     final private CompletableFuture<Void> shutdownTriggerFuture;
     final private CompletableFuture<Void> shutdownFinishedFuture;
     private final Object processingSynchronizer;
-    protected CompleteLease lease = null; // protected for testability
+    protected final CompleteLease lease; // protected for testability
     private EventHubClient eventHubClient = null;
     private PartitionReceiver partitionReceiver = null;
     private CloseReason shutdownReason;
@@ -45,13 +45,6 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
                 .thenComposeAsync((empty) -> cleanUpAll(this.shutdownReason), this.hostContext.getExecutor())
                 .thenComposeAsync((empty) -> releaseLeaseOnShutdown(), this.hostContext.getExecutor())
                 .whenCompleteAsync((empty, e) -> { setClosed(); }, this.hostContext.getExecutor());
-    }
-
-    void setLease(CompleteLease newLease) {
-        this.lease = newLease;
-        if (this.partitionContext != null) {
-            this.partitionContext.setLease(newLease);
-        }
     }
 
     // The CompletableFuture returned by startPump remains uncompleted as long as the pump is running.
