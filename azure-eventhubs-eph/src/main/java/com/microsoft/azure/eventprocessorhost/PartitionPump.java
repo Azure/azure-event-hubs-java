@@ -238,12 +238,15 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
                 // Stage 5: on success, set up the receiver
                 .thenApplyAsync((receiver) ->
                 {
-                    try {
-                        this.partitionReceiver.setPrefetchCount(this.hostContext.getEventProcessorOptions().getPrefetchCount());
-                    } catch (Exception e1) {
-                        TRACE_LOGGER.error(this.hostContext.withHostAndPartition(this.partitionContext, "PartitionReceiver failed setting prefetch count"), e1);
-                        throw new CompletionException(e1);
-                    }
+                	if (this.hostContext.getEventProcessorOptions().getPrefetchCount() > PartitionReceiver.DEFAULT_PREFETCH_COUNT)
+                	{
+	                    try {
+	                        this.partitionReceiver.setPrefetchCount(this.hostContext.getEventProcessorOptions().getPrefetchCount());
+	                    } catch (Exception e1) {
+	                        TRACE_LOGGER.error(this.hostContext.withHostAndPartition(this.partitionContext, "PartitionReceiver failed setting prefetch count"), e1);
+	                        throw new CompletionException(e1);
+	                    }
+                	}
                     this.partitionReceiver.setReceiveTimeout(this.hostContext.getEventProcessorOptions().getReceiveTimeOut());
 
                     TRACE_LOGGER.info(this.hostContext.withHostAndPartition(this.partitionContext,
