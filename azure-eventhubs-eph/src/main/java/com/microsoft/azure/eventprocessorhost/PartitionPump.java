@@ -42,6 +42,9 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
         this.pumpManagerCallback = pumpManagerCallback;
         this.processingSynchronizer = new Object();
 
+        this.partitionContext = new PartitionContext(this.hostContext, this.lease.getPartitionId());
+        this.partitionContext.setLease(this.lease);
+        
         // Set up the shutdown futures. The shutdown process can be triggered just by completing this.shutdownFuture.
         this.shutdownTriggerFuture = new CompletableFuture<Void>();
         this.shutdownFinishedFuture = this.shutdownTriggerFuture
@@ -55,9 +58,6 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
     // If startup fails, or an error occurs while running, it will complete exceptionally.
     // If clean shutdown due to unregister call, it completes normally.
     CompletableFuture<Void> startPump() {
-        // Fast, non-blocking actions.
-        setupPartitionContext();
-
         // Do the slow startup stuff asynchronously.
         // Use whenComplete to trigger cleanup on exception.
         CompletableFuture.runAsync(() -> openProcessor(), this.hostContext.getExecutor())
@@ -72,11 +72,6 @@ class PartitionPump extends Closable implements PartitionReceiveHandler {
                 }, this.hostContext.getExecutor());
 
         return shutdownFinishedFuture;
-    }
-
-    protected void setupPartitionContext() {
-        this.partitionContext = new PartitionContext(this.hostContext, this.lease.getPartitionId());
-        this.partitionContext.setLease(this.lease);
     }
 
     private void openProcessor() {
