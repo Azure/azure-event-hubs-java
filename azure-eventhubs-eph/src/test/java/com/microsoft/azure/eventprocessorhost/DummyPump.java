@@ -41,7 +41,6 @@ class DummyPump extends PumpManager {
 
         @Override
         CompletableFuture<Void> startPump() {
-            super.setupPartitionContext();
             this.blah = new CompletableFuture<Void>();
             ((InMemoryLeaseManager) this.hostContext.getLeaseManager()).notifyOnSteal(this.hostContext.getHostName(), this.lease.getPartitionId(), this);
             super.scheduleLeaseRenewer();
