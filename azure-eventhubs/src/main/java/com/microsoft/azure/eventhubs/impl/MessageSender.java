@@ -40,7 +40,8 @@ import java.util.function.Consumer;
 public final class MessageSender extends ClientEntity implements AmqpSender, ErrorContextProvider {
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(MessageSender.class);
     private static final String SEND_TIMED_OUT = "Send operation timed out";
-
+    // TestHooks for code injection
+    private static volatile Consumer<MessageSender> onOpenRetry = null;
     private final MessagingFactory underlyingFactory;
     private final String sendPath;
     private final Duration operationTimeout;
@@ -54,7 +55,6 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
     private final String tokenAudience;
     private final Object errorConditionLock;
     private final Timer timer;
-
     private volatile int maxMessageSize;
     private volatile Sender sendLink;
     private volatile CompletableFuture<MessageSender> linkFirstOpen;
@@ -62,12 +62,8 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
     private volatile boolean creatingLink;
     private volatile CompletableFuture<?> closeTimer;
     private volatile CompletableFuture<?> openTimer;
-
     private Exception lastKnownLinkError;
     private Instant lastKnownErrorReportedAt;
-
-    // TestHooks for code injection
-    private static volatile Consumer<MessageSender> onOpenRetry = null;
 
     private MessageSender(final MessagingFactory factory, final String sendLinkName, final String senderPath) {
         super(sendLinkName, factory, factory.executor);
@@ -106,7 +102,7 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                     public void run() {
                         try {
                             underlyingFactory.getCBSChannel().sendToken(
-                                    underlyingFactory.getReactorScheduler(),
+                                    underlyingFactory.getReactorDispatcher(),
                                     underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY),
                                     tokenAudience,
                                     new OperationResult<Void, Exception>() {
@@ -387,7 +383,7 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                         this.cancelOpen(schedulerException);
                     }
                 } else if (completionException instanceof EventHubException
-                        && !((EventHubException) completionException).getIsTransient()){
+                        && !((EventHubException) completionException).getIsTransient()) {
                     this.cancelOpen(completionException);
                 }
             }
@@ -613,7 +609,7 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
 
         try {
             this.underlyingFactory.getCBSChannel().sendToken(
-                    this.underlyingFactory.getReactorScheduler(),
+                    this.underlyingFactory.getReactorDispatcher(),
                     this.underlyingFactory.getTokenProvider().getToken(tokenAudience, ClientConstants.TOKEN_VALIDITY),
                     tokenAudience,
                     new OperationResult<Void, Exception>() {
@@ -893,12 +889,13 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                     public void onEvent() {
                         if (sendLink != null && sendLink.getLocalState() != EndpointState.CLOSED) {
                             sendLink.close();
-                        } else if (sendLink == null || sendLink.getRemoteState() == EndpointState.CLOSED) {
-                            if (closeTimer != null)
-                                closeTimer.cancel(false);
-
-                            linkClose.complete(null);
                         }
+
+                        if (closeTimer != null && !closeTimer.isCancelled()) {
+                            closeTimer.cancel(false);
+                        }
+
+                        linkClose.complete(null);
                     }
                 });
 

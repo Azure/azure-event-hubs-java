@@ -290,7 +290,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
                             (long) rawData.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER),
                             (String) rawData.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET),
                             ((Date) rawData.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC)).toInstant(),
-                            (boolean)rawData.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_IS_EMPTY)));
+                            (boolean) rawData.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_IS_EMPTY)));
                     return future2;
                 }
             }, this.executor);
@@ -349,7 +349,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
         public void run() {
             final long timeLeft = this.timeoutTracker.remaining().toMillis();
             final CompletableFuture<Map<String, Object>> intermediateFuture = this.mf.getManagementChannel()
-                    .request(this.mf.getReactorScheduler(),
+                    .request(this.mf.getReactorDispatcher(),
                             this.request,
                             timeLeft > 0 ? timeLeft : 0);
 

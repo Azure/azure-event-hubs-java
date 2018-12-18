@@ -121,7 +121,7 @@ public final class ReactorDispatcher {
             } catch (ClosedChannelException ignorePipeClosedDuringReactorShutdown) {
                 TRACE_LOGGER.info("ScheduleHandler.run() failed with an error", ignorePipeClosedDuringReactorShutdown);
             } catch (IOException ioException) {
-                TRACE_LOGGER.info("ScheduleHandler.run() failed with an error", ioException);
+                TRACE_LOGGER.warn("ScheduleHandler.run() failed with an error", ioException);
                 throw new RuntimeException(ioException);
             }
 
@@ -135,26 +135,26 @@ public final class ReactorDispatcher {
     private final class CloseHandler implements Callback {
         @Override
         public void run(Selectable selectable) {
+            workScheduler.run(null);
+
             try {
                 selectable.getChannel().close();
             } catch (IOException ioException) {
-                TRACE_LOGGER.info("CloseHandler.run() failed with an error", ioException);
+                TRACE_LOGGER.info("CloseHandler.run() getChannel().close() failed with an error", ioException);
             }
 
             try {
                 if (ioSignal.sink().isOpen())
                     ioSignal.sink().close();
             } catch (IOException ioException) {
-                TRACE_LOGGER.info("CloseHandler.run() failed with an error", ioException);
+                TRACE_LOGGER.info("CloseHandler.run() sink().close() failed with an error", ioException);
             }
-
-            workScheduler.run(null);
 
             try {
                 if (ioSignal.source().isOpen())
                     ioSignal.source().close();
             } catch (IOException ioException) {
-                TRACE_LOGGER.info("CloseHandler.run() failed with an error", ioException);
+                TRACE_LOGGER.info("CloseHandler.run() source().close() failed with an error", ioException);
             }
         }
     }

@@ -179,6 +179,8 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                             "Unexpected value for parameter 'receiveHandler'. PartitionReceiver was already registered with a PartitionReceiveHandler instance. Only 1 instance can be registered.");
 
                 this.receivePump = new ReceivePump(
+                        this.eventHubName,
+                        this.consumerGroupName,
                         new ReceivePump.IPartitionReceiver() {
                             @Override
                             public CompletableFuture<Iterable<EventData>> receive(int maxBatchSize) {
