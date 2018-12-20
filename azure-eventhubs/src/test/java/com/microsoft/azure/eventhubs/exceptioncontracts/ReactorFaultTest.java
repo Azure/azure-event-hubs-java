@@ -12,7 +12,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class ReactorFaultTest extends ApiTestBase {
@@ -32,7 +32,7 @@ public class ReactorFaultTest extends ApiTestBase {
                     "$default", "0", EventPosition.fromStartOfStream(), System.currentTimeMillis());
             partitionReceiver.receiveSync(100);
 
-            new ScheduledThreadPoolExecutor(1).schedule(new Runnable() {
+            Executors.newScheduledThreadPool(1).schedule(new Runnable() {
                 @Override
                 public void run() {
                     try {

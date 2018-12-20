@@ -7,11 +7,11 @@ package com.microsoft.azure.eventprocessorhost;
 
 import org.junit.Assume;
 
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 final class TestUtilities {
-    static final ScheduledExecutorService EXECUTOR_SERVICE = new ScheduledThreadPoolExecutor(1);
+    static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newScheduledThreadPool(1);
 
     static void skipIfAppveyor() {
         String appveyor = System.getenv("APPVEYOR"); // Set to "true" by Appveyor

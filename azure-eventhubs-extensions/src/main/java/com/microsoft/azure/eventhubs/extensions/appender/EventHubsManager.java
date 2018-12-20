@@ -11,10 +11,11 @@ import org.apache.logging.log4j.core.appender.AbstractManager;
 
 import java.io.IOException;
 import java.util.LinkedList;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 public final class EventHubsManager extends AbstractManager {
-    private static final ScheduledThreadPoolExecutor EXECUTOR_SERVICE = new ScheduledThreadPoolExecutor(1);
+    private static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newScheduledThreadPool(1);
     private final String eventHubConnectionString;
     private EventHubClient eventHubSender;
 
