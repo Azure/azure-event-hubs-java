@@ -17,7 +17,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -37,7 +37,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
 
     private CompletableFuture<Void> createSender;
 
-    private EventHubClientImpl(final ConnectionStringBuilder connectionString, final Executor executor) {
+    private EventHubClientImpl(final ConnectionStringBuilder connectionString, final ScheduledExecutorService executor) {
         super(StringUtil.getRandomString(), null, executor);
 
         this.eventHubName = connectionString.getEventHubName();
@@ -45,7 +45,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
     }
 
     public static CompletableFuture<EventHubClient> create(
-            final String connectionString, final RetryPolicy retryPolicy, final Executor executor)
+            final String connectionString, final RetryPolicy retryPolicy, final ScheduledExecutorService executor)
             throws EventHubException, IOException {
         final ConnectionStringBuilder connStr = new ConnectionStringBuilder(connectionString);
         final EventHubClientImpl eventHubClient = new EventHubClientImpl(connStr, executor);

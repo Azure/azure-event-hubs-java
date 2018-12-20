@@ -706,13 +706,10 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                     public void onEvent() {
                         if (receiveLink != null && receiveLink.getLocalState() != EndpointState.CLOSED) {
                             receiveLink.close();
-                        }
-
-                        if (closeTimer != null && !closeTimer.isCancelled()) {
+                        } else if (closeTimer != null && !closeTimer.isCancelled()) {
                             closeTimer.cancel(false);
+                            linkClose.complete(null);
                         }
-
-                        linkClose.complete(null);
                     }
                 });
             } catch (IOException | RejectedExecutionException schedulerException) {

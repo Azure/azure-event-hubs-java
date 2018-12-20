@@ -80,7 +80,7 @@ public final class ReactorDispatcher {
 
         // throw when the pipe is in closed state - in which case,
         // signalling the new event-dispatch will fail
-        if (!this.ioSignal.source().isOpen() || !this.ioSignal.sink().isOpen()) {
+        if (!this.ioSignal.sink().isOpen()) {
             throw new RejectedExecutionException("ReactorDispatcher instance is closed.");
         }
     }
@@ -135,20 +135,14 @@ public final class ReactorDispatcher {
     private final class CloseHandler implements Callback {
         @Override
         public void run(Selectable selectable) {
-            workScheduler.run(null);
-
-            try {
-                selectable.getChannel().close();
-            } catch (IOException ioException) {
-                TRACE_LOGGER.info("CloseHandler.run() getChannel().close() failed with an error", ioException);
-            }
-
             try {
                 if (ioSignal.sink().isOpen())
                     ioSignal.sink().close();
             } catch (IOException ioException) {
                 TRACE_LOGGER.info("CloseHandler.run() sink().close() failed with an error", ioException);
             }
+
+            workScheduler.run(null);
 
             try {
                 if (ioSignal.source().isOpen())

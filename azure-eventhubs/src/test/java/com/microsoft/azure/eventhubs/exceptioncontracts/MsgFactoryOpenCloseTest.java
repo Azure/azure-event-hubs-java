@@ -30,8 +30,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
     public void VerifyTaskQueueEmptyOnMsgFactoryGracefulClose() throws Exception {
 
         final LinkedBlockingQueue<Runnable> blockingQueue = new LinkedBlockingQueue<>();
-        final ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                1, 1, 1, TimeUnit.MINUTES, blockingQueue);
+        final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
         try {
             final EventHubClient ehClient = EventHubClient.createSync(
                     TestContext.getConnectionString().toString(),
@@ -60,8 +59,8 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
     public void VerifyTaskQueueEmptyOnMsgFactoryWithPumpGracefulClose() throws Exception {
 
         final LinkedBlockingQueue<Runnable> blockingQueue = new LinkedBlockingQueue<>();
-        final ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                1, 1, 1, TimeUnit.MINUTES, blockingQueue);
+        final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+
         try {
             final EventHubClient ehClient = EventHubClient.createSync(
                     TestContext.getConnectionString().toString(),
@@ -114,8 +113,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
         networkOutageSimulator.setFaultType(FaultInjectingReactorFactory.FaultType.NetworkOutage);
 
         final LinkedBlockingQueue<Runnable> blockingQueue = new LinkedBlockingQueue<>();
-        final ThreadPoolExecutor executor = new ThreadPoolExecutor(
-                1, 1, 1, TimeUnit.MINUTES, blockingQueue);
+        final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
 
         try {
             final CompletableFuture<MessagingFactory> openFuture = MessagingFactory.createFromConnectionString(
@@ -140,7 +138,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToEventHubClient() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
         testClosed.shutdown();
 
         EventHubClient.createSync(
@@ -150,7 +148,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToSendOperation() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final EventHubClient temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),
@@ -165,7 +163,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToReceiveOperation() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final PartitionReceiver temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),
@@ -180,7 +178,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToCreateLinkOperation() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final EventHubClient temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),
@@ -195,7 +193,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToCreateSenderOperation() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final EventHubClient temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),
@@ -209,7 +207,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceToCreateReceiverOperation() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final EventHubClient temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),
@@ -223,7 +221,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceThenMgmtOperation() throws Throwable {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final EventHubClient temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),
@@ -241,7 +239,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceThenFactoryCloseOperation() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final EventHubClient temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),
@@ -255,7 +253,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceThenSenderCloseOperation() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final PartitionSender temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),
@@ -269,7 +267,7 @@ public class MsgFactoryOpenCloseTest extends ApiTestBase {
 
     @Test(expected = RejectedExecutionException.class)
     public void SupplyClosedExecutorServiceThenReceiverCloseOperation() throws Exception {
-        final ExecutorService testClosed = Executors.newWorkStealingPool();
+        final ScheduledThreadPoolExecutor testClosed = new ScheduledThreadPoolExecutor(1);
 
         final PartitionReceiver temp = EventHubClient.createSync(
                 TestContext.getConnectionString().toString(),

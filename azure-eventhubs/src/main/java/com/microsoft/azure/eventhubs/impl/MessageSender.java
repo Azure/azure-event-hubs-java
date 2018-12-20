@@ -889,13 +889,10 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                     public void onEvent() {
                         if (sendLink != null && sendLink.getLocalState() != EndpointState.CLOSED) {
                             sendLink.close();
-                        }
-
-                        if (closeTimer != null && !closeTimer.isCancelled()) {
+                        } else if (closeTimer != null && !closeTimer.isCancelled()) {
                             closeTimer.cancel(false);
+                            linkClose.complete(null);
                         }
-
-                        linkClose.complete(null);
                     }
                 });
 

@@ -54,7 +54,7 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
 
     MessagingFactory(final ConnectionStringBuilder builder,
                      final RetryPolicy retryPolicy,
-                     final Executor executor,
+                     final ScheduledExecutorService executor,
                      final ReactorFactory reactorFactory) {
         super("MessagingFactory".concat(StringUtil.getRandomString()), null, executor);
 
@@ -74,21 +74,21 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
         this.closeTask = new CompletableFuture<>();
     }
 
-    public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString, final Executor executor) throws IOException {
+    public static CompletableFuture<MessagingFactory> createFromConnectionString(final String connectionString, final ScheduledExecutorService executor) throws IOException {
         return createFromConnectionString(connectionString, RetryPolicy.getDefault(), executor);
     }
 
     public static CompletableFuture<MessagingFactory> createFromConnectionString(
             final String connectionString,
             final RetryPolicy retryPolicy,
-            final Executor executor) throws IOException {
+            final ScheduledExecutorService executor) throws IOException {
         return createFromConnectionString(connectionString, retryPolicy, executor, new ReactorFactory());
     }
 
     public static CompletableFuture<MessagingFactory> createFromConnectionString(
             final String connectionString,
             final RetryPolicy retryPolicy,
-            final Executor executor,
+            final ScheduledExecutorService executor,
             final ReactorFactory reactorFactory) throws IOException {
         final ConnectionStringBuilder builder = new ConnectionStringBuilder(connectionString);
         final MessagingFactory messagingFactory = new MessagingFactory(builder,
@@ -316,7 +316,8 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                         this.getClientId(), this.getHostName(),
                         ExceptionUtil.toStackTraceString(e, "Re-starting reactor failed with error")));
 
-                throw new RuntimeException(e);
+                // TODO - stop retrying on the error after multiple attempts.
+                this.onReactorError(cause);
             }
 
             // when the instance of the reactor itself faults - Connection and Links will not be cleaned up even after the
@@ -455,18 +456,16 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
             if (connection != null && connection.getRemoteState() != EndpointState.CLOSED && connection.getLocalState() != EndpointState.CLOSED) {
                 connection.close();
             }
-
-            closeTask.complete(null);
         }
     }
 
     private class RunReactor implements Runnable {
         final private Reactor rctr;
-        final private Executor executor;
+        final private ScheduledExecutorService executor;
 
         volatile boolean hasStarted;
 
-        public RunReactor(final Reactor reactor, final Executor executor) {
+        public RunReactor(final Reactor reactor, final ScheduledExecutorService executor) {
             this.rctr = reactor;
             this.executor = executor;
             this.hasStarted = false;
@@ -494,7 +493,7 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
                         if (TRACE_LOGGER.isWarnEnabled()) {
                             TRACE_LOGGER.warn(String.format(Locale.US, "messagingFactory[%s], hostName[%s], error[%s]",
                                     getClientId(), getHostName(),
-                                    ExceptionUtil.toStackTraceString(exception, "scheduling reactor failed")));
+                                    ExceptionUtil.toStackTraceString(exception, "scheduling reactor failed because the executor has been shut down")));
                         }
 
                         this.rctr.attachments().set(RejectedExecutionException.class, RejectedExecutionException.class, exception);
@@ -550,27 +549,40 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
 
                 if (getIsClosingOrClosed() && !closeTask.isDone()) {
                     this.rctr.free();
-
                     closeTask.complete(null);
-
                     if (closeTimer != null) {
                         closeTimer.cancel(false);
                     }
                 } else {
-                    new ScheduledThreadPoolExecutor(1).schedule(new Runnable() {
-                        @Override
-                        public void run() {
-                            if (TRACE_LOGGER.isWarnEnabled()) {
-                                TRACE_LOGGER.warn(String.format(Locale.US, "messagingFactory[%s], hostName[%s], message[%s]",
-                                        getClientId(), getHostName(),
-                                        "calling reactor.free()"));
-                            }
-
-                            rctr.free();
-                        }
-                    }, MessagingFactory.this.getOperationTimeout().getSeconds(), TimeUnit.SECONDS);
+                    scheduleCompletePendingTasks();
                 }
             }
+        }
+
+        private void scheduleCompletePendingTasks() {
+            this.executor.schedule(new Runnable() {
+                @Override
+                public void run() {
+                    if (TRACE_LOGGER.isWarnEnabled()) {
+                        TRACE_LOGGER.warn(String.format(Locale.US, "messagingFactory[%s], hostName[%s], message[%s]",
+                                getClientId(), getHostName(),
+                                "Processing all pending tasks and closing old reactor."));
+                    }
+
+                    try {
+                        rctr.stop();
+                        rctr.process();
+                    } catch (HandlerException e) {
+                        if (TRACE_LOGGER.isWarnEnabled()) {
+                            TRACE_LOGGER.warn(String.format(Locale.US, "messagingFactory[%s], hostName[%s], error[%s]",
+                                    getClientId(), getHostName(), ExceptionUtil.toStackTraceString(e,
+                                            "scheduleCompletePendingTasks - exception occurred while processing events.")));
+                        }
+                    } finally {
+                        rctr.free();
+                    }
+                }
+            }, MessagingFactory.this.getOperationTimeout().getSeconds(), TimeUnit.SECONDS);
         }
     }
 

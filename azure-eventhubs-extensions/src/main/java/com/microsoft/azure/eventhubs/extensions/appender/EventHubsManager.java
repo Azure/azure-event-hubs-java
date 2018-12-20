@@ -9,13 +9,12 @@ import com.microsoft.azure.eventhubs.EventHubClient;
 import com.microsoft.azure.eventhubs.EventHubException;
 import org.apache.logging.log4j.core.appender.AbstractManager;
 
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public final class EventHubsManager extends AbstractManager {
-    private static final ExecutorService EXECUTOR_SERVICE = Executors.newCachedThreadPool();
+    private static final ScheduledThreadPoolExecutor EXECUTOR_SERVICE = new ScheduledThreadPoolExecutor(1);
     private final String eventHubConnectionString;
     private EventHubClient eventHubSender;
 

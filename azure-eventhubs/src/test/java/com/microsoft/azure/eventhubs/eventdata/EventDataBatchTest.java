@@ -11,7 +11,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class EventDataBatchTest extends ApiTestBase {
 
@@ -20,7 +20,7 @@ public class EventDataBatchTest extends ApiTestBase {
     @Test(expected = PayloadSizeExceededException.class)
     public void payloadExceededException() throws EventHubException, IOException {
         final ConnectionStringBuilder connStrBuilder = TestContext.getConnectionString();
-        ehClient = EventHubClient.createSync(connStrBuilder.toString(), Executors.newSingleThreadExecutor());
+        ehClient = EventHubClient.createSync(connStrBuilder.toString(), new ScheduledThreadPoolExecutor(1));
 
         final EventDataBatch batch = ehClient.createBatch();
 

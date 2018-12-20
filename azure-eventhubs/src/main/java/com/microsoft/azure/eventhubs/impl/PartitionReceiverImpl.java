@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -46,7 +46,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                                   final Long epoch,
                                   final boolean isEpochReceiver,
                                   final ReceiverOptions receiverOptions,
-                                  final Executor executor) {
+                                  final ScheduledExecutorService executor) {
         super(null, null, executor);
 
         this.underlyingFactory = factory;
@@ -72,8 +72,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                                                        final long epoch,
                                                        final boolean isEpochReceiver,
                                                        ReceiverOptions receiverOptions,
-                                                       final Executor executor)
-            throws EventHubException {
+                                                       final ScheduledExecutorService executor) {
         if (epoch < NULL_EPOCH) {
             throw new IllegalArgumentException("epoch cannot be a negative value. Please specify a zero or positive long value.");
         }

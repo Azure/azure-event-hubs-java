@@ -5,7 +5,6 @@
 package com.microsoft.azure.eventhubs.impl;
 
 import com.microsoft.azure.eventhubs.EventHubException;
-import com.microsoft.azure.eventhubs.TimeoutException;
 import org.apache.qpid.proton.amqp.transport.ErrorCondition;
 import org.apache.qpid.proton.engine.*;
 import org.apache.qpid.proton.reactor.Reactor;
@@ -141,36 +140,17 @@ public class SessionHandler extends BaseHandler {
 
         @Override
         public void onEvent() {
+            // It is supposed to close a local session to handle timeout exception.
+            // However, closing the session can result in NPE because of proton-j bug (https://issues.apache.org/jira/browse/PROTON-1939).
+            // And the bug will cause the reactor thread to stop processing pending tasks scheduled on the reactor and
+            // as a result task won't be completed at all.
 
-            // notify - if connection or transport error'ed out before even session open completed
+            // TODO: handle timeout error once the proton-j bug is fixed.
+
             if (!sessionCreated && !sessionOpenErrorDispatched) {
                 if (TRACE_LOGGER.isWarnEnabled()) {
-                    TRACE_LOGGER.warn(String.format(Locale.US, "SessionTimeoutHandler.onEvent closing a session" +
-                            "due to a connection/transport error before session open was complete."));
+                    TRACE_LOGGER.warn(String.format(Locale.US, "SessionTimeoutHandler.onEvent - session open timed out."));
                 }
-
-                final Connection connection = session.getConnection();
-
-                if (connection != null) {
-
-                    if (connection.getRemoteCondition() != null && connection.getRemoteCondition().getCondition() != null) {
-
-                        session.close();
-                        onRemoteSessionOpenError.accept(connection.getRemoteCondition(), null);
-                        return;
-                    }
-
-                    final Transport transport = connection.getTransport();
-                    if (transport != null && transport.getCondition() != null && transport.getCondition().getCondition() != null) {
-
-                        session.close();
-                        onRemoteSessionOpenError.accept(transport.getCondition(), null);
-                        return;
-                    }
-                }
-
-                session.close();
-                onRemoteSessionOpenError.accept(null, new TimeoutException("session creation timed out."));
             }
         }
     }
