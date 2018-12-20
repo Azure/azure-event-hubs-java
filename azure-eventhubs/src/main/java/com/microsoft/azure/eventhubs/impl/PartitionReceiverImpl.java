@@ -36,6 +36,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
     private volatile MessageReceiver internalReceiver;
 
     private ReceivePump receivePump;
+    private EventPosition currentEventPosition;
 
     private PartitionReceiverImpl(MessagingFactory factory,
                                   final String eventHubName,
@@ -60,6 +61,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
         this.runtimeInformation = (this.receiverOptions != null && this.receiverOptions.getReceiverRuntimeMetricEnabled())
                 ? new ReceiverRuntimeInformation(partitionId)
                 : null;
+        this.currentEventPosition = EventPosition.fromStartOfStream();
     }
 
     static CompletableFuture<PartitionReceiver> create(MessagingFactory factory,
@@ -69,7 +71,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                                                        final EventPosition eventPosition,
                                                        final long epoch,
                                                        final boolean isEpochReceiver,
-                                                       final ReceiverOptions receiverOptions,
+                                                       ReceiverOptions receiverOptions,
                                                        final Executor executor)
             throws EventHubException {
         if (epoch < NULL_EPOCH) {
@@ -78,6 +80,10 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
 
         if (StringUtil.isNullOrWhiteSpace(consumerGroupName)) {
             throw new IllegalArgumentException("specify valid string for argument - 'consumerGroupName'");
+        }
+
+        if (receiverOptions == null) {
+            receiverOptions = new ReceiverOptions();
         }
 
         final PartitionReceiverImpl receiver = new PartitionReceiverImpl(factory, eventHubName, consumerGroupName, partitionId, (EventPositionImpl) eventPosition, epoch, isEpochReceiver, receiverOptions, executor);
@@ -92,7 +98,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
         return MessageReceiver.create(this.underlyingFactory,
                 StringUtil.getRandomString(),
                 String.format("%s/ConsumerGroups/%s/Partitions/%s", this.eventHubName, this.consumerGroupName, this.partitionId),
-                PartitionReceiverImpl.DEFAULT_PREFETCH_COUNT, this)
+                this.receiverOptions.getPrefetchCount(), this)
                 .thenAcceptAsync(new Consumer<MessageReceiver>() {
                     public void accept(MessageReceiver r) {
                         PartitionReceiverImpl.this.internalReceiver = r;
@@ -108,19 +114,6 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
         return this.partitionId;
     }
 
-    public final int getPrefetchCount() {
-        return this.internalReceiver.getPrefetchCount();
-    }
-
-    public final void setPrefetchCount(final int prefetchCount) throws EventHubException {
-        if (prefetchCount < PartitionReceiverImpl.MINIMUM_PREFETCH_COUNT) {
-            throw new IllegalArgumentException(String.format(Locale.US,
-                    "PrefetchCount has to be above %s", PartitionReceiverImpl.MINIMUM_PREFETCH_COUNT));
-        }
-
-        this.internalReceiver.setPrefetchCount(prefetchCount);
-    }
-
     public final Duration getReceiveTimeout() {
         return this.internalReceiver.getReceiveTimeout();
     }
@@ -134,31 +127,34 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
     }
 
     public final ReceiverRuntimeInformation getRuntimeInformation() {
-
         return this.runtimeInformation;
+    }
+
+    public final EventPosition getEventPosition() {
+        return this.currentEventPosition;
     }
 
     public CompletableFuture<Iterable<EventData>> receive(final int maxEventCount) {
         return this.internalReceiver.receive(maxEventCount).thenApplyAsync(new Function<Collection<Message>, Iterable<EventData>>() {
             @Override
             public Iterable<EventData> apply(Collection<Message> amqpMessages) {
-                PassByRef<Message> lastMessageRef = null;
+                PassByRef<MessageWrapper> lastMessageRef = null;
                 if (PartitionReceiverImpl.this.receiverOptions != null && PartitionReceiverImpl.this.receiverOptions.getReceiverRuntimeMetricEnabled())
                     lastMessageRef = new PassByRef<>();
 
                 final Iterable<EventData> events = EventDataUtil.toEventDataCollection(amqpMessages, lastMessageRef);
 
                 if (lastMessageRef != null && lastMessageRef.get() != null) {
-
-                    final DeliveryAnnotations deliveryAnnotations = lastMessageRef.get().getDeliveryAnnotations();
+                    final DeliveryAnnotations deliveryAnnotations = lastMessageRef.get().getMessage().getDeliveryAnnotations();
                     if (deliveryAnnotations != null && deliveryAnnotations.getValue() != null) {
-
                         final Map<Symbol, Object> deliveryAnnotationsMap = deliveryAnnotations.getValue();
                         PartitionReceiverImpl.this.runtimeInformation.setRuntimeInformation(
                                 (long) deliveryAnnotationsMap.get(ClientConstants.LAST_ENQUEUED_SEQUENCE_NUMBER),
                                 ((Date) deliveryAnnotationsMap.get(ClientConstants.LAST_ENQUEUED_TIME_UTC)).toInstant(),
                                 (String) deliveryAnnotationsMap.get(ClientConstants.LAST_ENQUEUED_OFFSET));
                     }
+
+                    PartitionReceiverImpl.this.currentEventPosition = lastMessageRef.get().getEventPosition();
                 }
 
                 return events;

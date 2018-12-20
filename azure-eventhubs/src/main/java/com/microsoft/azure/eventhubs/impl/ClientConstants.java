@@ -38,7 +38,7 @@ public final class ClientConstants {
     public final static String NO_RETRY = "NoRetry";
     public final static String DEFAULT_RETRY = "Default";
     public final static String PRODUCT_NAME = "MSJavaClient";
-    public final static String CURRENT_JAVACLIENT_VERSION = "1.2.1";
+    public final static String CURRENT_JAVACLIENT_VERSION = "1.3.0";
     public static final String PLATFORM_INFO = getPlatformInfo();
     public static final String FRAMEWORK_INFO = getFrameworkInfo();
     public static final String CBS_ADDRESS = "$cbs";
@@ -66,6 +66,7 @@ public final class ClientConstants {
     public static final String MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER = "last_enqueued_sequence_number";
     public static final String MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET = "last_enqueued_offset";
     public static final String MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC = "last_enqueued_time_utc";
+    public static final String MANAGEMENT_RESULT_PARTITION_IS_EMPTY = "is_partition_empty";
     public static final String MANAGEMENT_STATUS_CODE_KEY = "status-code";
     public static final String MANAGEMENT_STATUS_DESCRIPTION_KEY = "status-description";
     public static final String MANAGEMENT_RESPONSE_ERROR_CONDITION = "error-condition";

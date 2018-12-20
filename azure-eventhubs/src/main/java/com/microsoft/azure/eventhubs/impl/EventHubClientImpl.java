@@ -21,20 +21,6 @@ import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import com.microsoft.azure.eventhubs.BatchOptions;
-import com.microsoft.azure.eventhubs.ConnectionStringBuilder;
-import com.microsoft.azure.eventhubs.EventData;
-import com.microsoft.azure.eventhubs.EventDataBatch;
-import com.microsoft.azure.eventhubs.EventHubClient;
-import com.microsoft.azure.eventhubs.EventHubException;
-import com.microsoft.azure.eventhubs.EventPosition;
-import com.microsoft.azure.eventhubs.EventHubRuntimeInformation;
-import com.microsoft.azure.eventhubs.PartitionReceiver;
-import com.microsoft.azure.eventhubs.PartitionRuntimeInformation;
-import com.microsoft.azure.eventhubs.PartitionSender;
-import com.microsoft.azure.eventhubs.ReceiverOptions;
-import com.microsoft.azure.eventhubs.RetryPolicy;
-
 public final class EventHubClientImpl extends ClientEntity implements EventHubClient {
 
     /**
@@ -295,15 +281,16 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
         if (future1 == null) {
             future1 = managementWithRetry(request).thenComposeAsync(new Function<Map<String, Object>, CompletableFuture<PartitionRuntimeInformation>>() {
                 @Override
-                public CompletableFuture<PartitionRuntimeInformation> apply(Map<String, Object> rawdata) {
+                public CompletableFuture<PartitionRuntimeInformation> apply(Map<String, Object> rawData) {
                     CompletableFuture<PartitionRuntimeInformation> future2 = new CompletableFuture<PartitionRuntimeInformation>();
                     future2.complete(new PartitionRuntimeInformation(
-                            (String) rawdata.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
-                            (String) rawdata.get(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY),
-                            (long) rawdata.get(ClientConstants.MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER),
-                            (long) rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER),
-                            (String) rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET),
-                            ((Date) rawdata.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC)).toInstant()));
+                            (String) rawData.get(ClientConstants.MANAGEMENT_ENTITY_NAME_KEY),
+                            (String) rawData.get(ClientConstants.MANAGEMENT_PARTITION_NAME_KEY),
+                            (long) rawData.get(ClientConstants.MANAGEMENT_RESULT_BEGIN_SEQUENCE_NUMBER),
+                            (long) rawData.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_SEQUENCE_NUMBER),
+                            (String) rawData.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_OFFSET),
+                            ((Date) rawData.get(ClientConstants.MANAGEMENT_RESULT_LAST_ENQUEUED_TIME_UTC)).toInstant(),
+                            (boolean)rawData.get(ClientConstants.MANAGEMENT_RESULT_PARTITION_IS_EMPTY)));
                     return future2;
                 }
             }, this.executor);
@@ -399,8 +386,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
                                 new OperationCancelledException(
                                         "OperationCancelled as the underlying client instance was closed.",
                                         lastException));
-                    }
-                    else {
+                    } else {
                         final Duration waitTime = ManagementRetry.this.mf.getRetryPolicy().getNextRetryInterval(
                                 ManagementRetry.this.mf.getClientId(), lastException, this.timeoutTracker.remaining());
                         if (waitTime == null) {
