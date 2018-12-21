@@ -231,14 +231,16 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
     @Override
     public void onConnectionError(ErrorCondition error) {
         if (TRACE_LOGGER.isWarnEnabled()) {
-            TRACE_LOGGER.warn(String.format(Locale.US, "onConnectionError: hostname[%s], error[%s]",
+            TRACE_LOGGER.warn(String.format(Locale.US, "onConnectionError: messagingFactory[%s], hostname[%s], error[%s]",
+                    this.getClientId(),
                     this.hostName,
                     error != null ? error.getDescription() : "n/a"));
         }
 
         if (!this.open.isDone()) {
             if (TRACE_LOGGER.isWarnEnabled()) {
-                TRACE_LOGGER.warn(String.format(Locale.US, "onConnectionError: hostname[%s], open hasn't complete, stopping the reactor",
+                TRACE_LOGGER.warn(String.format(Locale.US, "onConnectionError: messagingFactory[%s], hostname[%s], open hasn't complete, stopping the reactor",
+                        this.getClientId(),
                         this.hostName));
             }
 
@@ -252,7 +254,8 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
             for (Link link : oldRegisteredLinksCopy) {
                 if (link.getLocalState() != EndpointState.CLOSED && link.getRemoteState() != EndpointState.CLOSED) {
                     if (TRACE_LOGGER.isWarnEnabled()) {
-                        TRACE_LOGGER.warn(String.format(Locale.US, "onConnectionError: hostname[%s], closing link [%s]",
+                        TRACE_LOGGER.warn(String.format(Locale.US, "onConnectionError: messagingFactory[%s], hostname[%s], closing link [%s]",
+                                this.getClientId(),
                                 this.hostName, link.getName()));
                     }
 
@@ -265,7 +268,8 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
             // in connection recreation we depend on currentConnection state to evaluate need for recreation
             if (oldConnection.getLocalState() != EndpointState.CLOSED) {
                 if (TRACE_LOGGER.isWarnEnabled()) {
-                    TRACE_LOGGER.warn(String.format(Locale.US, "onConnectionError: hostname[%s], closing current connection",
+                    TRACE_LOGGER.warn(String.format(Locale.US, "onConnectionError: messagingFactory[%s], hostname[%s], closing current connection",
+                            this.getClientId(),
                             this.hostName));
                 }
 

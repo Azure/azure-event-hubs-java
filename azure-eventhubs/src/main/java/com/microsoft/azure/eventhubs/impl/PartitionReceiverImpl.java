@@ -47,7 +47,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
                                   final boolean isEpochReceiver,
                                   final ReceiverOptions receiverOptions,
                                   final ScheduledExecutorService executor) {
-        super(null, null, executor);
+        super("PartitionReceiverImpl".concat(StringUtil.getRandomString()), null, executor);
 
         this.underlyingFactory = factory;
         this.eventHubName = eventHubName;
@@ -95,7 +95,7 @@ final class PartitionReceiverImpl extends ClientEntity implements ReceiverSettin
 
     private CompletableFuture<Void> createInternalReceiver() {
         return MessageReceiver.create(this.underlyingFactory,
-                StringUtil.getRandomString(),
+                this.getClientId().concat("-InternalReceiver"),
                 String.format("%s/ConsumerGroups/%s/Partitions/%s", this.eventHubName, this.consumerGroupName, this.partitionId),
                 this.receiverOptions.getPrefetchCount(), this)
                 .thenAcceptAsync(new Consumer<MessageReceiver>() {

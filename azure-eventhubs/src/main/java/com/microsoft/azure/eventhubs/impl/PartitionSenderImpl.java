@@ -19,7 +19,7 @@ final class PartitionSenderImpl extends ClientEntity implements PartitionSender 
     private volatile MessageSender internalSender;
 
     private PartitionSenderImpl(final MessagingFactory factory, final String eventHubName, final String partitionId, final ScheduledExecutorService executor) {
-        super(null, null, executor);
+        super("PartitionSenderImpl".concat(StringUtil.getRandomString()), null, executor);
 
         this.partitionId = partitionId;
         this.eventHubName = eventHubName;
@@ -40,7 +40,7 @@ final class PartitionSenderImpl extends ClientEntity implements PartitionSender 
     }
 
     private CompletableFuture<Void> createInternalSender() throws EventHubException {
-        return MessageSender.create(this.factory, StringUtil.getRandomString(),
+        return MessageSender.create(this.factory, this.getClientId().concat("-InternalSender"),
                 String.format("%s/Partitions/%s", this.eventHubName, this.partitionId))
                 .thenAcceptAsync(new Consumer<MessageSender>() {
                     public void accept(MessageSender a) {

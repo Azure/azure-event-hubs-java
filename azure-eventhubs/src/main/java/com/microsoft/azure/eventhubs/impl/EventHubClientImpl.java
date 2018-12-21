@@ -38,7 +38,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
     private CompletableFuture<Void> createSender;
 
     private EventHubClientImpl(final ConnectionStringBuilder connectionString, final ScheduledExecutorService executor) {
-        super(StringUtil.getRandomString(), null, executor);
+        super("EventHubClientImpl".concat(StringUtil.getRandomString()), null, executor);
 
         this.eventHubName = connectionString.getEventHubName();
         this.senderCreateSync = new Object();
@@ -220,7 +220,7 @@ public final class EventHubClientImpl extends ClientEntity implements EventHubCl
         if (!this.isSenderCreateStarted) {
             synchronized (this.senderCreateSync) {
                 if (!this.isSenderCreateStarted) {
-                    this.createSender = MessageSender.create(this.underlyingFactory, StringUtil.getRandomString(), this.eventHubName)
+                    this.createSender = MessageSender.create(this.underlyingFactory, this.getClientId().concat("-InternalSender"), this.eventHubName)
                             .thenAcceptAsync(new Consumer<MessageSender>() {
                                 public void accept(MessageSender a) {
                                     EventHubClientImpl.this.sender = a;
