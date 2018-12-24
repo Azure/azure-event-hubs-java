@@ -70,6 +70,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     private volatile CompletableFuture<?> closeTimer;
     private int prefetchCount;
     private Exception lastKnownLinkError;
+    private String linkCreationTime;
 
     private MessageReceiver(final MessagingFactory factory,
                             final String name,
@@ -203,7 +204,6 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     }
 
     private CompletableFuture<MessageReceiver> createLink() {
-        this.scheduleLinkOpenTimeout(this.linkOpen.getTimeoutTracker());
         try {
             this.underlyingFactory.scheduleOnReactorThread(new DispatchHandler() {
                 @Override
@@ -456,10 +456,14 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     }
 
     private void createReceiveLink() {
-        if (creatingLink)
+        if (this.creatingLink) {
             return;
+        }
 
         this.creatingLink = true;
+        this.linkCreationTime = Instant.now().toString();
+
+        this.scheduleLinkOpenTimeout(TimeoutTracker.create(this.operationTimeout));
 
         final Consumer<Session> onSessionOpen = new Consumer<Session>() {
             @Override
@@ -588,6 +592,8 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
         this.openTimer = timer.schedule(
                 new Runnable() {
                     public void run() {
+                        creatingLink = false;
+
                         if (!linkOpen.getWork().isDone()) {
                             final Receiver link;
                             final Exception lastReportedLinkError;
@@ -769,7 +775,6 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
 
         @Override
         public void onEvent() {
-
             receiveWork.onEvent();
 
             if (!MessageReceiver.this.getIsClosingOrClosed()
