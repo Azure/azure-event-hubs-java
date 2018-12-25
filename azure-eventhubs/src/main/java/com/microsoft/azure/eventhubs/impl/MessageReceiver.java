@@ -460,6 +460,13 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
             return;
         }
 
+        if (TRACE_LOGGER.isInfoEnabled()) {
+            TRACE_LOGGER.info(
+                    String.format(Locale.US,
+                            "clientId[%s], path[%s], operationTimeout[%s], creating a receive link",
+                            this.getClientId(), this.receivePath, this.operationTimeout));
+        }
+
         this.creatingLink = true;
         this.linkCreationTime = Instant.now().toString();
 
