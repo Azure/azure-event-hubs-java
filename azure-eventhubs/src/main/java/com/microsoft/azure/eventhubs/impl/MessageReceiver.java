@@ -112,8 +112,8 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                         if (MessageReceiver.this.shouldScheduleOperationTimeoutTimer()) {
                             TimeoutTracker timeoutTracker = topWorkItem.getTimeoutTracker();
 
-                            if (TRACE_LOGGER.isInfoEnabled()) {
-                                TRACE_LOGGER.info(
+                            if (TRACE_LOGGER.isDebugEnabled()) {
+                                TRACE_LOGGER.debug(
                                         String.format(Locale.US,
                                                 "clientId[%s], path[%s], linkName[%s] - Reschedule operation timer, current: [%s], remaining: [%s] secs",
                                                 getClientId(),
@@ -257,8 +257,8 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
         }
 
         if (this.shouldScheduleOperationTimeoutTimer()) {
-            if (TRACE_LOGGER.isInfoEnabled()) {
-                TRACE_LOGGER.info(
+            if (TRACE_LOGGER.isDebugEnabled()) {
+                TRACE_LOGGER.debug(
                         String.format(Locale.US,
                                 "clientId[%s], path[%s], linkName[%s] - schedule operation timer, current: [%s], remaining: [%s] secs",
                                 this.getClientId(),
@@ -289,8 +289,10 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
         if (exception == null) {
             if (this.linkOpen != null && !this.linkOpen.getWork().isDone()) {
                 this.linkOpen.getWork().complete(this);
-                if (this.openTimer != null)
-                    this.openTimer.cancel(false);
+            }
+
+            if (this.openTimer != null && !this.openTimer.isCancelled()) {
+                this.openTimer.cancel(false);
             }
 
             if (this.getIsClosingOrClosed()) {
@@ -307,7 +309,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
             this.sendFlow(this.prefetchCount - this.prefetchedMessages.size());
 
             if (TRACE_LOGGER.isInfoEnabled()) {
-                TRACE_LOGGER.info(String.format("clientId[%s], receiverPath[%s], linkName[%s], updated-link-credit[%s], sentCredits[%s]",
+                TRACE_LOGGER.info(String.format("onOpenComplete - clientId[%s], receiverPath[%s], linkName[%s], updated-link-credit[%s], sentCredits[%s]",
                         this.getClientId(), this.receivePath, this.receiveLink.getName(), this.receiveLink.getCredit(), this.prefetchCount));
             }
         } else {
@@ -346,6 +348,8 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                 } else if (exception instanceof EventHubException && !((EventHubException) exception).getIsTransient()) {
                     this.cancelOpen(exception);
                 }
+            } else {
+                this.cancelOpen(exception);
             }
         }
     }
@@ -353,7 +357,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     private void cancelOpen(final Exception completionException) {
         this.setClosed();
         ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), completionException, this);
-        if (this.openTimer != null)
+        if (this.openTimer != null && !this.openTimer.isCancelled())
             this.openTimer.cancel(false);
     }
 

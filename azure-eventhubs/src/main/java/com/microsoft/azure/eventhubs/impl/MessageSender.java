@@ -316,7 +316,6 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
 
         if (completionException == null) {
             if (this.getIsClosingOrClosed()) {
-
                 this.sendLink.close();
                 return;
             }
@@ -332,10 +331,17 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                 this.maxMessageSize = remoteMaxMessageSize.intValue();
             }
 
+            if (this.openTimer != null && !this.openTimer.isCancelled()) {
+                this.openTimer.cancel(false);
+            }
+
+            if (TRACE_LOGGER.isInfoEnabled()) {
+                TRACE_LOGGER.info(String.format("onOpenComplete - clientId[%s], sendPath[%s], linkName[%s]",
+                        this.getClientId(), this.sendPath, this.sendLink.getName()));
+            }
+
             if (!this.linkFirstOpen.isDone()) {
                 this.linkFirstOpen.complete(this);
-                if (this.openTimer != null)
-                    this.openTimer.cancel(false);
             } else {
                 synchronized (this.pendingSendLock) {
                     if (!this.pendingSendsData.isEmpty()) {
@@ -389,6 +395,8 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                         && !((EventHubException) completionException).getIsTransient()) {
                     this.cancelOpen(completionException);
                 }
+            } else {
+                this.cancelOpen(completionException);
             }
         }
     }
@@ -396,7 +404,7 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
     private void cancelOpen(final Exception completionException) {
         this.setClosed();
         ExceptionUtil.completeExceptionally(this.linkFirstOpen, completionException, this);
-        if (this.openTimer != null)
+        if (this.openTimer != null && !this.openTimer.isCancelled())
             this.openTimer.cancel(false);
     }
 
