@@ -291,9 +291,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                 this.linkOpen.getWork().complete(this);
             }
 
-            if (this.openTimer != null && !this.openTimer.isCancelled()) {
-                this.openTimer.cancel(false);
-            }
+            this.cancelOpenTimer();
 
             if (this.getIsClosingOrClosed()) {
                 return;
@@ -349,7 +347,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                     this.cancelOpen(exception);
                 }
             } else {
-                this.cancelOpen(exception);
+                this.cancelOpenTimer();
             }
         }
     }
@@ -357,8 +355,13 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     private void cancelOpen(final Exception completionException) {
         this.setClosed();
         ExceptionUtil.completeExceptionally(this.linkOpen.getWork(), completionException, this);
-        if (this.openTimer != null && !this.openTimer.isCancelled())
+        this.cancelOpenTimer();
+    }
+
+    private void cancelOpenTimer() {
+        if (this.openTimer != null && !this.openTimer.isCancelled()) {
             this.openTimer.cancel(false);
+        }
     }
 
     @Override

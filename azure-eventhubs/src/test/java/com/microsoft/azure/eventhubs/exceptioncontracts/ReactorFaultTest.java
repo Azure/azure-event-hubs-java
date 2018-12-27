@@ -15,6 +15,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
+import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -79,7 +80,16 @@ public class ReactorFaultTest extends ApiTestBase {
         try {
             final PartitionReceiver partitionReceiver = eventHubClient.createEpochReceiverSync(
                     "$default", "0", EventPosition.fromStartOfStream(), System.currentTimeMillis());
-            partitionReceiver.receiveSync(100);
+            final Iterable<EventData> firstBatch = partitionReceiver.receiveSync(100);
+            Assert.assertTrue(firstBatch != null);
+
+            long sequenceNumber = -1;
+            final Iterator<EventData> iterator = firstBatch.iterator();
+            while (iterator.hasNext()) {
+                sequenceNumber = iterator.next().getSystemProperties().getSequenceNumber();
+            }
+
+            Assert.assertTrue(sequenceNumber > -1);
 
             Executors.newScheduledThreadPool(1).schedule(new Runnable() {
                 @Override
@@ -102,13 +112,16 @@ public class ReactorFaultTest extends ApiTestBase {
                         Assert.fail(e.getMessage());
                     }
                 }
-            }, 2, TimeUnit.SECONDS);
+            }, 5, TimeUnit.SECONDS);
 
             try {
-                Thread.sleep(4000);
+                Thread.sleep(10000);
 
                 final Iterable<EventData> events = partitionReceiver.receiveSync(100);
                 Assert.assertTrue(events != null && events.iterator().hasNext());
+                Assert.assertEquals(sequenceNumber + 1, events.iterator().next().getSystemProperties().getSequenceNumber());
+            } catch (Exception e) {
+                Assert.fail(e.getMessage());
             } finally {
                 partitionReceiver.closeSync();
             }
