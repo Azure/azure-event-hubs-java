@@ -70,7 +70,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     private volatile CompletableFuture<?> closeTimer;
     private int prefetchCount;
     private Exception lastKnownLinkError;
-    private String linkCreationTime;
+    private String linkCreationTimeString;
 
     private MessageReceiver(final MessagingFactory factory,
                             final String name,
@@ -385,7 +385,6 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     @Override
     public void onError(final Exception exception) {
         this.prefetchedMessages.clear();
-        this.underlyingFactory.deregisterForConnectionError(this.receiveLink);
 
         if (this.getIsClosingOrClosed()) {
             if (this.closeTimer != null)
@@ -402,6 +401,15 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                     ? new EventHubException(true, String.format(Locale.US,
                     "Entity(%s): client encountered transient error for unknown reasons, please retry the operation.", this.receivePath))
                     : exception;
+
+            if (TRACE_LOGGER.isWarnEnabled()) {
+                TRACE_LOGGER.warn(
+                        String.format(Locale.US, "clientId[%s], receiverPath[%s], linkName[%s], onError: %s",
+                                this.getClientId(),
+                                this.receivePath,
+                                this.receiveLink.getName(),
+                                completionException));
+            }
 
             this.onOpenComplete(completionException);
 
@@ -463,8 +471,12 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     }
 
     private void createReceiveLink() {
-        if (this.creatingLink) {
-            return;
+        synchronized (this.errorConditionLock) {
+            if (this.creatingLink) {
+                return;
+            } else {
+                this.creatingLink = true;
+            }
         }
 
         if (TRACE_LOGGER.isInfoEnabled()) {
@@ -474,8 +486,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                             this.getClientId(), this.receivePath, this.operationTimeout));
         }
 
-        this.creatingLink = true;
-        this.linkCreationTime = Instant.now().toString();
+        this.linkCreationTimeString = Instant.now().toString();
 
         this.scheduleLinkOpenTimeout(TimeoutTracker.create(this.operationTimeout));
 
@@ -517,6 +528,11 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
 
                 final ReceiveLinkHandler handler = new ReceiveLinkHandler(MessageReceiver.this);
                 BaseHandler.setHandler(receiver, handler);
+
+                if (MessageReceiver.this.receiveLink != null) {
+                    MessageReceiver.this.underlyingFactory.deregisterForConnectionError(MessageReceiver.this.receiveLink);
+                }
+
                 MessageReceiver.this.underlyingFactory.registerForConnectionError(receiver);
 
                 receiver.open();
@@ -530,10 +546,11 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
         final BiConsumer<ErrorCondition, Exception> onSessionOpenFailed = new BiConsumer<ErrorCondition, Exception>() {
             @Override
             public void accept(ErrorCondition t, Exception u) {
-                if (t != null)
+                if (t != null) {
                     onError((t.getCondition() != null) ? ExceptionUtil.toException(t) : null);
-                else if (u != null)
+                } else if (u != null) {
                     onError(u);
+                }
             }
         };
 
@@ -700,6 +717,11 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     @Override
     public void onClose(ErrorCondition condition) {
         final Exception completionException = (condition != null && condition.getCondition() != null) ? ExceptionUtil.toException(condition) : null;
+
+        if (this.receiveLink != null) {
+            this.underlyingFactory.deregisterForConnectionError(MessageReceiver.this.receiveLink);
+        }
+
         this.onError(completionException);
     }
 
