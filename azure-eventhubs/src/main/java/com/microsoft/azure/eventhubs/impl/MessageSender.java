@@ -413,14 +413,16 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
 
     @Override
     public void onClose(final ErrorCondition condition) {
+        if (this.sendLink != null) {
+            this.underlyingFactory.deregisterForConnectionError(this.sendLink);
+        }
+
         final Exception completionException = (condition != null && condition.getCondition() != null) ? ExceptionUtil.toException(condition) : null;
         this.onError(completionException);
     }
 
     @Override
     public void onError(final Exception completionException) {
-        this.underlyingFactory.deregisterForConnectionError(this.sendLink);
-
         if (this.getIsClosingOrClosed()) {
             if (this.closeTimer != null && !this.closeTimer.isDone())
                 this.closeTimer.cancel(false);
@@ -584,8 +586,12 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
     }
 
     private void createSendLink() {
-        if (this.creatingLink) {
-            return;
+        synchronized (this.errorConditionLock) {
+            if (this.creatingLink) {
+                return;
+            }
+
+            this.creatingLink = true;
         }
 
         if (TRACE_LOGGER.isInfoEnabled()) {
@@ -595,7 +601,6 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
                             this.getClientId(), this.sendPath, this.operationTimeout));
         }
 
-        this.creatingLink = true;
         this.linkCreationTime = Instant.now().toString();
 
         this.scheduleLinkOpenTimeout(TimeoutTracker.create(this.operationTimeout));
@@ -621,6 +626,10 @@ public final class MessageSender extends ClientEntity implements AmqpSender, Err
 
                 final SendLinkHandler handler = new SendLinkHandler(MessageSender.this);
                 BaseHandler.setHandler(sender, handler);
+
+                if (MessageSender.this.sendLink != null) {
+                    MessageSender.this.underlyingFactory.deregisterForConnectionError(MessageSender.this.sendLink);
+                }
 
                 MessageSender.this.underlyingFactory.registerForConnectionError(sender);
                 sender.open();

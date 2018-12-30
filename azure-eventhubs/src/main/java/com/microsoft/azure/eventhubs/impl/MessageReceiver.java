@@ -70,7 +70,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
     private volatile CompletableFuture<?> closeTimer;
     private int prefetchCount;
     private Exception lastKnownLinkError;
-    private String linkCreationTimeString;
+    private String linkCreationTime;
 
     private MessageReceiver(final MessagingFactory factory,
                             final String name,
@@ -474,9 +474,9 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
         synchronized (this.errorConditionLock) {
             if (this.creatingLink) {
                 return;
-            } else {
-                this.creatingLink = true;
             }
+
+            this.creatingLink = true;
         }
 
         if (TRACE_LOGGER.isInfoEnabled()) {
@@ -486,7 +486,7 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
                             this.getClientId(), this.receivePath, this.operationTimeout));
         }
 
-        this.linkCreationTimeString = Instant.now().toString();
+        this.linkCreationTime = Instant.now().toString();
 
         this.scheduleLinkOpenTimeout(TimeoutTracker.create(this.operationTimeout));
 
@@ -716,12 +716,11 @@ public final class MessageReceiver extends ClientEntity implements AmqpReceiver,
 
     @Override
     public void onClose(ErrorCondition condition) {
-        final Exception completionException = (condition != null && condition.getCondition() != null) ? ExceptionUtil.toException(condition) : null;
-
         if (this.receiveLink != null) {
             this.underlyingFactory.deregisterForConnectionError(MessageReceiver.this.receiveLink);
         }
 
+        final Exception completionException = (condition != null && condition.getCondition() != null) ? ExceptionUtil.toException(condition) : null;
         this.onError(completionException);
     }
 
