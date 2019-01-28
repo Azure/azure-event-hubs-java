@@ -56,7 +56,11 @@ public final class ExceptionUtil {
         } else if (errorCondition.getCondition() == AmqpErrorCode.ResourceLimitExceeded) {
             return new QuotaExceededException(new AmqpException(errorCondition));
         } else if (errorCondition.getCondition() == ClientConstants.PROTON_IO_ERROR) {
-        	return new CommunicationException(ClientConstants.COMMUNICATION_EXCEPTION_GENERIC_MESSAGE, null);
+        	String message = ClientConstants.COMMUNICATION_EXCEPTION_GENERIC_MESSAGE;
+        	if (errorCondition.getDescription() != null) {
+        		message = errorCondition.getDescription();
+        	}
+        	return new CommunicationException(message, null);
         }
 
         return new EventHubException(ClientConstants.DEFAULT_IS_TRANSIENT, errorCondition.getDescription());
