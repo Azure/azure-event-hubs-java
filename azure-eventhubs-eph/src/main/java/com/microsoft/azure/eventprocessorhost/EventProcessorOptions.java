@@ -13,6 +13,9 @@ import java.util.Locale;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /***
  * Options affecting the behavior of the event processor host instance in general.
  */
@@ -27,6 +30,8 @@ public final class EventProcessorOptions {
         return EventPosition.fromStartOfStream();
     };
 
+    private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(EventProcessorOptions.class);
+    
     public EventProcessorOptions() {
     }
 
@@ -216,7 +221,7 @@ public final class EventProcessorOptions {
         		handler.accept(new ExceptionReceivedEventArgs(hostname, exception, action, partitionId));
         	}
         	catch (Exception e) {
-        		// Swallow and ignore exceptions coming out of user code.
+        		TRACE_LOGGER.error("host " + hostname + ": caught exception from user-provided exception notification handler", e);
         	}
         }
     }
