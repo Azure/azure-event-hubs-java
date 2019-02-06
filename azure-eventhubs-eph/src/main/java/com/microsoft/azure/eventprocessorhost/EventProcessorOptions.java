@@ -212,7 +212,12 @@ public final class EventProcessorOptions {
         // Capture handler so it doesn't get set to null between test and use
         Consumer<ExceptionReceivedEventArgs> handler = this.exceptionNotificationHandler;
         if (handler != null) {
-            handler.accept(new ExceptionReceivedEventArgs(hostname, exception, action, partitionId));
+        	try {
+        		handler.accept(new ExceptionReceivedEventArgs(hostname, exception, action, partitionId));
+        	}
+        	catch (Exception e) {
+        		// Swallow and ignore exceptions coming out of user code.
+        	}
         }
     }
 
