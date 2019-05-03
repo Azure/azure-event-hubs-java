@@ -38,7 +38,7 @@ the required versions of Apache Qpid Proton-J, and the cryptography library BCPK
 
 |Package|Package Version|
 |--------|------------------|
-|azure-eventhubs|[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs)
+|azure-eventhubs|[![Maven Central](https://img.shields.io/badge/maven%20central-2.3.0-brightgreen.svg)](https://search.maven.org/#artifactdetails%7Ccom.microsoft.azure%7Cazure-eventhubs%7C2.3.00%7Cjar)
 
 ```XML
    	<dependency> 
@@ -55,7 +55,7 @@ It pulls the required versions of Event Hubs, Azure Storage and GSon libraries.
 
 |Package|Package Version|
 |--------|------------------|
-|azure-eventhubs-eph|[![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs-eph/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.microsoft.azure/azure-eventhubs-eph)
+|azure-eventhubs-eph|[![Maven Central](https://img.shields.io/badge/maven%20central-2.5.0-brightgreen.svg)](https://search.maven.org/#artifactdetails%7Ccom.microsoft.azure%7Cazure-eventhubs-eph%7C2.5.00%7Cjar)
 
 ```XML
    	<dependency> 
