@@ -62,16 +62,18 @@ public final class ConnectionStringBuilder {
     final static String SharedAccessKeyConfigName = "SharedAccessKey";
     final static String SharedAccessSignatureConfigName = "SharedAccessSignature";
     final static String TransportTypeConfigName = "TransportType";
+    final static String CustomHostnameConfigName = "CustomHostname";
 
     private static final String AllKeyEnumerateRegex = "(" + HostnameConfigName + "|" + EndpointConfigName + "|" + SharedAccessKeyNameConfigName
             + "|" + SharedAccessKeyConfigName + "|" + SharedAccessSignatureConfigName + "|" + EntityPathConfigName + "|" + OperationTimeoutConfigName
-            + "|" + TransportTypeConfigName + ")";
+            + "|" + TransportTypeConfigName + "|" + CustomHostnameConfigName + ")";
 
     private static final String KeysWithDelimitersRegex = KeyValuePairDelimiter + AllKeyEnumerateRegex
             + KeyValueSeparator;
 
     private URI endpoint;
     private String eventHubName;
+    private String customHostName;
     private String sharedAccessKeyName;
     private String sharedAccessKey;
     private String sharedAccessSignature;
@@ -112,6 +114,7 @@ public final class ConnectionStringBuilder {
         return this.endpoint;
     }
 
+
     /**
      * Set an endpoint which can be used to connect to the EventHub instance.
      *
@@ -123,6 +126,28 @@ public final class ConnectionStringBuilder {
     public ConnectionStringBuilder setEndpoint(URI endpoint) {
         this.endpoint = endpoint;
         return this;
+    }
+
+    /**
+     * Set an endpoint which can be used to connect to the EventHub instance.
+     *
+     * @param hostname Custom endpoint hostname without any prefixes, i.e. ehendpoint.mycompany.net
+     * @return the {@link ConnectionStringBuilder} being set.
+     */
+
+    public ConnectionStringBuilder setCustomHostName(String hostname) {
+        this.customHostName = hostname;
+        return this;
+    }
+
+    /**
+     * Get the custom endpoint host name from the connection string
+     *
+     * @return Custom endpoint host name
+     */
+
+    public String getCustomHostName() {
+        return this.customHostName;
     }
 
     /**
@@ -318,6 +343,11 @@ public final class ConnectionStringBuilder {
                     KeyValueSeparator, this.operationTimeout.toString(), KeyValuePairDelimiter));
         }
 
+        if (!StringUtil.isNullOrWhiteSpace(this.customHostName)) {
+            connectionStringBuilder.append(String.format(Locale.US, "%s%s%s%s", CustomHostnameConfigName,
+                    KeyValueSeparator, this.customHostName, KeyValuePairDelimiter));
+        }
+
         if (this.transportType != null) {
             connectionStringBuilder.append(String.format(Locale.US, "%s%s%s%s", TransportTypeConfigName,
                     KeyValueSeparator, this.transportType.toString(), KeyValuePairDelimiter));
@@ -336,6 +366,7 @@ public final class ConnectionStringBuilder {
         final String connection = KeyValuePairDelimiter + connectionString;
 
         final Pattern keyValuePattern = Pattern.compile(KeysWithDelimitersRegex, Pattern.CASE_INSENSITIVE);
+
         final String[] values = keyValuePattern.split(connection);
         final Matcher keys = keyValuePattern.matcher(connection);
 
@@ -396,6 +427,8 @@ public final class ConnectionStringBuilder {
                 this.sharedAccessSignature = values[valueIndex];
             } else if (key.equalsIgnoreCase(EntityPathConfigName)) {
                 this.eventHubName = values[valueIndex];
+            } else if (key.equalsIgnoreCase(CustomHostnameConfigName)) {
+                this.customHostName = values[valueIndex];
             } else if (key.equalsIgnoreCase(OperationTimeoutConfigName)) {
                 try {
                     this.operationTimeout = Duration.parse(values[valueIndex]);

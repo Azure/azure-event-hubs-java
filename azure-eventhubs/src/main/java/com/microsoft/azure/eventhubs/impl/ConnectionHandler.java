@@ -109,7 +109,7 @@ public class ConnectionHandler extends BaseHandler {
      * @return host name
      */
     public String getRemoteHostName() {
-        return amqpConnection.getHostName();
+        return !StringUtil.isNullOrEmpty(amqpConnection.getCustomHostName()) ? amqpConnection.getCustomHostName() : amqpConnection.getHostName();
     }
 
     /**

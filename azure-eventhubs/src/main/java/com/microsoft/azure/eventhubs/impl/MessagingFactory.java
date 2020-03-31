@@ -34,6 +34,7 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
 
     private static final Logger TRACE_LOGGER = LoggerFactory.getLogger(MessagingFactory.class);
     private final String hostName;
+    private final String customHost;
     private final CompletableFuture<Void> closeTask;
     private final ConnectionHandler connectionHandler;
     private final LinkedList<Link> registeredLinks;
@@ -62,6 +63,7 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
         super(StringUtil.getRandomString("MF"), null, executor);
 
         this.hostName = builder.getEndpoint().getHost();
+        this.customHost = builder.getCustomHostName();
         this.reactorFactory = reactorFactory;
         this.operationTimeout = builder.getOperationTimeout();
         this.retryPolicy = retryPolicy;
@@ -131,6 +133,11 @@ public final class MessagingFactory extends ClientEntity implements AmqpConnecti
     @Override
     public String getHostName() {
         return this.hostName;
+    }
+
+    @Override
+    public String getCustomHostName() {
+        return this.customHost;
     }
 
     private Reactor getReactor() {

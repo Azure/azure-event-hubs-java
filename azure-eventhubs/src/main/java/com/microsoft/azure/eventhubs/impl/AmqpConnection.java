@@ -22,4 +22,10 @@ public interface AmqpConnection {
     void registerForConnectionError(Link link);
 
     void deregisterForConnectionError(Link link);
+
+    /**
+     * Custom host name intended to be used on Amqp Connection Open frame
+     * @return host name
+     */
+    String getCustomHostName();
 }

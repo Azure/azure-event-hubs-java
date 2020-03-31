@@ -15,15 +15,16 @@ import java.time.Duration;
 import java.util.function.Consumer;
 
 public class ConnStrBuilderTest extends ApiTestBase {
-    static final String correctConnectionString = "Endpoint=sb://endpoint1;EntityPath=eventhub1;SharedAccessKeyName=somevalue;SharedAccessKey=something;OperationTimeout=PT5S;TransportType=AMQP";
+    static final String correctConnectionString = "Endpoint=sb://endpoint1;EntityPath=eventhub1;SharedAccessKeyName=somevalue;SharedAccessKey=/something=;OperationTimeout=PT5S;CustomHostname=bla.blip.blop.windows.net;TransportType=AMQP";
     static final Consumer<ConnectionStringBuilder> validateConnStrBuilder = new Consumer<ConnectionStringBuilder>() {
         @Override
         public void accept(ConnectionStringBuilder connStrBuilder) {
             Assert.assertTrue(connStrBuilder.getEventHubName().equals("eventhub1"));
             Assert.assertTrue(connStrBuilder.getEndpoint().getHost().equals("endpoint1"));
-            Assert.assertTrue(connStrBuilder.getSasKey().equals("something"));
+            Assert.assertTrue(connStrBuilder.getSasKey().equals("/something="));
             Assert.assertTrue(connStrBuilder.getSasKeyName().equals("somevalue"));
             Assert.assertTrue(connStrBuilder.getTransportType() == TransportType.AMQP);
+            Assert.assertTrue(connStrBuilder.getCustomHostName().equals("bla.blip.blop.windows.net"));
             Assert.assertTrue(connStrBuilder.getOperationTimeout().equals(Duration.ofSeconds(5)));
         }
     };
@@ -61,6 +62,7 @@ public class ConnStrBuilderTest extends ApiTestBase {
                 .setSasKeyName(connStrBuilder.getSasKeyName())
                 .setSasKey(connStrBuilder.getSasKey())
                 .setTransportType(connStrBuilder.getTransportType())
+                .setCustomHostName(connStrBuilder.getCustomHostName())
                 .setOperationTimeout(connStrBuilder.getOperationTimeout());
 
         validateConnStrBuilder.accept(new ConnectionStringBuilder(secondConnStr.toString()));
