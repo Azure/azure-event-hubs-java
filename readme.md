@@ -2,103 +2,25 @@
   <img src="event-hubs.png" alt="Microsoft Azure Event Hubs" width="100"/>
 </p>
 
-<h1 align="center">Microsoft Azure Event Hubs Client for Java
-<p align="center">
-  <a href="#star-our-repo">
-        <img src="https://img.shields.io/github/stars/azure/azure-event-hubs-java.svg?style=social&label=Stars"
-            alt="star our repo"></a>
-  <a href="https://twitter.com/intent/follow?screen_name=azureeventhubs">
-        <img src="https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Follow%20@azureeventhubs"
-            alt="follow on Twitter"></a>
-</p></h1>
+# Microsoft Azure Event Hubs Client for Java
 
-|Branch|Status|
-|------|-------------|
-|master|[![Build status](https://ci.appveyor.com/api/projects/status/dq8qyu2k3wu2uexd/branch/master?svg=true)](https://ci.appveyor.com/project/sabeegrewal/azure-event-hubs-java/branch/master)|
-|dev|[![Build status](https://ci.appveyor.com/api/projects/status/dq8qyu2k3wu2uexd/branch/dev?svg=true)](https://ci.appveyor.com/project/sabeegrewal/azure-event-hubs-java/branch/dev)|
+Azure Event Hubs is a highly scalable publish-subscribe service that can ingest millions of events per second and stream them into multiple applications. This lets you process and analyze the massive amounts of data produced by your connected devices and applications. Once Event Hubs has collected the data, you can retrieve, transform and store it by using any real-time analytics provider or with batching/storage adapters. 
 
-Azure Event Hubs is a hyper-scale data ingestion service, fully-managed by Microsoft, that enables you to collect, store and process trillions of events from websites, apps, IoT devices, and any stream of data.
+The Azure Events Hubs client library for .NET allows for both sending and receiving of events.  Most common scenarios call for an application to act as either an event publisher or an event consumer, but rarely both. 
 
-Refer to the [online documentation](https://azure.microsoft.com/services/event-hubs/) to learn more about Event Hubs in general and [General Overview document](Overview.md) for an overview of Event Hubs Client for Java.
+An **event publisher** is a source of telemetry data, diagnostics information, usage logs, or other log data, as 
+part of an embedded device solution, a mobile device application, a game title running on a console or other device, 
+some client or server based business solution, or a web site.  
 
-## Using the library 
+An **event consumer** picks up such information from the Event Hub and processes it. Processing may involve aggregation, complex 
+computation and filtering. Processing may also involve distribution or storage of the information in a raw or transformed fashion.
+Event Hub consumers are often robust and high-scale platform infrastructure parts with built-in analytics capabilities, like Azure 
+Stream Analytics, Apache Spark, or Apache Storm.  
 
-### Samples
+## We've moved!
 
-Code samples are [here](https://github.com/Azure/azure-event-hubs/tree/master/samples/Java).
+The Microsoft Azure Event Hubs Client for Java has joined the unified Azure Developer Platform and can now be found in the [Azure SDK for Java](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs) repository.  To view the latest source, participate in the development process, report issues, or engage with the community, please visit our new home.
 
-### Referencing the library
-
-Two java packages are released to Maven Central Repository from this GitHub repository.
-
-#### Microsoft Azure EventHubs Java Client
-
-This library exposes the send and receive APIs. This library will in turn pull further required dependencies, specifically 
-the required versions of Apache Qpid Proton-J, and the cryptography library BCPKIX by the Legion of Bouncy Castle.   
-
-|Package|Package Version|
-|--------|------------------|
-|azure-eventhubs|[![Maven Central](https://img.shields.io/badge/maven%20central-2.3.0-brightgreen.svg)](https://search.maven.org/#artifactdetails%7Ccom.microsoft.azure%7Cazure-eventhubs%7C2.3.00%7Cjar)
-
-```XML
-   	<dependency> 
-   		<groupId>com.microsoft.azure</groupId> 
-   		<artifactId>azure-eventhubs</artifactId> 
-   		<version>2.3.0</version>
-   	</dependency>
-```
-
-#### Microsoft Azure EventHubs Java Event Processor Host library
-
-This library exposes an out-of-the-box distributed partition processor for Event Hubs.
-It pulls the required versions of Event Hubs, Azure Storage and GSon libraries.
-
-|Package|Package Version|
-|--------|------------------|
-|azure-eventhubs-eph|[![Maven Central](https://img.shields.io/badge/maven%20central-2.5.0-brightgreen.svg)](https://search.maven.org/#artifactdetails%7Ccom.microsoft.azure%7Cazure-eventhubs-eph%7C2.5.00%7Cjar)
-
-```XML
-   	<dependency> 
-   		<groupId>com.microsoft.azure</groupId> 
-   		<artifactId>azure-eventhubs-eph</artifactId> 
-   		<version>2.5.0</version>
-   	</dependency>
-```  
-
-## How to provide feedback
-
-First, if you experience any issues with the runtime behavior of the Azure Event Hubs service, please consider filing a support request
-right away. Your options for [getting support are enumerated here](https://azure.microsoft.com/support/options/). In the Azure portal, 
-you can file a support request from the "Help and support" menu in the upper right hand corner of the page.   
-
-If you find issues in this library or have suggestions for improvement of code or documentation, you can [file an issue in the project's 
-GitHub repository](https://github.com/Azure/azure-event-hubs/issues) or send across a pull request - see our [Contribution Guidelines](./.github/CONTRIBUTING.md). 
-
-Issues related to runtime behavior of the service, such as sporadic exceptions or apparent service-side performance or reliability issues can not be handled here.
-
-Generally, if you want to discuss Azure Event Hubs or this client library with the community and the maintainers, you can turn to 
-[stackoverflow.com under the #azure-eventhub tag](http://stackoverflow.com/questions/tagged/azure-eventhub) or the 
-[MSDN Service Bus Forum](https://social.msdn.microsoft.com/Forums/en-US/home?forum=servbus). 
-
-## Build & contribute to the library
-
-You will generally not have to build this client library yourself - this library is available on maven central.
-If you have any specific requirement for which you want to contribute or need to generate a SNAPSHOT version, this section is for you.
-**Your contributions are welcome and encouraged!**
-
-We adopted maven build model and strive to keep the project model intuitive enough to developers. 
-If you need any help with any specific IDE or cannot get the build going in any environment - please open an issue.
-Here are few general topics, which we thought developers would need help with:
-
-### Running Integration tests
-
-Set the following two Environment variables to be able to run unit tests targeting Microsoft Azure EventHubs service:
-
-  * EVENT_HUB_CONNECTION_STRING - the event hub connection string to which the tests should target. the format of the connection string is: `Endpoint=----NAMESPACE_ENDPOINT------;EntityPath=----EVENTHUB_NAME----;SharedAccessKeyName=----KEY_NAME----;SharedAccessKey=----KEY_VALUE----`. [Here's how to create an Event Hub on Azure Portal and get the connection string](https://docs.microsoft.com/en-us/azure/event-hubs/event-hubs-create).
-
-  * EPHTESTSTORAGE - the Microsoft Azure Storage account connection string to use while running EPH tests. The format of the connection string is: `DefaultEndpointsProtocol=https;AccountName=---STORAGE_ACCOUNT_NAME---;AccountKey=---ACCOUNT_KEY---;EndpointSuffix=---ENPOINT_SUFFIX---`. For more details on this visit - [how to create an Azure Storage account connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-configure-connection-string#create-a-connection-string-for-an-azure-storage-account).
-
-### Explore the client library with IDEs
-
-* If you see any Build Errors - make sure the Execution Environment is set to JDK version 1.8 or higher
-
+This repository has been archived and is intended to provide historical reference and context for the Microsoft Azure Event Hubs Client for Java.
+  
+[Source code](https://github.com/Azure/azure-sdk-for-java/tree/master/sdk/eventhubs) in the folders beginning with "microsoft-azure-" | [Client JAR (Maven)](https://mvnrepository.com/artifact/com.microsoft.azure/azure-eventhubs) | [Event Processor Host JAR (Maven)](https://mvnrepository.com/artifact/com.microsoft.azure/azure-eventhubs-eph) | [Product documentation](https://docs.microsoft.com/en-us/azure/event-hubs/)
