@@ -37,7 +37,7 @@
 	<repositories>
 		<repository>
 			<id>HTTP proxy server in java</id>
-			<url>http://raw.github.com/SreeramGarlapati/jproxy/master/releases</url>
+			<url>https://raw.github.com/SreeramGarlapati/jproxy/master/releases</url>
 		</repository>
 	</repositories>
 	 <dependencies>
