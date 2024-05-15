@@ -29,7 +29,7 @@ public class TestApiApp
     	l.setLevel(Level.ALL);
     	
     	String username = "RootManageSharedAccessKey";
-		String password = "LHbmplGdVC7Lo7A1RAXXDgeHSM9WHIRvZmIt7m1y5w0=";
+		String password = "SASKEYHERE";
 		String namespaceName = "firstehub-ns";
 		
 		ConnectionStringBuilder connStr = new ConnectionStringBuilder(namespaceName, username, password);
